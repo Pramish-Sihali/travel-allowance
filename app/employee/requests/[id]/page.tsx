@@ -3,10 +3,12 @@ import EmployeeRequestDetail from '@/components/dashboard/EmployeeRequestDetail'
 import Link from 'next/link';
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function RequestDetailPage({ params }: PageProps) {
+export default async function RequestDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-blue-600 text-white p-4">
@@ -21,10 +23,8 @@ export default function RequestDetailPage({ params }: PageProps) {
       
       <main className="flex-grow bg-gray-50 p-6">
         <div className="max-w-6xl mx-auto">
-         
-          
           <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-            <EmployeeRequestDetail requestId={params.id} />
+            <EmployeeRequestDetail requestId={id} />
           </Suspense>
         </div>
       </main>
