@@ -3,8 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TravelRequest } from '@/types';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationsPanel from './NotificationsPanel';
-import { PlusCircle, Calendar, DollarSign, Clock, FileText, ExternalLink, BookOpen, Mail, HelpCircle, AlertTriangle } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Calendar, 
+  DollarSign, 
+  Clock, 
+  FileText, 
+  ExternalLink, 
+  BookOpen, 
+  Mail, 
+  HelpCircle, 
+  AlertTriangle,
+  ArrowRight,
+  ChevronRight
+} from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const router = useRouter();
@@ -57,6 +76,7 @@ export default function EmployeeDashboard() {
     router.push('/employee/requests/new');
   };
   
+  // Get CSS classes for status badges instead of using variants
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'pending':
@@ -81,257 +101,285 @@ export default function EmployeeDashboard() {
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+      <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
+          <Skeleton className="h-4 w-32 mx-auto" />
         </div>
       </div>
     );
   }
   
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <h1 className="text-2xl font-bold text-gray-800">My Travel Requests</h1>
-            <button
+        <div className="md:col-span-2 space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-2xl font-bold text-foreground">My Travel Requests</h1>
+            <Button
               onClick={handleNewRequest}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              className="flex items-center gap-2"
             >
-              <PlusCircle size={18} className="mr-2" />
+              <PlusCircle size={16} />
               New Request
-            </button>
+            </Button>
           </div>
           
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-400">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-yellow-100 mr-4">
-                  <Clock size={24} className="text-yellow-600" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-l-4 border-l-amber-400">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-amber-100">
+                    <Clock size={20} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Pending</p>
+                    <p className="text-xl font-bold">{stats.pending}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Pending</p>
-                  <p className="text-xl font-bold text-gray-800">{stats.pending}</p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
             
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-400">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-green-100 mr-4">
-                  <FileText size={24} className="text-green-600" />
+            <Card className="border-l-4 border-l-green-400">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-green-100">
+                    <FileText size={20} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Approved</p>
+                    <p className="text-xl font-bold">{stats.approved}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Approved</p>
-                  <p className="text-xl font-bold text-gray-800">{stats.approved}</p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
             
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-400">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-red-100 mr-4">
-                  <AlertTriangle size={24} className="text-red-600" />
+            <Card className="border-l-4 border-l-red-400">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-red-100">
+                    <AlertTriangle size={20} className="text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Rejected</p>
+                    <p className="text-xl font-bold">{stats.rejected}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Rejected</p>
-                  <p className="text-xl font-bold text-gray-800">{stats.rejected}</p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
             
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-400">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-blue-100 mr-4">
-                  <DollarSign size={24} className="text-blue-600" />
+            <Card className="border-l-4 border-l-blue-400">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-blue-100">
+                    <DollarSign size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Total Amount</p>
+                    <p className="text-xl font-bold">
+                      ${stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Total Amount</p>
-                  <p className="text-xl font-bold text-gray-800">
-                    ${stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                  </p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
           
           {requests.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <div className="mb-4">
-                <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500 mb-4">You haven't submitted any travel requests yet.</p>
-              </div>
-              <button
-                onClick={handleNewRequest}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
-              >
-                <PlusCircle size={18} className="inline mr-2" />
-                Create Your First Request
-              </button>
-            </div>
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="mb-4">
+                  <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-4">You haven't submitted any travel requests yet.</p>
+                </div>
+                <Button
+                  onClick={handleNewRequest}
+                  className="flex items-center gap-2"
+                  size="lg"
+                >
+                  <PlusCircle size={16} />
+                  Create Your First Request
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-600 text-sm">
-                      <th className="p-3 text-left font-semibold border-b">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Requests</CardTitle>
+                <CardDescription>
+                  View and manage your submitted travel requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
                         <div className="flex items-center">
-                          <FileText size={16} className="mr-2 text-gray-500" />
+                          <FileText size={16} className="mr-2 text-muted-foreground" />
                           Purpose
                         </div>
-                      </th>
-                      <th className="p-3 text-left font-semibold border-b">
+                      </TableHead>
+                      <TableHead>
                         <div className="flex items-center">
-                          <Calendar size={16} className="mr-2 text-gray-500" />
+                          <Calendar size={16} className="mr-2 text-muted-foreground" />
                           Dates
                         </div>
-                      </th>
-                      <th className="p-3 text-left font-semibold border-b">
+                      </TableHead>
+                      <TableHead>
                         <div className="flex items-center">
-                          <DollarSign size={16} className="mr-2 text-gray-500" />
+                          <DollarSign size={16} className="mr-2 text-muted-foreground" />
                           Amount
                         </div>
-                      </th>
-                      <th className="p-3 text-left font-semibold border-b">
+                      </TableHead>
+                      <TableHead>
                         <div className="flex items-center">
-                          <Clock size={16} className="mr-2 text-gray-500" />
+                          <Clock size={16} className="mr-2 text-muted-foreground" />
                           Status
                         </div>
-                      </th>
-                      <th className="p-3 text-left font-semibold border-b">Submitted On</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </TableHead>
+                      <TableHead>Submitted On</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {requests.map((request) => (
-                      <tr 
+                      <TableRow 
                         key={request.id} 
-                        className="border-b hover:bg-blue-50 transition-colors cursor-pointer" 
+                        className="cursor-pointer hover:bg-muted/50"
                         onClick={() => router.push(`/employee/requests/${request.id}`)}
                       >
-                        <td className="p-3">
-                          <div className="max-w-xs truncate font-medium text-gray-800" title={request.purpose}>
+                        <TableCell>
+                          <div className="max-w-[200px] truncate font-medium" title={request.purpose}>
                             {request.purpose.substring(0, 30)}
                             {request.purpose.length > 30 ? '...' : ''}
                           </div>
-                        </td>
-                        <td className="p-3">
+                        </TableCell>
+                        <TableCell>
                           <div className="flex flex-col text-sm">
-                            <span className="text-gray-800 font-medium">
+                            <span className="font-medium">
                               {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
                                 month: 'short',
                                 day: 'numeric'
                               })}
                             </span>
-                            <span className="text-gray-500">
+                            <span className="text-muted-foreground">
                               to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
                                 month: 'short',
                                 day: 'numeric'
                               })}
                             </span>
                           </div>
-                        </td>
-                        <td className="p-3 font-medium text-gray-800">
+                        </TableCell>
+                        <TableCell className="font-medium">
                           ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(request.status)}`}>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeClass(request.status)}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="p-3 text-gray-600 text-sm">
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
                           {new Date(request.createdAt).toLocaleDateString(undefined, {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric'
                           })}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  </TableBody>
+                </Table>
+              </CardContent>
+              <CardFooter className="justify-end text-sm text-muted-foreground">
+                <Button variant="ghost" className="flex items-center gap-1" onClick={() => router.push('/employee/requests')}>
+                  View all requests
+                  <ChevronRight size={16} />
+                </Button>
+              </CardFooter>
+            </Card>
           )}
           
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-800">
-              <BookOpen size={20} className="mr-2 text-blue-600" />
-              Policy Summary
-            </h2>
-            <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BookOpen size={18} className="text-primary" />
+                Policy Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <ul className="space-y-3">
                 {policyItems.map((item, index) => (
                   <li key={index} className="flex items-start">
-                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 mr-3">
-                      <span className="text-xs font-bold text-blue-600">{index + 1}</span>
+                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5 mr-3">
+                      <span className="text-xs font-bold text-primary">{index + 1}</span>
                     </div>
-                    <span className="text-gray-700">{item}</span>
+                    <span className="text-muted-foreground">{item}</span>
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
         
         <div className="md:col-span-1 space-y-6">
           <NotificationsPanel userId={employeeId} />
           
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-              <h2 className="font-semibold text-lg flex items-center">
-                <ExternalLink size={18} className="mr-2" />
+          <Card>
+            <CardHeader className=" text-black">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ExternalLink size={18} />
                 Quick Links
-              </h2>
-            </div>
-            <div className="p-4 divide-y">
-              <a 
-                href="#" 
-                className="flex items-center py-3 px-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <BookOpen size={18} className="mr-3 text-blue-600" />
-                <span>Travel Policy Documents</span>
-              </a>
-              <a 
-                href="#" 
-                className="flex items-center py-3 px-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <FileText size={18} className="mr-3 text-blue-600" />
-                <span>Expense Categories Guide</span>
-              </a>
-              <a 
-                href="#" 
-                className="flex items-center py-3 px-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <Mail size={18} className="mr-3 text-blue-600" />
-                <span>Contact Finance Department</span>
-              </a>
-              <a 
-                href="#" 
-                className="flex items-center py-3 px-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <HelpCircle size={18} className="mr-3 text-blue-600" />
-                <span>Frequently Asked Questions</span>
-              </a>
-            </div>
-          </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
+                >
+                  <BookOpen size={18} className="text-primary" />
+                  <span>Travel Policy Documents</span>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
+                >
+                  <FileText size={18} className="text-primary" />
+                  <span>Expense Categories Guide</span>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
+                >
+                  <Mail size={18} className="text-primary" />
+                  <span>Contact Finance Department</span>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
+                >
+                  <HelpCircle size={18} className="text-primary" />
+                  <span>Frequently Asked Questions</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="font-medium text-blue-800 mb-2">Need Help?</h3>
-            <p className="text-blue-700 text-sm mb-3">
-              If you have any questions about your travel reimbursements or need assistance with your requests, contact the finance team.
-            </p>
-            <a 
-              href="mailto:finance@company.com" 
-              className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              <Mail size={16} className="mr-1" />
-              finance@company.com
-            </a>
-          </div>
+          <Card className="bg-blue-50 border border-blue-200">
+            <CardContent className="p-4">
+              <h3 className="font-medium text-blue-800 mb-2">Need Help?</h3>
+              <p className="text-blue-700 text-sm mb-3">
+                If you have any questions about your travel reimbursements or need assistance with your requests, contact the finance team.
+              </p>
+              <Button variant="link" asChild className="p-0 h-auto text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <a href="mailto:finance@company.com">
+                  <Mail size={14} />
+                  finance@company.com
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

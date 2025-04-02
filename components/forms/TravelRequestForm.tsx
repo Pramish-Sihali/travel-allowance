@@ -5,6 +5,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExpenseCategory, TravelRequest } from '@/types';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon, CheckCircle2, FileText, Loader2, PaperclipIcon, UserIcon, CreditCard, MapPin, Receipt } from "lucide-react";
 
 interface ExpenseItemFormData {
   category: ExpenseCategory;
@@ -36,6 +49,9 @@ export default function TravelRequestForm() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -58,6 +74,27 @@ export default function TravelRequestForm() {
   
   const calculateTotalAmount = () => {
     return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+  };
+
+  // Update date state and form data when dates change
+  const handleDateFromChange = (date: Date | undefined) => {
+    setDateFrom(date);
+    if (date) {
+      setFormData(prev => ({ 
+        ...prev, 
+        travelDateFrom: format(date, 'yyyy-MM-dd') 
+      }));
+    }
+  };
+
+  const handleDateToChange = (date: Date | undefined) => {
+    setDateTo(date);
+    if (date) {
+      setFormData(prev => ({ 
+        ...prev, 
+        travelDateTo: format(date, 'yyyy-MM-dd') 
+      }));
+    }
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,176 +172,286 @@ export default function TravelRequestForm() {
       setIsSubmitting(false);
     }
   };
+
+  const getCategoryIcon = (category: string) => {
+    switch(category) {
+      case 'accommodation':
+        return <Receipt className="h-4 w-4" />;
+      case 'per-diem':
+        return <CreditCard className="h-4 w-4" />;
+      case 'vehicle-hiring':
+        return <MapPin className="h-4 w-4" />;
+      case 'program-cost':
+        return <FileText className="h-4 w-4" />;
+      case 'meeting-cost':
+        return <UserIcon className="h-4 w-4" />;
+      default:
+        return <Receipt className="h-4 w-4" />;
+    }
+  };
   
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold mb-6">Travel Request Form</h1>
+    <Card className="max-w-5xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-2xl">Travel Request Form</CardTitle>
+        <CardDescription>
+          Submit your travel expense reimbursement request
+        </CardDescription>
+      </CardHeader>
       
       <form onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-3">Employee Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Name</label>
-              <input
-                type="text"
-                name="employeeName"
-                value={formData.employeeName}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Department</label>
-              <input
-                type="text"
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Designation</label>
-              <input
-                type="text"
-                name="designation"
-                value={formData.designation}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-3">Travel Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Purpose of Travel</label>
-              <textarea
-                name="purpose"
-                value={formData.purpose}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                rows={3}
-                required
-              />
-            </div>
-            <div className="flex flex-col">
-              <div className="mb-4">
-                <label className="block mb-1">Travel Date From</label>
-                <input
-                  type="date"
-                  name="travelDateFrom"
-                  value={formData.travelDateFrom}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded"
-                  required
-                />
+        <CardContent className="space-y-6">
+          <Tabs defaultValue="employee" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="employee">Employee Information</TabsTrigger>
+              <TabsTrigger value="travel">Travel Details</TabsTrigger>
+              <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            </TabsList>
+            
+            {/* Employee Information Tab */}
+            <TabsContent value="employee" className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeName">Full Name</Label>
+                  <Input
+                    id="employeeName"
+                    name="employeeName"
+                    value={formData.employeeName}
+                    onChange={handleChange}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    placeholder="Your department"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="designation">Designation</Label>
+                  <Input
+                    id="designation"
+                    name="designation"
+                    value={formData.designation}
+                    onChange={handleChange}
+                    placeholder="Your job title"
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block mb-1">Travel Date To</label>
-                <input
-                  type="date"
-                  name="travelDateTo"
-                  value={formData.travelDateTo}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded"
-                  required
-                />
+            </TabsContent>
+            
+            {/* Travel Details Tab */}
+            <TabsContent value="travel" className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="purpose">Purpose of Travel</Label>
+                  <Textarea
+                    id="purpose"
+                    name="purpose"
+                    value={formData.purpose}
+                    onChange={handleChange}
+                    placeholder="Describe the purpose of your travel"
+                    className="min-h-32"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Travel Date From</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateFrom && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={dateFrom}
+                          onSelect={handleDateFromChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Travel Date To</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateTo && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={dateTo}
+                          onSelect={handleDateToChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </TabsContent>
+            
+            {/* Expenses Tab */}
+            <TabsContent value="expenses" className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="previousOutstandingAdvance">Previous Outstanding Advance (if any)</Label>
+                <div className="flex items-center">
+                  <span className="mr-2">$</span>
+                  <Input
+                    id="previousOutstandingAdvance"
+                    name="previousOutstandingAdvance"
+                    type="number"
+                    value={formData.previousOutstandingAdvance}
+                    onChange={handleChange}
+                    className="max-w-xs"
+                    min="0"
+                  />
+                </div>
+              </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Description (Optional)</TableHead>
+                      <TableHead>Receipts</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenseItems.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getCategoryIcon(item.category)}
+                            <span>
+                              {item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ')}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <span className="mr-2">$</span>
+                            <Input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value))}
+                              className="max-w-24"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            value={item.description || ''}
+                            onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
+                            placeholder="Brief description"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Label
+                              htmlFor={`receipt-${item.category}`}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent">
+                                <PaperclipIcon className="h-4 w-4" />
+                                <span>Upload</span>
+                              </div>
+                            </Label>
+                            <Input
+                              id={`receipt-${item.category}`}
+                              type="file"
+                              onChange={(e) => handleFileChange(item.category, e)}
+                              className="hidden"
+                            />
+                            {selectedFiles[item.category] && (
+                              <div className="flex items-center text-sm text-green-600">
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                <span className="truncate max-w-[12rem]">
+                                  {selectedFiles[item.category]?.name}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-medium">
+                      <TableCell>Total</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <span className="mr-1">$</span>
+                          <span>{calculateTotalAmount().toFixed(2)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell colSpan={2}></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
         
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-3">Expense Details</h2>
-          
-          <div className="mb-4">
-            <label className="block mb-1">Previous Outstanding Advance (if any)</label>
-            <input
-              type="number"
-              name="previousOutstandingAdvance"
-              value={formData.previousOutstandingAdvance}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              min="0"
-            />
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 text-left border">Category</th>
-                  <th className="p-2 text-left border">Amount</th>
-                  <th className="p-2 text-left border">Description (Optional)</th>
-                  <th className="p-2 text-left border">Receipts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenseItems.map((item, index) => (
-                  <tr key={index}>
-                    <td className="p-2 border">
-                      {item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ')}
-                    </td>
-                    <td className="p-2 border">
-                      <input
-                        type="number"
-                        value={item.amount}
-                        onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value))}
-                        className="w-full p-1 border rounded"
-                        min="0"
-                      />
-                    </td>
-                    <td className="p-2 border">
-                      <input
-                        type="text"
-                        value={item.description || ''}
-                        onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                        className="w-full p-1 border rounded"
-                      />
-                    </td>
-                    <td className="p-2 border">
-                      <input
-                        type="file"
-                        onChange={(e) => handleFileChange(item.category, e)}
-                        className="w-full p-1"
-                      />
-                    </td>
-                  </tr>
-                ))}
-                <tr className="font-bold">
-                  <td className="p-2 border">Total</td>
-                  <td className="p-2 border">{calculateTotalAmount()}</td>
-                  <td colSpan={2} className="p-2 border"></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
+        <CardFooter className="flex justify-between">
+          <Button 
+            type="button" 
+            variant="outline" 
             onClick={() => router.back()}
-            className="px-4 py-2 mr-2 bg-gray-300 rounded"
           >
             Cancel
-          </button>
-          <button
-            type="submit"
+          </Button>
+          <Button 
+            type="submit" 
             disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-blue-300"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Request'}
-          </button>
-        </div>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              'Submit Request'
+            )}
+          </Button>
+        </CardFooter>
       </form>
-    </div>
+    </Card>
   );
 }

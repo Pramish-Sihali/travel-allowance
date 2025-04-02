@@ -3,7 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TravelRequest } from '@/types';
-import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function ApproverDashboard() {
   const router = useRouter();
@@ -93,204 +102,270 @@ export default function ApproverDashboard() {
   }
   
   const handleViewDetails = (id: string) => {
-    // Use the RequestDetail component directly
-    window.location.href = `/approver/request-detail/${id}`;
+    router.push(`/approver/request-detail/${id}`);
   };
   
   const getSortIndicator = (key: string) => {
     if (sortConfig?.key !== key) {
-      return <ArrowUpDown size={14} className="ml-1 text-gray-400" />;
+      return <ArrowUpDown size={14} className="ml-1 text-muted-foreground" />;
     }
     
     if (sortConfig.direction === 'ascending') {
-      return <ArrowUpDown size={14} className="ml-1 text-blue-500" />;
+      return <ArrowUpDown size={14} className="ml-1 text-primary rotate-0" />;
     }
     
-    return <ArrowUpDown size={14} className="ml-1 text-blue-500 rotate-180" />;
+    return <ArrowUpDown size={14} className="ml-1 text-primary rotate-180" />;
   };
   
-  const getStatusBadgeClass = (status: string) => {
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
+  const getBadgeVariant = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'warning';
       case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'success';
       case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'destructive';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'secondary';
     }
   };
   
+  const renderSkeletonTable = () => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[180px]"><Skeleton className="h-4 w-3/4" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array(5).fill(0).map((_, index) => (
+            <TableRow key={index}>
+              <TableCell><Skeleton className="h-10 w-3/4" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-3/4" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+              <TableCell><Skeleton className="h-9 w-24" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+  
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <div className="flex items-center">
-            <Briefcase className="mr-2 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-800">Travel Requests Dashboard</h1>
+    <div className="max-w-7xl mx-auto p-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
+            <div className="flex items-center">
+              <Briefcase className="mr-2 text-primary h-5 w-5" />
+              <CardTitle>Travel Requests Dashboard</CardTitle>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search requests..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 max-w-[300px]"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Select
+                  value={filter}
+                  onValueChange={(value) => setFilter(value as 'all' | 'pending' | 'approved' | 'rejected')}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Filter requests" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending Requests</SelectItem>
+                    <SelectItem value="approved">Approved Requests</SelectItem>
+                    <SelectItem value="rejected">Rejected Requests</SelectItem>
+                    <SelectItem value="all">All Requests</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  variant="outline"
+                  onClick={handleRefresh} 
+                  disabled={loading}
+                  size="icon"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
           </div>
+          <CardDescription>
+            Manage and review employee travel reimbursement requests
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          {loading ? (
+            renderSkeletonTable()
+          ) : filteredRequests.length === 0 ? (
+            <div className="text-center py-12 border rounded-lg">
+              <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium text-muted-foreground mb-2">No travel requests found</p>
+              <p className="text-sm text-muted-foreground mb-6">Adjust your filters or check back later for new requests</p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('employeeName')}
+                    >
+                      <div className="flex items-center">
+                        <Users size={16} className="mr-2 text-muted-foreground" />
+                        Employee
+                        {getSortIndicator('employeeName')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('department')}
+                    >
+                      <div className="flex items-center">
+                        Department
+                        {getSortIndicator('department')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('travelDateFrom')}
+                    >
+                      <div className="flex items-center">
+                        <Calendar size={16} className="mr-2 text-muted-foreground" />
+                        Travel Dates
+                        {getSortIndicator('travelDateFrom')}
+                      </div>
+                    </TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('totalAmount')}
+                    >
+                      <div className="flex items-center">
+                        <DollarSign size={16} className="mr-2 text-muted-foreground" />
+                        Amount
+                        {getSortIndicator('totalAmount')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('status')}
+                    >
+                      <div className="flex items-center">
+                        <Clock size={16} className="mr-2 text-muted-foreground" />
+                        Status
+                        {getSortIndicator('status')}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRequests.map((request) => (
+                    <TableRow key={request.id} className="group">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              {getInitials(request.employeeName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="font-medium">{request.employeeName}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{request.department}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span>
+                            {new Date(request.travelDateFrom).toLocaleDateString()}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            to {new Date(request.travelDateTo).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="max-w-[200px] truncate">
+                                {request.purpose}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{request.purpose}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </TableCell>
+                      <TableCell>
+                        {/* <Badge variant={getBadgeVariant(request.status)}> */}
+                        <Badge >
+
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => handleViewDetails(request.id)}
+                          className="opacity-80 group-hover:opacity-100"
+                        >
+                          View Details
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search requests..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
-              />
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+          <div className="mt-4 text-sm text-muted-foreground flex justify-between items-center">
+            <div>
+              Total requests: {requests.length}
             </div>
-            
-            <div className="flex items-center bg-gray-100 rounded-lg">
-              <Filter className="ml-3 text-gray-500" size={18} />
-              <select 
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as 'all' | 'pending' | 'approved' | 'rejected')}
-                className="bg-transparent p-2 border-0 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="pending">Pending Requests</option>
-                <option value="approved">Approved Requests</option>
-                <option value="rejected">Rejected Requests</option>
-                <option value="all">All Requests</option>
-              </select>
+            <div>
+              Showing {filteredRequests.length} of {requests.length} requests
             </div>
-            
-            <button 
-              onClick={handleRefresh} 
-              className="flex items-center bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
-              disabled={loading}
-            >
-              <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
           </div>
-        </div>
-        
-        {loading ? (
-          <div className="flex justify-center items-center p-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="text-center p-12 bg-gray-50 rounded-lg border border-gray-200">
-            <Briefcase className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 text-lg mb-2">No travel requests found.</p>
-            <p className="text-gray-400">Adjust your filters or check back later for new requests.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 text-sm">
-                  <th 
-                    className="p-3 text-left font-semibold border-b cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('employeeName')}
-                  >
-                    <div className="flex items-center">
-                      <Users size={16} className="mr-2 text-gray-500" />
-                      Employee
-                      {getSortIndicator('employeeName')}
-                    </div>
-                  </th>
-                  <th 
-                    className="p-3 text-left font-semibold border-b cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('department')}
-                  >
-                    <div className="flex items-center">
-                      Department
-                      {getSortIndicator('department')}
-                    </div>
-                  </th>
-                  <th 
-                    className="p-3 text-left font-semibold border-b cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('travelDateFrom')}
-                  >
-                    <div className="flex items-center">
-                      <Calendar size={16} className="mr-2 text-gray-500" />
-                      Travel Dates
-                      {getSortIndicator('travelDateFrom')}
-                    </div>
-                  </th>
-                  <th className="p-3 text-left font-semibold border-b">Purpose</th>
-                  <th 
-                    className="p-3 text-left font-semibold border-b cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('totalAmount')}
-                  >
-                    <div className="flex items-center">
-                      <DollarSign size={16} className="mr-2 text-gray-500" />
-                      Amount
-                      {getSortIndicator('totalAmount')}
-                    </div>
-                  </th>
-                  <th 
-                    className="p-3 text-left font-semibold border-b cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('status')}
-                  >
-                    <div className="flex items-center">
-                      <Clock size={16} className="mr-2 text-gray-500" />
-                      Status
-                      {getSortIndicator('status')}
-                    </div>
-                  </th>
-                  <th className="p-3 text-center font-semibold border-b">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRequests.map((request) => (
-                  <tr key={request.id} className="border-b hover:bg-blue-50 transition-colors">
-                    <td className="p-3">
-                      <div className="font-medium text-gray-800">{request.employeeName}</div>
-                    </td>
-                    <td className="p-3 text-gray-600">{request.department}</td>
-                    <td className="p-3">
-                      <div className="flex flex-col">
-                        <span className="text-gray-800">
-                          {new Date(request.travelDateFrom).toLocaleDateString()}
-                        </span>
-                        <span className="text-gray-500 text-sm">
-                          to {new Date(request.travelDateTo).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="max-w-xs truncate" title={request.purpose}>
-                        {request.purpose.substring(0, 30)}
-                        {request.purpose.length > 30 ? '...' : ''}
-                      </div>
-                    </td>
-                    <td className="p-3 font-medium text-gray-800">
-                      ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(request.status)}`}>
-                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleViewDetails(request.id)}
-                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        <div className="mt-4 text-sm text-gray-500 flex justify-between items-center">
-          <div>
-            Total requests: {requests.length}
-          </div>
-          <div>
-            Showing {filteredRequests.length} of {requests.length} requests
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

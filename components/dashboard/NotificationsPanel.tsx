@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Notification } from '@/types';
-import { Bell, Check, X, Info, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Check, X, Info, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 
 interface NotificationsPanelProps {
   userId: string;
@@ -90,7 +96,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
     } else if (notification.message.toLowerCase().includes('rejected')) {
       return <X size={18} className="text-red-500" />;
     } else if (notification.message.toLowerCase().includes('reminder')) {
-      return <AlertTriangle size={18} className="text-yellow-500" />;
+      return <AlertTriangle size={18} className="text-amber-500" />;
     } else {
       return <Info size={18} className="text-blue-500" />;
     }
@@ -100,101 +106,135 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
   
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex items-center justify-center space-x-2 text-gray-500">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span>Loading notifications...</span>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell size={16} />
+              <span>Notifications</span>
+            </div>
+            <Skeleton className="h-6 w-6 rounded-full" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     );
   }
   
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 border-b flex justify-between items-center text-white">
-        <div className="flex items-center space-x-2">
-          <Bell size={20} className={unreadCount > 0 ? "animate-pulse" : ""} />
-          <h2 className="font-semibold text-lg">Notifications</h2>
-        </div>
-        <div className="flex items-center space-x-2">
-          {unreadCount > 0 && (
-            <>
-              <span className="px-2 py-1 bg-white text-blue-600 text-xs font-bold rounded-full">
-                {unreadCount}
-              </span>
-              <button 
-                onClick={markAllAsRead}
-                className="text-xs bg-blue-400 hover:bg-blue-300 text-white px-2 py-1 rounded transition-colors duration-200"
-                title="Mark all as read"
-              >
-                <Check size={16} />
-              </button>
-            </>
-          )}
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs bg-blue-400 hover:bg-blue-300 text-white px-2 py-1 rounded transition-colors duration-200"
-          >
-            {isExpanded ? "Collapse" : "Expand"}
-          </button>
-        </div>
-      </div>
-      
-      <div className={`divide-y ${isExpanded ? 'max-h-96' : 'max-h-64'} overflow-y-auto transition-all duration-300`}>
-        {notifications.length === 0 ? (
-          <div className="p-6 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
-            <Bell size={24} className="text-gray-400" />
-            <p>No notifications yet</p>
+    <Card>
+      <CardHeader className="pb-3 text-gray-900">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Bell size={18} className={unreadCount > 0 ? "animate-pulse" : ""} />
+            <CardTitle className="text-lg">Notifications</CardTitle>
           </div>
-        ) : (
-          notifications.map(notification => (
-            <div
-              key={notification.id}
-              className={`p-4 hover:bg-gray-50 transition-colors duration-200 ${!notification.isRead ? 'border-l-4 border-blue-500' : ''}`}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 ? (
+              <>
+                <Badge variant="secondary" className="bg-blue-600 text-primary">
+                  {unreadCount}
+                </Badge>
+                <Button 
+                  size="icon"
+                  variant="secondary"
+                  onClick={markAllAsRead}
+                  title="Mark all as read"
+                  className="h-7 w-7 bg-blabk/20 hover:bg-black/30 text-black"
+                >
+                  <Check size={14} />
+                </Button>
+              </>
+            ) : null}
+            <Button 
+              size="icon"
+              variant="secondary"
+              onClick={() => setIsExpanded(!isExpanded)}
+              title={isExpanded ? "Show less" : "Show more"}
+              className="h-7 w-7 bg-black/20 hover:bg-black/80 text-white"
             >
-              <div className="flex items-start space-x-3">
-                <div className="mt-1">
-                  {getNotificationIcon(notification)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-1">
-                    <p className={`${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
-                      {notification.message}
-                    </p>
-                    {!notification.isRead && (
-                      <button
-                        onClick={() => markAsRead(notification.id)}
-                        className="ml-2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-full transition-colors duration-200 flex items-center"
-                        title="Mark as read"
-                      >
-                        <Check size={12} className="mr-1" />
-                        <span>Read</span>
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(notification.createdAt).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short'
-                    })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      
-      {notifications.length > 0 && (
-        <div className="p-3 bg-gray-50 border-t text-center">
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-sm text-blue-500 hover:text-blue-700 transition-colors duration-200"
-          >
-            {isExpanded ? "Show less" : "Show all notifications"}
-          </button>
+              {isExpanded ? (
+                <RefreshCw size={14} />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+            </Button>
+          </div>
         </div>
+      </CardHeader>
+      
+      {notifications.length === 0 ? (
+        <CardContent className="p-6 text-center flex flex-col items-center justify-center">
+          <Bell size={24} className="text-muted-foreground mb-2" />
+          <p className="text-muted-foreground">No notifications yet</p>
+        </CardContent>
+      ) : (
+        <>
+          <CardContent className="p-0">
+            <ScrollArea className={isExpanded ? "h-96" : "h-64"}>
+              <div className="divide-y">
+                {notifications.map(notification => (
+                  <div
+                    key={notification.id}
+                    className={`p-4 hover:bg-muted/50 transition-colors ${!notification.isRead ? 'border-l-4 border-primary' : ''}`}
+                  >
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {getNotificationIcon(notification)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <p className={`${!notification.isRead ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                            {notification.message}
+                          </p>
+                          {!notification.isRead && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => markAsRead(notification.id)}
+                              title="Mark as read"
+                              className="h-6 w-6 rounded-full"
+                            >
+                              <Check size={12} />
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(notification.createdAt).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+          
+          <CardFooter className="p-2 justify-center bg-muted/30">
+            <Button
+              variant="ghost" 
+              size="sm"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isExpanded ? "Show fewer" : "Show all notifications"}
+            </Button>
+          </CardFooter>
+        </>
       )}
-    </div>
+    </Card>
   );
 }
