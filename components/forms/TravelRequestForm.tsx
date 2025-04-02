@@ -1,5 +1,3 @@
-// components/forms/TravelRequestForm.tsx
-
 'use client';
 
 import { useState } from 'react';
@@ -9,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
+// Removed date-fns and Calendar imports
 import { CalendarIcon, CheckCircle2, FileText, Loader2, PaperclipIcon, UserIcon, CreditCard, MapPin, Receipt } from "lucide-react";
 
 interface ExpenseItemFormData {
@@ -49,9 +46,6 @@ export default function TravelRequestForm() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -76,43 +70,13 @@ export default function TravelRequestForm() {
     return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
   };
 
-// Replace the entire block with these two methods
-const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const formatDisplayDate = (date: Date): string => {
-  const options: Intl.DateTimeFormatOptions = { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const handleTravelDateFromChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, travelDateFrom: e.target.value }));
   };
-  return date.toLocaleDateString(undefined, options);
-};
 
-// Update the methods that previously used date-fns
-const handleDateFromChange = (date: Date | undefined) => {
-  setDateFrom(date);
-  if (date) {
-    setFormData(prev => ({ 
-      ...prev, 
-      travelDateFrom: formatDate(date)
-    }));
-  }
-};
-
-const handleDateToChange = (date: Date | undefined) => {
-  setDateTo(date);
-  if (date) {
-    setFormData(prev => ({ 
-      ...prev, 
-      travelDateTo: formatDate(date)
-    }));
-  }
-};
+  const handleTravelDateToChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, travelDateTo: e.target.value }));
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,13 +127,13 @@ const handleDateToChange = (date: Date | undefined) => {
           // 3. Upload receipt if available
           const file = selectedFiles[expenseItem.category];
           if (file) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('expenseItemId', createdExpense.id);
+            const formDataFile = new FormData();
+            formDataFile.append('file', file);
+            formDataFile.append('expenseItemId', createdExpense.id);
             
             const uploadResponse = await fetch('/api/receipts/upload', {
               method: 'POST',
-              body: formData,
+              body: formDataFile,
             });
             
             if (!uploadResponse.ok) {
@@ -282,57 +246,28 @@ const handleDateToChange = (date: Date | undefined) => {
                   />
                 </div>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Travel Date From</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !dateFrom && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateFrom ? formatDisplayDate(dateFrom) : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dateFrom}
-                          onSelect={handleDateFromChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="travelDateFrom">Travel Date From</Label>
+                    <Input
+                      type="date"
+                      id="travelDateFrom"
+                      name="travelDateFrom"
+                      value={formData.travelDateFrom}
+                      onChange={handleTravelDateFromChange}
+                      required
+                    />
                   </div>
-                  
                   <div className="space-y-2">
-                    <Label>Travel Date To</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !dateTo && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateTo ? formatDisplayDate(dateTo) : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dateTo}
-                          onSelect={handleDateToChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="travelDateTo">Travel Date To</Label>
+                    <Input
+                      type="date"
+                      id="travelDateTo"
+                      name="travelDateTo"
+                      value={formData.travelDateTo}
+                      onChange={handleTravelDateToChange}
+                      required
+                    />
                   </div>
                 </div>
               </div>
@@ -446,7 +381,7 @@ const handleDateToChange = (date: Date | undefined) => {
           </Tabs>
         </CardContent>
         
-        <CardFooter className="flex justify-between mt-3">
+        <CardFooter className="flex justify-between">
           <Button 
             type="button" 
             variant="outline" 
