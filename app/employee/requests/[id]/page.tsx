@@ -1,16 +1,13 @@
-// app/employee/requests/[id]/page.tsx
-
 import { Suspense } from 'react';
 import EmployeeRequestDetail from '@/components/dashboard/EmployeeRequestDetail';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
-export default function RequestDetailPage({ params }: PageProps) {
-  const { id } = params;
+export default async function RequestDetailPage({ params }: PageProps) {
+  // Await the params promise to extract the id
+  const { id } = await params;
   
   return (
     <div className="min-h-screen flex flex-col">

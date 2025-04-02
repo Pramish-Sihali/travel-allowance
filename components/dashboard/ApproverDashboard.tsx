@@ -93,7 +93,8 @@ export default function ApproverDashboard() {
   }
   
   const handleViewDetails = (id: string) => {
-    router.push(`/approver/requests/${id}`);
+    // Use the RequestDetail component directly
+    window.location.href = `/approver/request-detail/${id}`;
   };
   
   const getSortIndicator = (key: string) => {

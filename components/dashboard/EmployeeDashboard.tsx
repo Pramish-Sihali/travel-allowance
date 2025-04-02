@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TravelRequest } from '@/types';
-import  NotificationsPanel  from './NotificationsPanel';
+import NotificationsPanel from './NotificationsPanel';
 import { PlusCircle, Calendar, DollarSign, Clock, FileText, ExternalLink, BookOpen, Mail, HelpCircle, AlertTriangle } from 'lucide-react';
 
 export default function EmployeeDashboard() {
@@ -69,6 +69,15 @@ export default function EmployeeDashboard() {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+  
+  // Policy items with standard quotes
+  const policyItems = [
+    'Employees must submit all invoices and supporting documents within three days of returning from the field.',
+    'The maximum lodging allowance for each official trip will be determined by the Board and the Finance Department based on the nature of the travel.',
+    'Local travel and food allowances will be covered through per-diem (NPR 1,500), and no invoices are needed for these expenses.',
+    'Accommodation and other costs will be reimbursed based on actual expenses, with invoices in the company\'s name required.',
+    'Any additional expenses for which reimbursement is requested must be supported by invoices or bills.'
+  ];
   
   if (loading) {
     return (
@@ -255,13 +264,7 @@ export default function EmployeeDashboard() {
             </h2>
             <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
               <ul className="space-y-3">
-                {[
-                  "Employees must submit all invoices and supporting documents within three days of returning from the field.",
-                  'The maximum lodging allowance for each official trip will be determined by the Board and the Finance Department based on the nature of the travel.',
-                  'Local travel and food allowances will be covered through per-diem (NPR 1,500), and no invoices are needed for these expenses.',
-                  "Accommodation and other costs will be reimbursed based on actual expenses, with invoices in the company's name required.",
-                  "Any additional expenses for which reimbursement is requested must be supported by invoices or bills."
-                ].map((item, index) => (
+                {policyItems.map((item, index) => (
                   <li key={index} className="flex items-start">
                     <div className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 mr-3">
                       <span className="text-xs font-bold text-blue-600">{index + 1}</span>

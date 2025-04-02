@@ -1,19 +1,9 @@
-// app/api/requests/[id]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getTravelRequestById, updateTravelRequestStatus, createNotification } from '@/lib/db';
 
-interface ContextParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(
-  request: NextRequest,
-  context: ContextParams
-) {
-  const id = context.params.id;
+export async function GET(request: NextRequest, context: unknown) {
+  const { params } = context as { params: { id: string } };
+  const id = params.id;
   const travelRequest = getTravelRequestById(id);
   
   if (!travelRequest) {
@@ -26,12 +16,10 @@ export async function GET(
   return NextResponse.json(travelRequest);
 }
 
-export async function PATCH(
-  request: NextRequest,
-  context: ContextParams
-) {
+export async function PATCH(request: NextRequest, context: unknown) {
+  const { params } = context as { params: { id: string } };
   try {
-    const id = context.params.id;
+    const id = params.id;
     const body = await request.json();
     const { status } = body;
     

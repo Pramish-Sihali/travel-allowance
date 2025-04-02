@@ -1,22 +1,21 @@
-// app/employee/requests/[id]/page.tsx
-
 import { Suspense } from 'react';
-import EmployeeRequestDetail from '@/components/dashboard/EmployeeRequestDetail';
+import RequestDetail from '@/components/dashboard/RequestDetail';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
-export default function RequestDetailPage({ params }: PageProps) {
+export default async function RequestDetailPage({ params }: PageProps) {
+  // Await the params promise to get the actual parameters
+  const { id } = await params;
+
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">
+      <header className="bg-green-600 text-white p-4">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">Travel Allowance System</h1>
           <div className="flex items-center space-x-4">
-            <span>Welcome, Employee</span>
+            <span>Welcome, Approver</span>
             <a href="/" className="text-sm underline">Logout</a>
           </div>
         </div>
@@ -24,14 +23,8 @@ export default function RequestDetailPage({ params }: PageProps) {
       
       <main className="flex-grow bg-gray-50 p-6">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
-            <a href="/employee/dashboard" className="text-blue-500 hover:underline">
-              &larr; Back to Dashboard
-            </a>
-          </div>
-          
           <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-            <EmployeeRequestDetail requestId={params.id} />
+            <RequestDetail requestId={id} />
           </Suspense>
         </div>
       </main>
