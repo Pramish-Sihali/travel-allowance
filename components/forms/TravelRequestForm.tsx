@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+
 import { CalendarIcon, CheckCircle2, FileText, Loader2, PaperclipIcon, UserIcon, CreditCard, MapPin, Receipt } from "lucide-react";
 
 interface ExpenseItemFormData {
@@ -76,26 +76,43 @@ export default function TravelRequestForm() {
     return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
   };
 
-  // Update date state and form data when dates change
-  const handleDateFromChange = (date: Date | undefined) => {
-    setDateFrom(date);
-    if (date) {
-      setFormData(prev => ({ 
-        ...prev, 
-        travelDateFrom: format(date, 'yyyy-MM-dd') 
-      }));
-    }
-  };
+// Replace the entire block with these two methods
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
-  const handleDateToChange = (date: Date | undefined) => {
-    setDateTo(date);
-    if (date) {
-      setFormData(prev => ({ 
-        ...prev, 
-        travelDateTo: format(date, 'yyyy-MM-dd') 
-      }));
-    }
+const formatDisplayDate = (date: Date): string => {
+  const options: Intl.DateTimeFormatOptions = { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
   };
+  return date.toLocaleDateString(undefined, options);
+};
+
+// Update the methods that previously used date-fns
+const handleDateFromChange = (date: Date | undefined) => {
+  setDateFrom(date);
+  if (date) {
+    setFormData(prev => ({ 
+      ...prev, 
+      travelDateFrom: formatDate(date)
+    }));
+  }
+};
+
+const handleDateToChange = (date: Date | undefined) => {
+  setDateTo(date);
+  if (date) {
+    setFormData(prev => ({ 
+      ...prev, 
+      travelDateTo: formatDate(date)
+    }));
+  }
+};
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,7 +295,7 @@ export default function TravelRequestForm() {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
+                          {dateFrom ? formatDisplayDate(dateFrom) : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -304,7 +321,7 @@ export default function TravelRequestForm() {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
+                          {dateTo ? formatDisplayDate(dateTo) : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
