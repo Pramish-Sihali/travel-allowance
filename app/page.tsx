@@ -1,13 +1,23 @@
 // app/page.tsx
-
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Travel Allowance System</h1>
+      <header className="bg-gradient-to-r from-blue-700 to-blue-500 text-white shadow-md">
+        <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
+          <div className="flex items-center space-x-2">
+            <svg 
+              className="w-8 h-8" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2"
+            >
+              <path d="M16 16V8H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h1 className="text-2xl font-bold tracking-tight">Travel Allowance System</h1>
+          </div>
         </div>
       </header>
       
@@ -21,16 +31,16 @@ export default function HomePage() {
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link 
-                  href="/employee/dashboard" 
+                <Link
+                  href="/employee/dashboard"
                   className="block p-6 bg-blue-500 text-white rounded-lg text-center hover:bg-blue-600 transition"
                 >
                   <h3 className="text-xl font-bold mb-2">Employee Portal</h3>
                   <p>Submit new travel requests and track existing requests</p>
                 </Link>
                 
-                <Link 
-                  href="/approver/dashboard" 
+                <Link
+                  href="/approver/dashboard"
                   className="block p-6 bg-green-500 text-white rounded-lg text-center hover:bg-green-600 transition"
                 >
                   <h3 className="text-xl font-bold mb-2">Approver Portal</h3>

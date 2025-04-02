@@ -292,10 +292,10 @@ export default function EmployeeDashboard() {
                 </Table>
               </CardContent>
               <CardFooter className="justify-end text-sm text-muted-foreground">
-                <Button variant="ghost" className="flex items-center gap-1" onClick={() => router.push('/employee/requests')}>
+                {/* <Button variant="ghost" className="flex items-center gap-1" onClick={() => router.push('/employee/requests')}>
                   View all requests
                   <ChevronRight size={16} />
-                </Button>
+                </Button> */}
               </CardFooter>
             </Card>
           )}
