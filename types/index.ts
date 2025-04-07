@@ -2,6 +2,8 @@
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
 
+export type RequestType = 'normal' | 'advance' | 'emergency';
+
 export type ExpenseCategory = 
   | 'accommodation' 
   | 'per-diem' 
@@ -21,6 +23,7 @@ export interface TravelRequest {
   travelDateTo: string;
   totalAmount: number;
   status: RequestStatus;
+  requestType: RequestType; // New field for request type
   createdAt: string;
   updatedAt: string;
   previousOutstandingAdvance?: number;

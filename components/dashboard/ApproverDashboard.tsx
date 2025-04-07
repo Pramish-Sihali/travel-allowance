@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight } from 'lucide-react';
+import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 export default function ApproverDashboard() {
   const router = useRouter();
@@ -152,12 +153,14 @@ export default function ApproverDashboard() {
             <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
             <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
             <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
+            <TableHead><Skeleton className="h-4 w-1/2" /></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {Array(5).fill(0).map((_, index) => (
             <TableRow key={index}>
               <TableCell><Skeleton className="h-10 w-3/4" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
               <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
               <TableCell><Skeleton className="h-4 w-3/4" /></TableCell>
               <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
@@ -251,6 +254,16 @@ export default function ApproverDashboard() {
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
+                      onClick={() => requestSort('requestType')}
+                    >
+                      <div className="flex items-center">
+                        <FileText size={16} className="mr-2 text-muted-foreground" />
+                        Type
+                        {getSortIndicator('requestType')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
                       onClick={() => requestSort('department')}
                     >
                       <div className="flex items-center">
@@ -305,6 +318,19 @@ export default function ApproverDashboard() {
                           <div className="font-medium">{request.employeeName}</div>
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          "flex items-center gap-1.5 w-fit",
+                          request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                          request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                          'bg-red-100 text-red-800 border-red-200'
+                        )}>
+                          {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                          {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                          {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                          {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{request.department}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
@@ -334,7 +360,6 @@ export default function ApproverDashboard() {
                         ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </TableCell>
                       <TableCell>
-                        {/* <Badge variant={getBadgeVariant(request.status)}> */}
                         <Badge className={getStatusBadgeClass(request.status)}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </Badge>

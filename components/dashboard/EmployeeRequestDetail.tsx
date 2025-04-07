@@ -46,7 +46,8 @@ import {
   MapPin, 
   User, 
   Briefcase, 
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import {
   Tooltip,
@@ -54,6 +55,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface EmployeeRequestDetailProps {
   requestId: string;
@@ -199,7 +201,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
     end: new Date(request.travelDateTo),
     duration: Math.ceil((new Date(request.travelDateTo).getTime() - new Date(request.travelDateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
   };
-  
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -365,7 +367,6 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-              
               {request.status === 'rejected' && (
                 <Alert className="bg-red-50 text-red-800 border-red-200">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -440,6 +441,16 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                   <div>
                     <p className="text-muted-foreground text-sm">Request ID</p>
                     <p className="font-mono">{request.id.substring(0, 8)}...</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-muted-foreground text-sm">Request Type</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {request.requestType === 'normal' && <FileText className="h-3.5 w-3.5 text-blue-500" />}
+                      {request.requestType === 'advance' && <CreditCard className="h-3.5 w-3.5 text-green-500" />}
+                      {request.requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                      <p className="capitalize">{request.requestType}</p>
+                    </div>
                   </div>
                   
                   <div>

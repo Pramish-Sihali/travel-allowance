@@ -13,8 +13,11 @@ import {
   Calendar, 
   Building, 
   AlertTriangle,
-  Info
+  Info,
+  FileText,
+  CreditCard
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface RequestDetailsTabProps {
   request: TravelRequest;
@@ -156,6 +159,22 @@ export default function RequestDetailsTab({ request, travelDates }: RequestDetai
               <p className="text-muted-foreground text-sm mb-1">Status</p>
               <Badge className={getStatusBadgeClass(request.status)}>
                 {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+              </Badge>
+            </div>
+            
+            <div>
+              <p className="text-muted-foreground text-sm mb-1">Request Type</p>
+              <Badge className={cn(
+                request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                'bg-red-100 text-red-800 border-red-200'
+              )}>
+                <span className="flex items-center gap-1.5">
+                  {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                  {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                  {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                  {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)}
+                </span>
               </Badge>
             </div>
             

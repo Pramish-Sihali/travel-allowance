@@ -22,8 +22,10 @@ import {
   HelpCircle, 
   AlertTriangle,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 export default function EmployeeDashboard() {
   const router = useRouter();
@@ -229,6 +231,12 @@ export default function EmployeeDashboard() {
                       </TableHead>
                       <TableHead>
                         <div className="flex items-center">
+                          <FileText size={16} className="mr-2 text-muted-foreground" />
+                          Type
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex items-center">
                           <DollarSign size={16} className="mr-2 text-muted-foreground" />
                           Amount
                         </div>
@@ -270,6 +278,19 @@ export default function EmployeeDashboard() {
                               })}
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn(
+                            "flex items-center gap-1.5 w-fit",
+                            request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                            'bg-red-100 text-red-800 border-red-200'
+                          )}>
+                            {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                            {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                            {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                            {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)}
+                          </Badge>
                         </TableCell>
                         <TableCell className="font-medium">
                           ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExpenseCategory, TravelRequest } from '@/types';
+import { ExpenseCategory, RequestType, TravelRequest } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-// Removed date-fns and Calendar imports
-import { CalendarIcon, CheckCircle2, FileText, Loader2, PaperclipIcon, UserIcon, CreditCard, MapPin, Receipt } from "lucide-react";
+import { CalendarIcon, CheckCircle2, FileText, Loader2, PaperclipIcon, UserIcon, CreditCard, MapPin, Receipt, AlertTriangle, Clock } from "lucide-react";
 
 interface ExpenseItemFormData {
   category: ExpenseCategory;
@@ -33,6 +33,7 @@ export default function TravelRequestForm() {
     travelDateFrom: '',
     travelDateTo: '',
     previousOutstandingAdvance: 0,
+    requestType: 'normal' as RequestType, // Default to normal request
   });
   
   const [expenseItems, setExpenseItems] = useState<ExpenseItemFormData[]>([
@@ -49,6 +50,10 @@ export default function TravelRequestForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRequestTypeChange = (value: string) => {
+    setFormData(prev => ({ ...prev, requestType: value as RequestType }));
   };
   
   const handleExpenseChange = (index: number, field: keyof ExpenseItemFormData, value: any) => {
@@ -170,6 +175,32 @@ export default function TravelRequestForm() {
         return <Receipt className="h-4 w-4" />;
     }
   };
+
+  const getRequestTypeDescription = () => {
+    switch(formData.requestType) {
+      case 'normal':
+        return "Standard travel request with regular processing time.";
+      case 'advance':
+        return "Request funds in advance of travel dates.";
+      case 'emergency':
+        return "Urgent request requiring immediate attention and quick processing.";
+      default:
+        return "";
+    }
+  };
+
+  const getRequestTypeIcon = () => {
+    switch(formData.requestType) {
+      case 'normal':
+        return <FileText className="h-5 w-5 text-blue-500" />;
+      case 'advance':
+        return <CreditCard className="h-5 w-5 text-green-500" />;
+      case 'emergency':
+        return <AlertTriangle className="h-5 w-5 text-red-500" />;
+      default:
+        return null;
+    }
+  };
   
   return (
     <Card className="max-w-5xl mx-auto">
@@ -183,11 +214,116 @@ export default function TravelRequestForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <Tabs defaultValue="employee" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="requestType">Request Type</TabsTrigger>
               <TabsTrigger value="employee">Employee Information</TabsTrigger>
               <TabsTrigger value="travel">Travel Details</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
             </TabsList>
+            
+            {/* Request Type Tab */}
+            <TabsContent value="requestType" className="space-y-4 pt-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  {getRequestTypeIcon()}
+                  <p className="text-sm text-muted-foreground">{getRequestTypeDescription()}</p>
+                </div>
+                
+                <RadioGroup 
+                  value={formData.requestType} 
+                  onValueChange={handleRequestTypeChange}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2"
+                >
+                  <div>
+                    <RadioGroupItem
+                      value="normal"
+                      id="requestType-normal"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="requestType-normal"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    >
+                      <FileText className="h-6 w-6 mb-3 text-blue-500" />
+                      <span className="font-medium">Normal Request</span>
+                      <span className="text-xs text-muted-foreground mt-1">Standard processing</span>
+                    </Label>
+                  </div>
+                  
+                  <div>
+                    <RadioGroupItem
+                      value="advance"
+                      id="requestType-advance"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="requestType-advance"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    >
+                      <CreditCard className="h-6 w-6 mb-3 text-green-500" />
+                      <span className="font-medium">Advance Request</span>
+                      <span className="text-xs text-muted-foreground mt-1">Get funds before travel</span>
+                    </Label>
+                  </div>
+                  
+                  <div>
+                    <RadioGroupItem
+                      value="emergency"
+                      id="requestType-emergency"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="requestType-emergency"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    >
+                      <AlertTriangle className="h-6 w-6 mb-3 text-red-500" />
+                      <span className="font-medium">Emergency Request</span>
+                      <span className="text-xs text-muted-foreground mt-1">Urgent processing</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+                
+                <div className="flex gap-4 mt-6 pt-4 border-t">
+                  <div className={cn(
+                    "p-4 rounded-md flex-1",
+                    formData.requestType === 'normal' && "bg-blue-50 border border-blue-100",
+                    formData.requestType === 'advance' && "bg-green-50 border border-green-100",
+                    formData.requestType === 'emergency' && "bg-red-50 border border-red-100",
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {formData.requestType === 'normal' && <Clock className="h-4 w-4 text-blue-500" />}
+                      {formData.requestType === 'advance' && <CreditCard className="h-4 w-4 text-green-500" />}
+                      {formData.requestType === 'emergency' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                      <h4 className={cn(
+                        "text-sm font-medium",
+                        formData.requestType === 'normal' && "text-blue-700",
+                        formData.requestType === 'advance' && "text-green-700",
+                        formData.requestType === 'emergency' && "text-red-700",
+                      )}>
+                        {formData.requestType.charAt(0).toUpperCase() + formData.requestType.slice(1)} Request Details
+                      </h4>
+                    </div>
+                    
+                    <p className={cn(
+                      "text-xs",
+                      formData.requestType === 'normal' && "text-blue-600",
+                      formData.requestType === 'advance' && "text-green-600",
+                      formData.requestType === 'emergency' && "text-red-600",
+                    )}>
+                      {formData.requestType === 'normal' && (
+                        "Regular travel requests are processed within 3-5 business days. Ideal for planned travel where there is adequate time for approval."
+                      )}
+                      {formData.requestType === 'advance' && (
+                        "Advance requests allow you to receive funds before travel. This request type requires at least 7 business days of processing time before your travel date."
+                      )}
+                      {formData.requestType === 'emergency' && (
+                        "Emergency requests are processed within 24 hours. This option should only be used for genuine urgent travel needs and requires additional justification."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
             
             {/* Employee Information Tab */}
             <TabsContent value="employee" className="space-y-4 pt-4">
