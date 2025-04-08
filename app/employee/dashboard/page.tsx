@@ -1,7 +1,12 @@
 // app/employee/dashboard/page.tsx
+
+'use client';
+
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import Link from 'next/link';
 import { UserCircle, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { signOut } from 'next-auth/react';
 
 export default function EmployeeDashboardPage() {
   return (
@@ -25,13 +30,13 @@ export default function EmployeeDashboardPage() {
               <UserCircle className="w-5 h-5" />
               <span className="font-medium">Welcome, Employee</span>
             </div>
-            <Link 
-              href="/" 
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-blue-800 hover:bg-blue-900 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </Link>
+            <Button 
+  onClick={() => signOut({ callbackUrl: '/' })}
+  className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-blue-800 hover:bg-blue-900 transition-colors"
+>
+  <LogOut className="w-4 h-4" />
+  <span>Logout</span>
+</Button>
           </div>
         </div>
       </header>
