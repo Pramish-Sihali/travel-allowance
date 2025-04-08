@@ -234,6 +234,11 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
     duration: Math.ceil((new Date(request.travelDateTo).getTime() - new Date(request.travelDateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
   };
   
+  // Safe display of request ID
+  const displayRequestId = typeof requestId === 'string' && requestId ? 
+    requestId.substring(0, 8) + '...' : 
+    'N/A';
+      
   return (
     <div className="max-w-6xl mx-auto p-6">
       {successMessage && (
@@ -274,7 +279,7 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
         <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
           <CardTitle className="text-xl">Travel Request Review</CardTitle>
           <CardDescription className="text-primary-foreground/90">
-            Request #{requestId.substring(0, 8)}
+            Request #{displayRequestId}
           </CardDescription>
         </CardHeader>
         

@@ -1,6 +1,7 @@
 // lib/db.ts
 
 import { TravelRequest, ExpenseItem, Receipt, Notification } from '@/types';
+import { UserRole } from '@/types/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 // This is a simple in-memory db for development
@@ -10,6 +11,55 @@ let travelRequests: TravelRequest[] = [];
 let expenseItems: ExpenseItem[] = [];
 let receipts: Receipt[] = [];
 let notifications: Notification[] = [];
+
+// User data for authentication
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  role: UserRole;
+}
+
+export const users: User[] = [
+  {
+    id: "1",
+    email: "employee@example.com",
+    name: "Employee User",
+    password: "password123", // In a real app, this would be hashed
+    role: "employee"
+  },
+  {
+    id: "2",
+    email: "approver@example.com",
+    name: "Approver User",
+    password: "password123",
+    role: "approver"
+  },
+  {
+    id: "3",
+    email: "checker@example.com",
+    name: "Checker User",
+    password: "password123",
+    role: "checker"
+  },
+  {
+    id: "4",
+    email: "admin@example.com",
+    name: "Admin User",
+    password: "password123",
+    role: "admin"
+  }
+];
+
+// User functions
+export const getUserByEmail = (email: string) => 
+  users.find(user => user.email === email);
+
+export const getUserById = (id: string) => 
+  users.find(user => user.id === id);
+
+export const getAllUsers = () => [...users];
 
 // Travel Requests
 export const getAllTravelRequests = () => [...travelRequests];

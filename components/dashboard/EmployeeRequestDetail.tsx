@@ -202,6 +202,9 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
     duration: Math.ceil((new Date(request.travelDateTo).getTime() - new Date(request.travelDateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
   };
 
+  // Get the request ID for display, but safely handle undefined
+  const displayRequestId = request?.id ? request.id.substring(0, 8) + '...' : 'N/A';
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -440,7 +443,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                 <CardContent className="space-y-4">
                   <div>
                     <p className="text-muted-foreground text-sm">Request ID</p>
-                    <p className="font-mono">{request.id.substring(0, 8)}...</p>
+                    <p className="font-mono">{displayRequestId}</p>
                   </div>
                   
                   <div>
