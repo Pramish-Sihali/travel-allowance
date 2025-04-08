@@ -1,0 +1,60 @@
+// Define the enum types
+enum UserType {
+  superadmin
+  employee
+  checker
+  approver
+}
+
+enum RequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum RequestType {
+  normal
+  advance
+  emergency
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name                      String?
+  email                     String?   @unique
+  emailVerified             DateTime?
+  image                     String?
+  password                  String?
+  designation               String
+  userType                  UserType  @default(employee)
+  createdAt                 DateTime  @default(now())
+  // Optional fields
+  forgotPasswordToken       String?
+  forgotPasswordTokenExpiry DateTime?
+  verifyToken               String?
+  verifyTokenExpiry         DateTime?
+}
+
+model TravelRequest {
+  id                         String        @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId                 String
+  employeeName               String
+  department                 String
+  designation                String
+  purpose                    String
+  travelDateFrom             String
+  travelDateTo               String
+  tratotalAmountvelDateTo    Int
+  status                     RequestStatus
+  requestType                RequestType
+  previousOutstandingAdvance Int?
+}

@@ -1,23 +1,28 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from "lucide-react";
+import { login } from "@/actions/login";
 
 export default function LoginForm() {
+  const searchParams = useSearchParams();
+
+  const callbackUrl = searchParams.get("callbackUrl");
+
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,12 +34,19 @@ export default function LoginForm() {
     setError(null);
     setIsLoading(true);
 
+    const data = {
+      email,
+      password,
+    };
+
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+      const result = await login(data, callbackUrl);
+
+      // const result = await signIn("credentials", {
+      //   email,
+      //   password,
+      //   redirect: false,
+      // });
 
       if (result?.error) {
         setError("Invalid email or password");
@@ -43,12 +55,12 @@ export default function LoginForm() {
       }
 
       // The middleware will handle the redirect based on user role
-      router.refresh();
-      
+      // router.refresh();
+
       // Force a reload after a short delay to ensure proper redirect
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // setTimeout(() => {
+      //   window.location.reload();
+      // }, 500);
     } catch (error) {
       setError("An unexpected error occurred");
       setIsLoading(false);
@@ -58,7 +70,9 @@ export default function LoginForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Travel Allowance System</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">
+          Travel Allowance System
+        </CardTitle>
         <CardDescription className="text-center">
           Enter your credentials to sign in to your account
         </CardDescription>
@@ -96,29 +110,35 @@ export default function LoginForm() {
               required
             />
           </div>
-          
+
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Demo Accounts:
-            </p>
+            <p className="text-sm text-muted-foreground">Demo Accounts:</p>
             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <div>
-                <p><strong>Employee:</strong></p>
+                <p>
+                  <strong>Employee:</strong>
+                </p>
                 <p>employee@example.com</p>
                 <p>password123</p>
               </div>
               <div>
-                <p><strong>Approver:</strong></p>
+                <p>
+                  <strong>Approver:</strong>
+                </p>
                 <p>approver@example.com</p>
                 <p>password123</p>
               </div>
               <div>
-                <p><strong>Checker:</strong></p>
+                <p>
+                  <strong>Checker:</strong>
+                </p>
                 <p>checker@example.com</p>
                 <p>password123</p>
               </div>
               <div>
-                <p><strong>Admin:</strong></p>
+                <p>
+                  <strong>Admin:</strong>
+                </p>
                 <p>admin@example.com</p>
                 <p>password123</p>
               </div>
@@ -126,17 +146,15 @@ export default function LoginForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isLoading}
-          >
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing in...
               </>
-            ) : "Sign In"}
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </CardFooter>
       </form>

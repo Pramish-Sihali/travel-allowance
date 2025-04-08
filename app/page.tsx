@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 
 import LoginForm from "@/components/auth/LoginForm";
 
-import { getSession } from "@/lib/server/auth";
-import { getDashboardForRole } from "@/lib/server/auth";
+// import { getSession } from "@/lib/server/auth";
+// import { getDashboardForRole } from "@/lib/server/auth";
 
 export const metadata: Metadata = {
   title: "Login - Travel Allowance System",
@@ -13,12 +13,12 @@ export const metadata: Metadata = {
 
 export default async function LoginPage() {
   // Check if the user is already logged in
-  const session = await getSession();
+  // const session = await getSession();
   
   // If the user is already logged in, redirect to their dashboard
-  if (session?.user) {
-    redirect(getDashboardForRole(session.user.role));
-  }
+  // if (session?.user) {
+  //   redirect(getDashboardForRole(session.user.role));
+  // }
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
