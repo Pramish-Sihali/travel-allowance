@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/server/auth";
 import Link from 'next/link';
 import { UserCircle, LogOut } from 'lucide-react';
 

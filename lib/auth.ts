@@ -1,59 +1,53 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { UserRole } from "@/types/auth";
-import { redirect } from "next/navigation";
+// lib/auth.ts
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { getUserByEmail } from "@/lib/db";
+import type { NextAuthOptions } from "next-auth";
 
-// Get the session on the server side
-export async function getSession() {
-  return await getServerSession(authOptions);
-}
-
-// Check if the user is authenticated
-export async function getCurrentUser() {
-  const session = await getSession();
-  
-  if (!session?.user) {
-    return null;
-  }
-  
-  return session.user;
-}
-
-// Protect a route based on authentication
-export async function requireAuth() {
-  const user = await getCurrentUser();
-  
-  if (!user) {
-    redirect("/");
-  }
-  
-  return user;
-}
-
-// Protect a route based on role
-export async function requireRole(allowedRoles: UserRole[]) {
-  const user = await requireAuth();
-  
-  if (!allowedRoles.includes(user.role)) {
-    // Redirect to the default dashboard for their role
-    redirect(getDashboardForRole(user.role));
-  }
-  
-  return user;
-}
-
-// Get the dashboard URL for a specific role
-export function getDashboardForRole(role: UserRole): string {
-  switch (role) {
-    case "employee":
-      return "/employee/dashboard";
-    case "approver":
-      return "/approver/dashboard";
-    case "checker":
-      return "/checker/dashboard";
-    case "admin":
-      return "/admin/dashboard";
-    default:
-      return "/";
-  }
-}
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "user@example.com" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        const user = await getUserByEmail(credentials.email);
+        if (!user || user.password !== credentials.password) return null;
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        };
+      }
+    })
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.role = token.role;
+        session.user.id = token.id as string;
+      }
+      return session;
+    }
+  },
+  pages: {
+    signIn: "/"
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
+  debug: process.env.NODE_ENV === "development",
+  secret: process.env.NEXTAUTH_SECRET || "mysecretkey12345678901234567890",
+};

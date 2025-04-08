@@ -1,8 +1,10 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+
 import LoginForm from "@/components/auth/LoginForm";
-import { getDashboardForRole } from "@/lib/auth";
+
+import { getSession } from "@/lib/server/auth";
+import { getDashboardForRole } from "@/lib/server/auth";
 
 export const metadata: Metadata = {
   title: "Login - Travel Allowance System",
