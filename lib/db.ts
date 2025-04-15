@@ -166,6 +166,10 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
           : data.previousOutstandingAdvance)
       : 0;
     
+    // Process boolean fields
+    const rideShareUsed = data.rideShareUsed === true;
+    const ownVehicleReimbursement = data.ownVehicleReimbursement === true;
+    
     const insertData = {
       employee_id: data.employeeId,
       employee_name: data.employeeName,
@@ -177,7 +181,19 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
       total_amount: totalAmount,
       status: data.status,
       request_type: data.requestType,
-      previous_outstanding_advance: previousAdvance
+      previous_outstanding_advance: previousAdvance,
+      // Add new fields
+      project: data.project,
+      project_other: data.projectOther,
+      purpose_type: data.purposeType,
+      purpose_other: data.purposeOther,
+      location: data.location,
+      location_other: data.locationOther,
+      transport_mode: data.transportMode,
+      station_pick_drop: data.stationPickDrop,
+      local_conveyance: data.localConveyance,
+      ride_share_used: rideShareUsed,
+      own_vehicle_reimbursement: ownVehicleReimbursement
     };
 
     console.log('Inserting travel request with data:', insertData);
@@ -210,6 +226,18 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
       status: newRequest.status,
       requestType: newRequest.request_type,
       previousOutstandingAdvance: newRequest.previous_outstanding_advance,
+      // Include new fields in return
+      project: newRequest.project,
+      projectOther: newRequest.project_other,
+      purposeType: newRequest.purpose_type,
+      purposeOther: newRequest.purpose_other,
+      location: newRequest.location,
+      locationOther: newRequest.location_other,
+      transportMode: newRequest.transport_mode,
+      stationPickDrop: newRequest.station_pick_drop,
+      localConveyance: newRequest.local_conveyance,
+      rideShareUsed: newRequest.ride_share_used,
+      ownVehicleReimbursement: newRequest.own_vehicle_reimbursement,
       createdAt: newRequest.created_at,
       updatedAt: newRequest.updated_at
     };

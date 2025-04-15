@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import EmployeeRequestDetail from '@/components/dashboard/EmployeeRequestDetail';
-import Link from 'next/link';
+import Header from '@/components/layout/Header';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -10,18 +10,10 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const { id } = await params;
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Travel Allowance System</h1>
-          <div className="flex items-center space-x-4">
-            <span>Welcome, Employee</span>
-            <Link href="/" className="text-sm underline">Logout</Link>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header variant="employee" />
       
-      <main className="flex-grow bg-gray-50 p-6">
+      <main className="flex-grow p-6">
         <div className="max-w-6xl mx-auto">
           <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
             <EmployeeRequestDetail requestId={id} />

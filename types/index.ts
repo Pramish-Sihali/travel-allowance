@@ -22,6 +22,19 @@ export interface TravelRequest {
   }[];
   requestType: RequestType;
   previousOutstandingAdvance: number;
+  // New fields
+  project?: string;
+  projectOther?: string;
+  purposeType?: string;
+  purposeOther?: string;
+  location?: string;
+  locationOther?: string;
+  transportMode?: string;
+  stationPickDrop?: string;
+  localConveyance?: string;
+  rideShareUsed?: boolean;
+  ownVehicleReimbursement?: boolean;
+  // Original fields
   createdAt: string | Date;
   updatedAt?: string | Date;
   comments?: string;

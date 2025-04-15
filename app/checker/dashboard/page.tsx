@@ -1,58 +1,28 @@
-// app/checker/dashboard/page.tsx
-
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
-import { UserCircle, LogOut } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { useRouter } from 'next/navigation';
 import CheckerDashboard from '@/components/dashboard/CheckerDashboard';
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import Header from '@/components/layout/Header';
 
 export default function CheckerDashboardPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   
   // Redirect if not checker or admin (as fallback)
   useEffect(() => {
     if (status === 'authenticated' && 
         !['checker', 'admin'].includes(session?.user?.role || '')) {
-      window.location.href = '/';
+      router.push('/');
     }
-  }, [session, status]);
+  }, [session, status, router]);
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-gradient-to-r from-purple-700 to-purple-500 text-white shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-          <div className="flex items-center space-x-2">
-            <svg 
-              className="w-8 h-8" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2"
-            >
-              <path d="M16 16V8H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h1 className="text-2xl font-bold tracking-tight">Travel Allowance System</h1>
-          </div>
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <UserCircle className="w-5 h-5" />
-              <span className="font-medium">Welcome, {session?.user?.name || "Checker"}</span>
-            </div>
-            <Button 
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-purple-800 hover:bg-purple-900 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header variant="checker" />
       
-      <main className="flex-grow bg-gray-50 p-6">
+      <main className="flex-grow p-6">
         <CheckerDashboard />
       </main>
       
