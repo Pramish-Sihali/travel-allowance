@@ -1,16 +1,13 @@
 // app/api/notifications/[id]/read/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { markNotificationAsRead } from '@/lib/db'
 
 export async function PATCH(
   req: NextRequest,
-  // Context must be typed as a Promise so we can await its `params`
-  context: Promise<{ params: { id: string } }>
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // Await the context to safely access params.id
-  const { params } = await context
-  const { id } = params
+  // await the params promise to get your id
+  const { id } = await params
 
   try {
     const notification = await markNotificationAsRead(id)
