@@ -537,7 +537,7 @@ export default function TravelRequestForm() {
           </Tabs>
         </CardContent>
         
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-between mt-2">
           <Button 
             type="button" 
             variant="outline" 
