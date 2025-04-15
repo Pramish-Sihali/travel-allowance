@@ -271,16 +271,16 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
       </div>
       
       <Card>
-        <CardHeader className="bg-gradient-to-r from-purple-700 to-purple-500 text-white">
+        <CardHeader>
           <CardTitle className="text-xl">Financial Verification</CardTitle>
-          <CardDescription className="text-white/90">
+          <CardDescription >
             Request #{displayRequestId}
           </CardDescription>
         </CardHeader>
         
         <CardContent className="p-0">
           <Tabs defaultValue="details" className="w-full">
-            <div className="px-6 pt-6 border-b">
+            <div className="px-6 p-4 border-b">
               <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
                 <TabsTrigger value="details" className="flex items-center gap-2">
                   <FileText size={16} />

@@ -187,7 +187,7 @@ export default function ApproverDashboard() {
   );
   
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-9xl mx-auto p-6">
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">

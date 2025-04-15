@@ -22,7 +22,9 @@ export default function CheckerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<TravelRequest[]>([]);
   const [completedRequests, setCompletedRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('pending_verification');
+  // const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('pending_verification');
+  const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('all');
+
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);

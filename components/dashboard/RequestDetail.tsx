@@ -289,16 +289,16 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
       </div>
       
       <Card>
-        <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-          <CardTitle className="text-xl">Travel Request Review</CardTitle>
-          <CardDescription className="text-primary-foreground/90">
+        <CardHeader >
+          <CardTitle className="text-xl ">Travel Request Review</CardTitle>
+          <CardDescription >
             Request #{displayRequestId}
           </CardDescription>
         </CardHeader>
         
         <CardContent className="p-0">
           <Tabs defaultValue="details" className="w-full">
-            <div className="px-6 pt-6 border-b">
+            <div className="px-6 p-4 border-b">
               <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
                 <TabsTrigger value="details" className="flex items-center gap-2">
                   <FileText size={16} />
