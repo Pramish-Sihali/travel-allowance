@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSession } from "next-auth/react";
+import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from './NotificationsPanel';
 import { 
   PlusCircle, 
@@ -29,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 export default function EmployeeDashboard() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -38,18 +41,22 @@ export default function EmployeeDashboard() {
     totalAmount: 0
   });
   
-  // Hardcoded employee ID (would come from auth in a real app)
-  const employeeId = '123';
+  // Get employeeId from session, or generate one if not available
+  const employeeId = session?.user?.id || uuidv4();
   
   useEffect(() => {
     const fetchRequests = async () => {
+      if (status === 'loading') return;
+      
       try {
+        setLoading(true);
         const response = await fetch(`/api/requests?employeeId=${employeeId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch requests');
         }
         
         const data = await response.json();
+        console.log('Fetched employee requests:', data);
         setRequests(data);
         
         // Calculate statistics
@@ -72,7 +79,7 @@ export default function EmployeeDashboard() {
     };
     
     fetchRequests();
-  }, [employeeId]);
+  }, [employeeId, status]);
   
   const handleNewRequest = () => {
     router.push('/employee/requests/new');
@@ -286,10 +293,10 @@ export default function EmployeeDashboard() {
                             request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
                             'bg-red-100 text-red-800 border-red-200'
                           )}>
-                            {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                            {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
                             {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
                             {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                            {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)}
+                            {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">

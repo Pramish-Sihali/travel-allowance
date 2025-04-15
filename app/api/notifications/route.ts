@@ -14,7 +14,14 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  const notifications = getNotificationsByUserId(userId);
-  
-  return NextResponse.json(notifications);
+  try {
+    const notifications = await getNotificationsByUserId(userId);
+    return NextResponse.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch notifications' },
+      { status: 500 }
+    );
+  }
 }

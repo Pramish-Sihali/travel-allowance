@@ -1,141 +1,418 @@
 // lib/db.ts
 
+import { supabase } from './supabase';
 import { TravelRequest, ExpenseItem, Receipt, Notification } from '@/types';
 import { UserRole } from '@/types/auth';
-import { v4 as uuidv4 } from 'uuid';
-
-// This is a simple in-memory db for development
-// In production, you would use a real database
-
-let travelRequests: TravelRequest[] = [];
-let expenseItems: ExpenseItem[] = [];
-let receipts: Receipt[] = [];
-let notifications: Notification[] = [];
-
-// User data for authentication
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  password: string;
-  role: UserRole;
-}
-
-export const users: User[] = [
-  {
-    id: "1",
-    email: "employee@example.com",
-    name: "Employee User",
-    password: "password123", // In a real app, this would be hashed
-    role: "employee"
-  },
-  {
-    id: "2",
-    email: "approver@example.com",
-    name: "Approver User",
-    password: "password123",
-    role: "approver"
-  },
-  {
-    id: "3",
-    email: "checker@example.com",
-    name: "Checker User",
-    password: "password123",
-    role: "checker"
-  },
-  {
-    id: "4",
-    email: "admin@example.com",
-    name: "Admin User",
-    password: "password123",
-    role: "admin"
-  }
-];
 
 // User functions
-export const getUserByEmail = (email: string) => 
-  users.find(user => user.email === email);
+export const getUserByEmail = async (email: string) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .single();
+  
+  if (error) return null;
+  return data;
+};
 
-export const getUserById = (id: string) => 
-  users.find(user => user.id === id);
+export const getUserById = async (id: string) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) return null;
+  return data;
+};
 
-export const getAllUsers = () => [...users];
+export const getAllUsers = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*');
+  
+  if (error) return [];
+  return data;
+};
 
 // Travel Requests
-export const getAllTravelRequests = () => [...travelRequests];
-export const getTravelRequestsByEmployeeId = (employeeId: string) => 
-  travelRequests.filter(req => req.employeeId === employeeId);
-export const getTravelRequestById = (id: string) => 
-  travelRequests.find(req => req.id === id);
-export const createTravelRequest = (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
-  const newRequest: TravelRequest = {
-    ...data,
-    id: uuidv4(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  travelRequests.push(newRequest);
-  return newRequest;
+
+export const getAllTravelRequests = async () => {
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  // Map database column names to frontend field names and provide defaults
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'pending',
+    requestType: item.request_type || 'normal', // Default to normal if undefined
+    previousOutstandingAdvance: item.previous_outstanding_advance || 0,
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString()
+  }));
 };
-export const updateTravelRequestStatus = (id: string, status: TravelRequest['status']) => {
-  const index = travelRequests.findIndex(req => req.id === id);
-  if (index !== -1) {
-    travelRequests[index] = {
-      ...travelRequests[index],
-      status,
-      updatedAt: new Date().toISOString(),
+
+export const getTravelRequestsByEmployeeId = async (employeeId: string) => {
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  // Map database column names to frontend field names and provide defaults
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'pending',
+    requestType: item.request_type || 'normal', // Default to normal if undefined
+    previousOutstandingAdvance: item.previous_outstanding_advance || 0,
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString()
+  }));
+};
+
+export const getTravelRequestById = async (id: string) => {
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) return null;
+  
+  // Map database column names to frontend field names and provide defaults
+  return {
+    id: data.id,
+    employeeId: data.employee_id || '',
+    employeeName: data.employee_name || 'Unknown',
+    department: data.department || '',
+    designation: data.designation || '',
+    purpose: data.purpose || '',
+    travelDateFrom: data.travel_date_from || new Date().toISOString(),
+    travelDateTo: data.travel_date_to || new Date().toISOString(),
+    totalAmount: data.total_amount || 0,
+    status: data.status || 'pending',
+    requestType: data.request_type || 'normal', // Default to normal if undefined
+    previousOutstandingAdvance: data.previous_outstanding_advance || 0,
+    createdAt: data.created_at || new Date().toISOString(),
+    updatedAt: data.updated_at || new Date().toISOString(),
+    comments: data.comments
+  };
+};
+
+export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
+  try {
+    // Ensure date conversion is correct - start with midnight for consistency
+    let travelDateFrom, travelDateTo;
+    
+    try {
+      if (typeof data.travelDateFrom === 'string') {
+        // Ensure the date has a time component by adding T00:00:00Z
+        if (data.travelDateFrom.includes('T')) {
+          travelDateFrom = data.travelDateFrom;
+        } else {
+          travelDateFrom = `${data.travelDateFrom}T00:00:00Z`;
+        }
+      } else {
+        travelDateFrom = new Date(data.travelDateFrom).toISOString();
+      }
+      
+      if (typeof data.travelDateTo === 'string') {
+        // Ensure the date has a time component by adding T00:00:00Z
+        if (data.travelDateTo.includes('T')) {
+          travelDateTo = data.travelDateTo;
+        } else {
+          travelDateTo = `${data.travelDateTo}T00:00:00Z`;
+        }
+      } else {
+        travelDateTo = new Date(data.travelDateTo).toISOString();
+      }
+    } catch (e: unknown) {
+      console.error('Date conversion error:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      throw new Error(`Date conversion failed: ${errorMessage}`);
+    }
+
+    // Parse total amount to ensure it's a number
+    const totalAmount = typeof data.totalAmount === 'string' 
+      ? parseFloat(data.totalAmount) 
+      : data.totalAmount;
+    
+    const previousAdvance = data.previousOutstandingAdvance
+      ? (typeof data.previousOutstandingAdvance === 'string'
+          ? parseFloat(data.previousOutstandingAdvance)
+          : data.previousOutstandingAdvance)
+      : 0;
+    
+    const insertData = {
+      employee_id: data.employeeId,
+      employee_name: data.employeeName,
+      department: data.department,
+      designation: data.designation,
+      purpose: data.purpose,
+      travel_date_from: travelDateFrom,
+      travel_date_to: travelDateTo,
+      total_amount: totalAmount,
+      status: data.status,
+      request_type: data.requestType,
+      previous_outstanding_advance: previousAdvance
     };
-    return travelRequests[index];
+
+    console.log('Inserting travel request with data:', insertData);
+    
+    const { data: newRequest, error } = await supabase
+      .from('travel_requests')
+      .insert([insertData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error creating travel request:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    if (!newRequest) {
+      throw new Error('No data returned from travel request creation');
+    }
+    
+    return {
+      id: newRequest.id,
+      employeeId: newRequest.employee_id,
+      employeeName: newRequest.employee_name,
+      department: newRequest.department,
+      designation: newRequest.designation,
+      purpose: newRequest.purpose,
+      travelDateFrom: newRequest.travel_date_from,
+      travelDateTo: newRequest.travel_date_to,
+      totalAmount: newRequest.total_amount,
+      status: newRequest.status,
+      requestType: newRequest.request_type,
+      previousOutstandingAdvance: newRequest.previous_outstanding_advance,
+      createdAt: newRequest.created_at,
+      updatedAt: newRequest.updated_at
+    };
+  } catch (error: unknown) {
+    console.error('Error in createTravelRequest:', error);
+    throw error;
   }
-  return null;
+};
+
+export const updateTravelRequestStatus = async (id: string, status: TravelRequest['status']) => {
+  const { data: updatedRequest, error } = await supabase
+    .from('travel_requests')
+    .update({ 
+      status, 
+      updated_at: new Date().toISOString() 
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) return null;
+  
+  return {
+    id: updatedRequest.id,
+    employeeId: updatedRequest.employee_id,
+    employeeName: updatedRequest.employee_name,
+    department: updatedRequest.department,
+    designation: updatedRequest.designation,
+    purpose: updatedRequest.purpose,
+    travelDateFrom: updatedRequest.travel_date_from,
+    travelDateTo: updatedRequest.travel_date_to,
+    totalAmount: updatedRequest.total_amount,
+    status: updatedRequest.status,
+    requestType: updatedRequest.request_type,
+    previousOutstandingAdvance: updatedRequest.previous_outstanding_advance,
+    createdAt: updatedRequest.created_at,
+    updatedAt: updatedRequest.updated_at
+  };
 };
 
 // Expense Items
-export const getExpenseItemsByRequestId = (requestId: string) => 
-  expenseItems.filter(item => item.requestId === requestId);
-export const createExpenseItem = (data: Omit<ExpenseItem, 'id'>) => {
-  const newItem: ExpenseItem = {
-    ...data,
-    id: uuidv4(),
-  };
-  expenseItems.push(newItem);
-  return newItem;
+export const getExpenseItemsByRequestId = async (requestId: string) => {
+  const { data, error } = await supabase
+    .from('expense_items')
+    .select('*')
+    .eq('request_id', requestId);
+  
+  if (error) return [];
+  
+  return data.map(item => ({
+    id: item.id,
+    requestId: item.request_id,
+    category: item.category || 'other',
+    amount: item.amount || 0,
+    description: item.description || ''
+  }));
+};
+
+export const createExpenseItem = async (data: Omit<ExpenseItem, 'id'>) => {
+  try {
+    // Ensure amount is a number
+    const amount = typeof data.amount === 'string' 
+      ? parseFloat(data.amount) 
+      : data.amount;
+    
+    const { data: newItem, error } = await supabase
+      .from('expense_items')
+      .insert([{
+        request_id: data.requestId,
+        category: data.category,
+        amount: amount,
+        description: data.description
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error creating expense item:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    return {
+      id: newItem.id,
+      requestId: newItem.request_id,
+      category: newItem.category,
+      amount: newItem.amount,
+      description: newItem.description
+    };
+  } catch (error: unknown) {
+    console.error('Error in createExpenseItem:', error);
+    throw error;
+  }
 };
 
 // Receipts
-export const getReceiptsByExpenseItemId = (expenseItemId: string) => 
-  receipts.filter(receipt => receipt.expenseItemId === expenseItemId);
-export const createReceipt = (data: Omit<Receipt, 'id' | 'uploadDate'>) => {
-  const newReceipt: Receipt = {
-    ...data,
-    id: uuidv4(),
-    uploadDate: new Date().toISOString(),
+export const getReceiptsByExpenseItemId = async (expenseItemId: string) => {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('*')
+    .eq('expense_item_id', expenseItemId);
+  
+  if (error) return [];
+  
+  return data.map(receipt => ({
+    id: receipt.id,
+    expenseItemId: receipt.expense_item_id,
+    originalFilename: receipt.original_filename,
+    storedFilename: receipt.stored_filename,
+    fileType: receipt.file_type,
+    uploadDate: receipt.upload_date
+  }));
+};
+
+export const createReceipt = async (data: Omit<Receipt, 'id' | 'uploadDate'>) => {
+  const { data: newReceipt, error } = await supabase
+    .from('receipts')
+    .insert([{
+      expense_item_id: data.expenseItemId,
+      original_filename: data.originalFilename,
+      stored_filename: data.storedFilename,
+      file_type: data.fileType
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating receipt:', error);
+    throw error;
+  }
+  
+  return {
+    id: newReceipt.id,
+    expenseItemId: newReceipt.expense_item_id,
+    originalFilename: newReceipt.original_filename,
+    storedFilename: newReceipt.stored_filename,
+    fileType: newReceipt.file_type,
+    uploadDate: newReceipt.upload_date
   };
-  receipts.push(newReceipt);
-  return newReceipt;
 };
 
 // Notifications
-export const getNotificationsByUserId = (userId: string) => 
-  notifications.filter(notif => notif.userId === userId);
-export const createNotification = (data: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
-  const newNotification: Notification = {
-    ...data,
-    id: uuidv4(),
-    isRead: false,
-    createdAt: new Date().toISOString(),
-  };
-  notifications.push(newNotification);
-  return newNotification;
+export const getNotificationsByUserId = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  return data.map(notification => ({
+    id: notification.id,
+    userId: notification.user_id,
+    requestId: notification.request_id,
+    message: notification.message,
+    isRead: notification.is_read,
+    createdAt: notification.created_at
+  }));
 };
-export const markNotificationAsRead = (id: string) => {
-  const index = notifications.findIndex(notif => notif.id === id);
-  if (index !== -1) {
-    notifications[index] = {
-      ...notifications[index],
-      isRead: true,
-    };
-    return notifications[index];
+
+export const createNotification = async (data: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
+  const { data: newNotification, error } = await supabase
+    .from('notifications')
+    .insert([{
+      user_id: data.userId,
+      request_id: data.requestId,
+      message: data.message,
+      is_read: false
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating notification:', error);
+    throw error;
   }
-  return null;
+  
+  return {
+    id: newNotification.id,
+    userId: newNotification.user_id,
+    requestId: newNotification.request_id,
+    message: newNotification.message,
+    isRead: newNotification.is_read,
+    createdAt: newNotification.created_at
+  };
+};
+
+export const markNotificationAsRead = async (id: string) => {
+  const { data: updatedNotification, error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) return null;
+  
+  return {
+    id: updatedNotification.id,
+    userId: updatedNotification.user_id,
+    requestId: updatedNotification.request_id,
+    message: updatedNotification.message,
+    isRead: updatedNotification.is_read,
+    createdAt: updatedNotification.created_at
+  };
 };

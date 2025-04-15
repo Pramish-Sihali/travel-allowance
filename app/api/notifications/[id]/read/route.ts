@@ -1,8 +1,10 @@
+// app/api/notifications/[id]/read/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { markNotificationAsRead } from '@/lib/db';
 
-export async function PATCH(req: NextRequest, context: { params: any; }) {
-  const { params } = context as { params: Record<string, string> };
+export async function PATCH(req: NextRequest, context: { params: any }) {
+  const { params } = context as { params: { id: string } };
   try {
     const notification = await markNotificationAsRead(params.id);
 

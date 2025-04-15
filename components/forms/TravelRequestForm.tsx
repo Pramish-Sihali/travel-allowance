@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExpenseCategory, RequestType, TravelRequest } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +25,20 @@ interface ExpenseItemFormData {
 }
 
 export default function TravelRequestForm() {
+  const { data: session, status } = useSession();
+  // Generate a UUID immediately to ensure we always have one, even if session isn't loaded yet
+  const [employeeId, setEmployeeId] = useState<string>(uuidv4());
+  
+  // Update employeeId if session loads and has a user id
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      setEmployeeId(session.user.id);
+    }
+  }, [session, status]);
+
   const router = useRouter();
   const [formData, setFormData] = useState({
-    employeeId: '123', // Hardcoded for now, would come from auth
+    employeeId: '', // We'll set this right before submission
     employeeName: '',
     department: '',
     designation: '',
@@ -88,12 +101,18 @@ export default function TravelRequestForm() {
     setIsSubmitting(true);
     
     try {
-      // 1. Create the travel request
+      // Ensure we have a valid UUID for employeeId
+      const finalEmployeeId = employeeId || uuidv4();
+      
+      // 1. Create the travel request with guaranteed valid UUID
       const requestData = {
         ...formData,
+        employeeId: finalEmployeeId, // Use our guaranteed UUID
         totalAmount: calculateTotalAmount(),
         status: 'pending' as const,
       };
+      
+      console.log('Submitting request with data:', requestData);
       
       const response = await fetch('/api/requests', {
         method: 'POST',
@@ -104,7 +123,8 @@ export default function TravelRequestForm() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create travel request');
+        const errorData = await response.json();
+        throw new Error(`Server error: ${errorData.error || response.statusText}`);
       }
       
       const createdRequest: TravelRequest = await response.json();

@@ -238,6 +238,9 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
   const displayRequestId = typeof requestId === 'string' && requestId ? 
     requestId.substring(0, 8) + '...' : 
     'N/A';
+
+  // Safe access to status with fallback
+  const status = request.status || 'pending';
       
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -268,9 +271,9 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
         </Button>
         
         <div className="flex items-center gap-2">
-          {getStatusIcon(request.status)}
-          <Badge className={getStatusBadgeClass(request.status)}>
-            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+          {getStatusIcon(status)}
+          <Badge className={getStatusBadgeClass(status)}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         </div>
       </div>
@@ -313,7 +316,7 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
               <RequestExpensesTab 
                 expenseItems={expenseItems} 
                 receipts={receipts} 
-                totalAmount={request.totalAmount} 
+                totalAmount={request.totalAmount || 0} 
               />
             </TabsContent>
             

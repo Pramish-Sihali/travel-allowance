@@ -33,6 +33,7 @@ export default function ApproverDashboard() {
         }
         
         const data = await response.json();
+        console.log('Fetched approver requests:', data);
         setRequests(data);
       } catch (error) {
         console.error('Error fetching requests:', error);
@@ -82,20 +83,30 @@ export default function ApproverDashboard() {
     const lowerCaseSearch = searchTerm.toLowerCase();
     filteredRequests = filteredRequests.filter(req => 
       req.employeeName.toLowerCase().includes(lowerCaseSearch) ||
-      req.department.toLowerCase().includes(lowerCaseSearch) ||
-      req.purpose.toLowerCase().includes(lowerCaseSearch)
+      req.department?.toLowerCase().includes(lowerCaseSearch) ||
+      req.purpose?.toLowerCase().includes(lowerCaseSearch)
     );
   }
   
   // Apply sorting
   if (sortConfig !== null) {
     filteredRequests.sort((a, b) => {
-      // @ts-ignore - dynamic property access
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      // Handle nested properties or missing properties safely
+      const getValueByKey = (obj: any, key: string) => {
+        // For dates, convert to timestamps for comparison
+        if (key === 'travelDateFrom' || key === 'travelDateTo' || key === 'createdAt' || key === 'updatedAt') {
+          return new Date(obj[key] || 0).getTime();
+        }
+        return obj[key] || '';
+      };
+
+      const aValue = getValueByKey(a, sortConfig.key);
+      const bValue = getValueByKey(b, sortConfig.key);
+      
+      if (aValue < bValue) {
         return sortConfig.direction === 'ascending' ? -1 : 1;
       }
-      // @ts-ignore - dynamic property access
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aValue > bValue) {
         return sortConfig.direction === 'ascending' ? 1 : -1;
       }
       return 0;
@@ -119,6 +130,7 @@ export default function ApproverDashboard() {
   };
   
   const getInitials = (name: string) => {
+    if (!name) return 'NA';
     return name
       .split(' ')
       .map(part => part[0])
@@ -321,14 +333,14 @@ export default function ApproverDashboard() {
                       <TableCell>
                         <Badge className={cn(
                           "flex items-center gap-1.5 w-fit",
-                          request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                          !request.requestType || request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                           request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
                           'bg-red-100 text-red-800 border-red-200'
                         )}>
-                          {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                          {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
                           {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
                           {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                          {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)}
+                          {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{request.department}</TableCell>

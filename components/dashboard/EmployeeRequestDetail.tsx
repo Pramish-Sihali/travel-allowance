@@ -204,6 +204,12 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
 
   // Get the request ID for display, but safely handle undefined
   const displayRequestId = request?.id ? request.id.substring(0, 8) + '...' : 'N/A';
+  
+  // Safe access to status with fallback
+  const status = request.status || 'pending';
+  
+  // Safe access to requestType with fallback
+  const requestType = request.requestType || 'normal';
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -219,8 +225,8 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
         
         <div className="flex items-center gap-2">
           {getStatusIcon()}
-          <Badge className={getStatusBadgeClass(request.status)}>
-            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+          <Badge className={getStatusBadgeClass(status)}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         </div>
       </div>
@@ -228,7 +234,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
       <Card>
         <CardHeader className=" text-primary">
           <CardTitle className="text-xl">Travel Request Details</CardTitle>
-          <CardDescription className="text-primary/90">{request.purpose}</CardDescription>
+          <CardDescription className="text-primary/90">{request.purpose || 'No purpose specified'}</CardDescription>
         </CardHeader>
         
         <CardContent className="p-0">
@@ -314,11 +320,11 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                           {expenseItems.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell className="font-medium">
-                                {item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ')}
+                                {(item.category || "").charAt(0).toUpperCase() + (item.category || "").slice(1).replace('-', ' ')}
                               </TableCell>
                               <TableCell className="text-muted-foreground">{item.description || '-'}</TableCell>
                               <TableCell className="font-medium">
-                                ${item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                ${(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                               </TableCell>
                               <TableCell>
                                 {receipts[item.id] && receipts[item.id].length > 0 ? (
@@ -360,7 +366,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                           <TableRow className="font-bold bg-muted/20">
                             <TableCell colSpan={2} className="text-right">Total</TableCell>
                             <TableCell className="text-primary font-bold">
-                              ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                              ${(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </TableCell>
                             <TableCell></TableCell>
                           </TableRow>
@@ -370,7 +376,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-              {request.status === 'rejected' && (
+              {status === 'rejected' && (
                 <Alert className="bg-red-50 text-red-800 border-red-200">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                   <AlertTitle>Request Rejected</AlertTitle>
@@ -384,7 +390,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                 </Alert>
               )}
               
-              {request.status === 'approved' && (
+              {status === 'approved' && (
                 <Alert className="bg-green-50 text-green-800 border-green-200">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertTitle>Request Approved</AlertTitle>
@@ -405,7 +411,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                 </Alert>
               )}
               
-              {request.status === 'pending' && (
+              {status === 'pending' && (
                 <Alert className="bg-amber-50 text-amber-800 border-amber-200">
                   <Clock className="h-4 w-4 text-amber-600" />
                   <AlertTitle>Request Pending</AlertTitle>
@@ -449,17 +455,17 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                   <div>
                     <p className="text-muted-foreground text-sm">Request Type</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      {request.requestType === 'normal' && <FileText className="h-3.5 w-3.5 text-blue-500" />}
-                      {request.requestType === 'advance' && <CreditCard className="h-3.5 w-3.5 text-green-500" />}
-                      {request.requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-                      <p className="capitalize">{request.requestType}</p>
+                      {(requestType === 'normal' || !requestType) && <FileText className="h-3.5 w-3.5 text-blue-500" />}
+                      {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5 text-green-500" />}
+                      {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                      <p className="capitalize">{requestType}</p>
                     </div>
                   </div>
                   
                   <div>
                     <p className="text-muted-foreground text-sm">Total Amount</p>
                     <p className="font-bold text-primary">
-                      ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      ${(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </p>
                   </div>
                   
@@ -470,7 +476,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
                   
                   <div>
                     <p className="text-muted-foreground text-sm">Status</p>
-                    <p className="capitalize">{request.status}</p>
+                    <p className="capitalize">{status}</p>
                   </div>
                   
                   <div>

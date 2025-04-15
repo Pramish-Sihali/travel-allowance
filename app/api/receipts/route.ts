@@ -14,7 +14,14 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  const receipts = getReceiptsByExpenseItemId(expenseItemId);
-  
-  return NextResponse.json(receipts);
+  try {
+    const receipts = await getReceiptsByExpenseItemId(expenseItemId);
+    return NextResponse.json(receipts);
+  } catch (error) {
+    console.error('Error fetching receipts:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch receipts' },
+      { status: 500 }
+    );
+  }
 }

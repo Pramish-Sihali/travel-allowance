@@ -15,9 +15,16 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  const expenseItems = getExpenseItemsByRequestId(requestId);
-  
-  return NextResponse.json(expenseItems);
+  try {
+    const expenseItems = await getExpenseItemsByRequestId(requestId);
+    return NextResponse.json(expenseItems);
+  } catch (error) {
+    console.error('Error fetching expense items:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch expense items' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +33,7 @@ export async function POST(request: NextRequest) {
     
     // In a real app, validate the body data here
     
-    const newExpenseItem = createExpenseItem(body as Omit<ExpenseItem, 'id'>);
+    const newExpenseItem = await createExpenseItem(body as Omit<ExpenseItem, 'id'>);
     
     return NextResponse.json(newExpenseItem, { status: 201 });
   } catch (error) {
