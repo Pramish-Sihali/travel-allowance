@@ -1,7 +1,6 @@
-// lib/auth.ts
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { getUserByEmail } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import type { NextAuthOptions } from "next-auth";
 
 export const authOptions: NextAuthOptions = {
@@ -14,8 +13,20 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        const user = await getUserByEmail(credentials.email);
-        if (!user || user.password !== credentials.password) return null;
+        
+        // Get user from Supabase
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', credentials.email)
+          .single();
+        
+        if (error || !user) return null;
+        
+        // For now, using plaintext password comparison
+        // In production, you should hash passwords
+        if (user.password !== credentials.password) return null;
+        
         return {
           id: user.id,
           email: user.email,
