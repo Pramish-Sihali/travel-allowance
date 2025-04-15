@@ -1,3 +1,5 @@
+// components/dashboard/RequestApprovalTab.tsx
+
 import { Dispatch, SetStateAction } from 'react';
 import { TravelRequest } from '@/types';
 import { 
@@ -19,7 +21,9 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   ArrowLeft,
-  Loader2
+  Loader2, 
+  Calculator,
+  FileText
 } from 'lucide-react';
 
 interface RequestApprovalTabProps {
@@ -42,18 +46,36 @@ export default function RequestApprovalTab({
   return (
     <div className="p-6 space-y-6">
       {request.status !== 'pending' ? (
-        <Alert className={request.status === 'approved' 
-          ? 'bg-green-50 text-green-800 border-green-200' 
-          : 'bg-red-50 text-red-800 border-red-200'
+        <Alert className={
+          request.status === 'approved' || request.status === 'pending_verification' 
+            ? 'bg-green-50 text-green-800 border-green-200' 
+            : 'bg-red-50 text-red-800 border-red-200'
         }>
-          {request.status === 'approved' ? (
+          {request.status === 'approved' || request.status === 'pending_verification' ? (
             <CheckCircle className="h-4 w-4 text-green-600" />
           ) : (
             <AlertTriangle className="h-4 w-4 text-red-600" />
           )}
-          <AlertTitle>{request.status === 'approved' ? 'Request Approved' : 'Request Rejected'}</AlertTitle>
+          <AlertTitle>
+            {request.status === 'pending_verification' 
+              ? 'Request Approved - Pending Financial Verification' 
+              : request.status === 'approved' 
+                ? 'Request Fully Approved'
+                : 'Request Rejected'}
+          </AlertTitle>
           <AlertDescription>
-            This request has already been {request.status}.
+            {request.status === 'pending_verification' 
+              ? 'You have approved this request. It is now awaiting financial verification.' 
+              : request.status === 'approved'
+                ? 'This request has been fully approved by both you and Finance.'
+                : 'This request has been rejected.'}
+            
+            {request.approverComments && (
+              <div className="mt-2 p-3 bg-white/50 rounded-md border border-current/20">
+                <p className="font-medium text-sm">Your Comments:</p>
+                <p className="text-sm mt-1">{request.approverComments}</p>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       ) : (
@@ -64,7 +86,7 @@ export default function RequestApprovalTab({
               Approval Action
             </CardTitle>
             <CardDescription>
-              Review the request carefully before making a decision
+              Review the request carefully before making a decision. After your approval, the request will be sent to Finance for verification.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -135,6 +157,50 @@ export default function RequestApprovalTab({
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CheckCheck size={16} className="text-primary" />
+            Approval Process
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 bg-muted/20 rounded-lg">
+            <ol className="space-y-4">
+              <li className="flex items-start gap-2">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                  <span className="text-sm font-bold text-primary">1</span>
+                </div>
+                <div>
+                  <p className="font-medium">Manager Approval</p>
+                  <p className="text-sm text-muted-foreground">You review and approve the request based on business need and policy compliance.</p>
+                </div>
+              </li>
+              
+              <li className="flex items-start gap-2">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                  <span className="text-sm font-bold text-primary">2</span>
+                </div>
+                <div>
+                  <p className="font-medium">Financial Verification</p>
+                  <p className="text-sm text-muted-foreground">The Finance team verifies expenses, receipt documentation, and budget compliance.</p>
+                </div>
+              </li>
+              
+              <li className="flex items-start gap-2">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+                  <span className="text-sm font-bold text-primary">3</span>
+                </div>
+                <div>
+                  <p className="font-medium">Final Approval</p>
+                  <p className="text-sm text-muted-foreground">Once verified by Finance, the request is fully approved and processed for payment.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CheckCircle size={16} className="text-primary" />
             Approval Checklist
           </CardTitle>
         </CardHeader>

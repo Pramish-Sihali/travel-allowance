@@ -219,36 +219,6 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
   }
 };
 
-export const updateTravelRequestStatus = async (id: string, status: TravelRequest['status']) => {
-  const { data: updatedRequest, error } = await supabase
-    .from('travel_requests')
-    .update({ 
-      status, 
-      updated_at: new Date().toISOString() 
-    })
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (error) return null;
-  
-  return {
-    id: updatedRequest.id,
-    employeeId: updatedRequest.employee_id,
-    employeeName: updatedRequest.employee_name,
-    department: updatedRequest.department,
-    designation: updatedRequest.designation,
-    purpose: updatedRequest.purpose,
-    travelDateFrom: updatedRequest.travel_date_from,
-    travelDateTo: updatedRequest.travel_date_to,
-    totalAmount: updatedRequest.total_amount,
-    status: updatedRequest.status,
-    requestType: updatedRequest.request_type,
-    previousOutstandingAdvance: updatedRequest.previous_outstanding_advance,
-    createdAt: updatedRequest.created_at,
-    updatedAt: updatedRequest.updated_at
-  };
-};
 
 // Expense Items
 export const getExpenseItemsByRequestId = async (requestId: string) => {
@@ -415,4 +385,137 @@ export const markNotificationAsRead = async (id: string) => {
     isRead: updatedNotification.is_read,
     createdAt: updatedNotification.created_at
   };
+};
+
+// Updated functions in lib/db.ts for the checker workflow
+
+// Add this to the existing functions in lib/db.ts
+
+// Modified function to include additional data and handle new status flow
+// Modified function to include additional data and handle new status flow
+// Fixed updateTravelRequestStatus function with proper error handling
+
+export const updateTravelRequestStatus = async (id: string, status: TravelRequest['status'], additionalData = {}) => {
+  try {
+    console.log('updateTravelRequestStatus called with:', { id, status, additionalData });
+    
+    const updateData = { 
+      status, 
+      updated_at: new Date().toISOString(),
+      ...additionalData
+    };
+    
+    // Convert camelCase to snake_case for database
+    const formattedData: Record<string, any> = {}; 
+    Object.keys(updateData).forEach(key => {
+      // Convert camelCase to snake_case
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      formattedData[snakeKey] = updateData[key as keyof typeof updateData];
+    });
+    
+    console.log('Formatted data for update:', formattedData);
+    
+    const { data: updatedRequest, error } = await supabase
+      .from('travel_requests')
+      .update(formattedData)
+      .eq('id', id)
+      .select('*')
+      .single();
+    
+    if (error) {
+      console.error('Supabase error updating travel request:', error);
+      return null;
+    }
+    
+    if (!updatedRequest) {
+      console.error('No data returned from update operation');
+      return null;
+    }
+    
+    console.log('Update successful, returned data:', updatedRequest);
+    
+    // Map to frontend model
+    return {
+      id: updatedRequest.id,
+      employeeId: updatedRequest.employee_id,
+      employeeName: updatedRequest.employee_name,
+      department: updatedRequest.department,
+      designation: updatedRequest.designation,
+      purpose: updatedRequest.purpose,
+      travelDateFrom: updatedRequest.travel_date_from,
+      travelDateTo: updatedRequest.travel_date_to,
+      totalAmount: updatedRequest.total_amount,
+      status: updatedRequest.status,
+      requestType: updatedRequest.request_type,
+      previousOutstandingAdvance: updatedRequest.previous_outstanding_advance,
+      createdAt: updatedRequest.created_at,
+      updatedAt: updatedRequest.updated_at,
+      approverComments: updatedRequest.approver_comments,
+      checkerComments: updatedRequest.checker_comments
+    };
+  } catch (error) {
+    console.error('Exception in updateTravelRequestStatus:', error);
+    return null;
+  }
+};
+
+// Function to get pending verification requests for checkers
+export const getPendingVerificationRequests = async () => {
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .select('*')
+    .eq('status', 'pending_verification')
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  // Map database column names to frontend field names and provide defaults
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'pending_verification',
+    requestType: item.request_type || 'normal',
+    previousOutstandingAdvance: item.previous_outstanding_advance || 0,
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString(),
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments
+  }));
+};
+
+// Function to get verified requests by checker
+export const getVerifiedRequestsByChecker = async () => {
+  const { data, error } = await supabase
+    .from('travel_requests')
+    .select('*')
+    .in('status', ['approved', 'rejected_by_checker'])
+    .order('updated_at', { ascending: false });
+  
+  if (error) return [];
+  
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'approved',
+    requestType: item.request_type || 'normal',
+    previousOutstandingAdvance: item.previous_outstanding_advance || 0,
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString(),
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments
+  }));
 };

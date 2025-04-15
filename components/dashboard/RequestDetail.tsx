@@ -107,6 +107,8 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
     setErrorMessage(null);
     
     try {
+      console.log('Approving/rejecting request:', requestId, 'with status:', status);
+      
       const response = await fetch(`/api/requests/${requestId}`, {
         method: 'PATCH',
         headers: {
@@ -115,18 +117,26 @@ export default function RequestDetail({ requestId }: RequestDetailProps) {
         body: JSON.stringify({
           status,
           comments: approvalComment,
+          role: 'approver'  // Identify that this update is from approver
         }),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        throw new Error(`Failed to ${status} request`);
+        console.error('API error response:', responseData);
+        throw new Error(`Failed to ${status} request: ${responseData.error || response.statusText}`);
       }
       
-      const updatedRequest = await response.json();
-      setRequest(updatedRequest);
+      console.log('Request updated successfully:', responseData);
+      setRequest(responseData);
       
-      // Show success message in the UI
-      setSuccessMessage(`Request has been ${status} successfully. Redirecting...`);
+      // Show appropriate success message based on status
+      if (status === 'approved') {
+        setSuccessMessage(`Request has been approved and sent to Finance for verification. Redirecting...`);
+      } else {
+        setSuccessMessage(`Request has been rejected. Redirecting...`);
+      }
       
       // Display success state for 2 seconds before navigating
       setTimeout(() => {

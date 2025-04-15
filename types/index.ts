@@ -1,3 +1,5 @@
+// Updated types/index.ts with additional status for checker workflow
+
 // Travel Request Types
 export type RequestType = 'normal' | 'advance' | 'emergency';
 
@@ -11,12 +13,20 @@ export interface TravelRequest {
   travelDateFrom: string | Date;
   travelDateTo: string | Date;
   totalAmount: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'pending_verification' | 'approved' | 'rejected' | 'rejected_by_checker';
+  statusHistory?: {
+    status: string;
+    timestamp: string | Date;
+    comments?: string;
+    updatedBy?: string;
+  }[];
   requestType: RequestType;
   previousOutstandingAdvance: number;
   createdAt: string | Date;
   updatedAt?: string | Date;
   comments?: string;
+  approverComments?: string;
+  checkerComments?: string;
 }
 
 // Expense Categories
@@ -49,7 +59,7 @@ export interface Notification {
 }
 
 // Auth Types
-export type UserRole = 'employee' | 'approver' | 'admin';
+export type UserRole = 'employee' | 'approver' | 'checker' | 'admin';
 
 export interface User {
   id: string;

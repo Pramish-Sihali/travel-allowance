@@ -1,10 +1,24 @@
-import { requireRole } from "@/lib/server/auth";
+// app/checker/dashboard/page.tsx
+
+'use client';
+
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { UserCircle, LogOut } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import CheckerDashboard from '@/components/dashboard/CheckerDashboard';
+import { signOut, useSession } from "next-auth/react";
 
-export default async function CheckerDashboardPage() {
-  // Ensure the user is a checker
-  const user = await requireRole(["checker"]);
+export default function CheckerDashboardPage() {
+  const { data: session, status } = useSession();
+  
+  // Redirect if not checker or admin (as fallback)
+  useEffect(() => {
+    if (status === 'authenticated' && 
+        !['checker', 'admin'].includes(session?.user?.role || '')) {
+      window.location.href = '/';
+    }
+  }, [session, status]);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -25,40 +39,21 @@ export default async function CheckerDashboardPage() {
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
               <UserCircle className="w-5 h-5" />
-              <span className="font-medium">Welcome, {user.name || "Checker"}</span>
+              <span className="font-medium">Welcome, {session?.user?.name || "Checker"}</span>
             </div>
-            <Link 
-              href="/api/auth/signout" 
+            <Button 
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-purple-800 hover:bg-purple-900 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
-            </Link>
+            </Button>
           </div>
         </div>
       </header>
       
       <main className="flex-grow bg-gray-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-semibold mb-6">Financial Checker Dashboard</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-medium mb-4">Pending Financial Verification</h3>
-              <p className="text-gray-600">Requests awaiting your financial verification will appear here.</p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-medium mb-4">Recently Verified</h3>
-              <p className="text-gray-600">Your recently verified requests will appear here.</p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-medium mb-4">Financial Dashboard</h3>
-              <p className="text-gray-600">Financial metrics and insights will appear here.</p>
-            </div>
-          </div>
-        </div>
+        <CheckerDashboard />
       </main>
       
       <footer className="bg-gray-800 text-white p-4 text-center text-sm">
