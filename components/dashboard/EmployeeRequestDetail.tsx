@@ -346,7 +346,7 @@ const getFormattedStatus = (status: string) => {
                               </TableCell>
                               <TableCell className="text-muted-foreground">{item.description || '-'}</TableCell>
                               <TableCell className="font-medium">
-                                ${(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                Nrs.{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                               </TableCell>
                               <TableCell>
                                 {receipts[item.id] && receipts[item.id].length > 0 ? (
@@ -388,7 +388,7 @@ const getFormattedStatus = (status: string) => {
                           <TableRow className="font-bold bg-muted/20">
                             <TableCell colSpan={2} className="text-right">Total</TableCell>
                             <TableCell className="text-primary font-bold">
-                              ${(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                              Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </TableCell>
                             <TableCell></TableCell>
                           </TableRow>
@@ -535,7 +535,7 @@ const getFormattedStatus = (status: string) => {
                   <div>
                     <p className="text-muted-foreground text-sm">Total Amount</p>
                     <p className="font-bold text-primary">
-                      ${(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </p>
                   </div>
                   
@@ -557,7 +557,7 @@ const getFormattedStatus = (status: string) => {
                   {request.previousOutstandingAdvance !== undefined && request.previousOutstandingAdvance > 0 && (
                     <div>
                       <p className="text-muted-foreground text-sm">Previous Outstanding Advance</p>
-                      <p>${request.previousOutstandingAdvance}</p>
+                      <p>Nrs.{request.previousOutstandingAdvance}</p>
                     </div>
                   )}
                 </CardContent>

@@ -138,7 +138,7 @@ export default function RequestDetailsTab({ request, travelDates }: RequestDetai
               <div className="flex justify-between items-center">
                 <p className="text-amber-700">This employee has a previous outstanding advance that hasn't been cleared:</p>
                 <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                  ${request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  Nrs.{request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                 </Badge>
               </div>
             </CardContent>
@@ -181,7 +181,7 @@ export default function RequestDetailsTab({ request, travelDates }: RequestDetai
             <div>
               <p className="text-muted-foreground text-sm mb-1">Total Amount</p>
               <p className="font-bold text-primary">
-                ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </p>
             </div>
             

@@ -187,7 +187,7 @@ export default function EmployeeDashboard() {
                   <div>
                     <p className="text-sm text-muted-foreground font-medium">Total Amount</p>
                     <p className="text-xl font-bold">
-                      ${stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      Nrs.{stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </p>
                   </div>
                 </div>
@@ -300,7 +300,7 @@ export default function EmployeeDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">
-                          ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusBadgeClass(request.status)}>

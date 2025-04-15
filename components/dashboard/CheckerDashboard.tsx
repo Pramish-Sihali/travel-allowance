@@ -377,7 +377,7 @@ export default function CheckerDashboard() {
                             </TooltipProvider>
                           </TableCell>
                           <TableCell className="font-medium">
-                            ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -507,7 +507,7 @@ export default function CheckerDashboard() {
                             </TooltipProvider>
                           </TableCell>
                           <TableCell className="font-medium">
-                            ${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusBadgeClass(request.status)}>

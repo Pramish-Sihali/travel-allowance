@@ -79,7 +79,7 @@ export default function RequestExpensesTab({
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.description || '-'}</TableCell>
                     <TableCell className="font-medium">
-                      ${item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      Nrs.{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </TableCell>
                     <TableCell>
                       {receipts[item.id] && receipts[item.id].length > 0 ? (
@@ -123,7 +123,7 @@ export default function RequestExpensesTab({
                 <TableRow className="font-bold bg-muted/20">
                   <TableCell colSpan={2} className="text-right">Total</TableCell>
                   <TableCell className="text-primary font-bold">
-                    ${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    Nrs.{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </TableCell>
                   <TableCell></TableCell>
                 </TableRow>

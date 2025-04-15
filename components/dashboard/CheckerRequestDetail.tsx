@@ -390,7 +390,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                       <CardFooter className="flex justify-between">
                         <div className="text-sm text-muted-foreground flex items-center">
                           <Calculator className="h-4 w-4 mr-2" />
-                          Total amount: <strong className="ml-1 text-purple-600">${request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                          Total amount: <strong className="ml-1 text-purple-600">Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
                         </div>
                       </CardFooter>
                     </Card>
