@@ -3,8 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createReceipt } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,22 +25,50 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Generate a unique filename
+    const fileExtension = file.name.split('.').pop();
+    const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+    const storageFolder = 'receipts';
+    const storagePath = `${storageFolder}/${uniqueFilename}`;
     
-    // In a real app, you would use a cloud storage service
-    // For this example, we'll save locally (but you shouldn't do this in production)
-    const uniqueFilename = `${uuidv4()}${path.extname(file.name)}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    const filePath = path.join(uploadDir, uniqueFilename);
+    // Convert file to arrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = new Uint8Array(arrayBuffer);
     
-    await writeFile(filePath, buffer);
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('travel-expenses') // This is the bucket name - make sure it exists in Supabase
+      .upload(storagePath, fileBuffer, {
+        contentType: file.type,
+        cacheControl: '3600',
+        upsert: false
+      });
     
+    if (uploadError) {
+      console.error('Error uploading to Supabase Storage:', uploadError);
+      return NextResponse.json(
+        { error: `Failed to upload file: ${uploadError.message}` },
+        { status: 500 }
+      );
+    }
+    
+    // Get public URL for the file
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('travel-expenses')
+      .getPublicUrl(storagePath);
+    
+    const publicUrl = publicUrlData.publicUrl;
+    
+    // Save receipt record in database
     const receipt = await createReceipt({
       expenseItemId,
       originalFilename: file.name,
       storedFilename: uniqueFilename,
       fileType: file.type,
+      storagePath: storagePath,
+      publicUrl: publicUrl
     });
     
     return NextResponse.json(receipt, { status: 201 });

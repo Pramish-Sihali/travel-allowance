@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ExpenseItem, Receipt } from '@/types';
 import { 
   Card, 
@@ -14,6 +15,14 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,7 +43,8 @@ import {
   Receipt as ReceiptIcon,
   AlertTriangle,
   Building,
-  Calendar
+  Calendar,
+  Image
 } from 'lucide-react';
 
 interface RequestExpensesTabProps {
@@ -50,6 +60,8 @@ export default function RequestExpensesTab({
   totalAmount,
   previousOutstandingAdvance = 0
 }: RequestExpensesTabProps) {
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+
   // Helper function to get category-specific icons
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -71,6 +83,11 @@ export default function RequestExpensesTab({
   // Calculate combined total (including previous outstanding advance)
   const calculateCombinedTotal = () => {
     return totalAmount + previousOutstandingAdvance;
+  };
+
+  // Check if a file is an image
+  const isImageFile = (fileType: string) => {
+    return fileType.startsWith('image/');
   };
   
   // Render icons for categories
@@ -227,37 +244,64 @@ export default function RequestExpensesTab({
                         {receipts[item.id] && receipts[item.id].length > 0 ? (
                           <div className="flex items-center gap-2">
                             {receipts[item.id].map((receipt) => (
-                              <TooltipProvider key={receipt.id}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 px-2 flex items-center gap-1 text-primary"
-                                      asChild
-                                    >
-                                      <a
-                                        href={`/uploads/${receipt.storedFilename}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Paperclip size={14} />
-                                        <span className="truncate max-w-[150px] text-xs">
-                                          {receipt.originalFilename}
-                                        </span>
-                                      </a>
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <div className="text-xs">
-                                      <p className="font-medium">{receipt.originalFilename}</p>
-                                      <p className="text-muted-foreground">
-                                        Click to view receipt
-                                      </p>
+                              <Dialog key={receipt.id}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 flex items-center gap-1 text-primary"
+                                    onClick={() => setSelectedReceipt(receipt)}
+                                  >
+                                    {isImageFile(receipt.fileType) ? (
+                                      <Image size={14} />
+                                    ) : (
+                                      <Paperclip size={14} />
+                                    )}
+                                    <span className="truncate max-w-[150px] text-xs">
+                                      {receipt.originalFilename}
+                                    </span>
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Receipt: {receipt.originalFilename}</DialogTitle>
+                                    <DialogDescription>
+                                      Uploaded on {new Date(receipt.uploadDate).toLocaleString()}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  
+                                  <div className="mt-4 flex flex-col items-center">
+                                    {isImageFile(receipt.fileType) && receipt.publicUrl ? (
+                                      <div className="border rounded-md overflow-hidden max-h-[70vh] flex items-center justify-center">
+                                        <img 
+                                          src={receipt.publicUrl} 
+                                          alt={receipt.originalFilename}
+                                          className="max-w-full max-h-[70vh] object-contain"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="p-8 bg-muted/10 rounded-md text-center">
+                                        <FileText size={48} className="mx-auto text-muted-foreground mb-4" />
+                                        <p className="mb-4">This file type cannot be previewed.</p>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex justify-center mt-4">
+                                      <Button asChild variant="secondary">
+                                        <a 
+                                          href={receipt.publicUrl || '#'} 
+                                          download={receipt.originalFilename}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <Download size={16} className="mr-2" />
+                                          Download Receipt
+                                        </a>
+                                      </Button>
                                     </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
                             ))}
                           </div>
                         ) : (

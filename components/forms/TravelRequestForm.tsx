@@ -714,7 +714,7 @@ const ExpensesSection = ({
           <TableRow>
             <TableHead>Category</TableHead>
             <TableHead>Amount</TableHead>
-            <TableHead>Description (Optional)</TableHead>
+            <TableHead>Purpose</TableHead>
             <TableHead>Receipts</TableHead>
             <TableHead className="w-[80px] text-center">Actions</TableHead>
           </TableRow>

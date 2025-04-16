@@ -38,6 +38,8 @@ export const getAllUsers = async () => {
 
 // Travel Requests
 
+// Updated API functions in lib/db.ts
+
 export const getAllTravelRequests = async () => {
   const { data, error } = await supabase
     .from('travel_requests')
@@ -58,10 +60,27 @@ export const getAllTravelRequests = async () => {
     travelDateTo: item.travel_date_to || new Date().toISOString(),
     totalAmount: item.total_amount || 0,
     status: item.status || 'pending',
-    requestType: item.request_type || 'normal', // Default to normal if undefined
+    requestType: item.request_type || 'normal',
     previousOutstandingAdvance: item.previous_outstanding_advance || 0,
     createdAt: item.created_at || new Date().toISOString(),
-    updatedAt: item.updated_at || new Date().toISOString()
+    updatedAt: item.updated_at || new Date().toISOString(),
+    
+    // Add the missing fields
+    project: item.project || '',
+    projectOther: item.project_other || '',
+    purposeType: item.purpose_type || '',
+    purposeOther: item.purpose_other || '',
+    location: item.location || '',
+    locationOther: item.location_other || '',
+    transportMode: item.transport_mode || '',
+    stationPickDrop: item.station_pick_drop || '',
+    localConveyance: item.local_conveyance || '',
+    rideShareUsed: item.ride_share_used || false,
+    ownVehicleReimbursement: item.own_vehicle_reimbursement || false,
+    
+    // Comments
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments
   }));
 };
 
@@ -86,12 +105,31 @@ export const getTravelRequestsByEmployeeId = async (employeeId: string) => {
     travelDateTo: item.travel_date_to || new Date().toISOString(),
     totalAmount: item.total_amount || 0,
     status: item.status || 'pending',
-    requestType: item.request_type || 'normal', // Default to normal if undefined
+    requestType: item.request_type || 'normal',
     previousOutstandingAdvance: item.previous_outstanding_advance || 0,
     createdAt: item.created_at || new Date().toISOString(),
-    updatedAt: item.updated_at || new Date().toISOString()
+    updatedAt: item.updated_at || new Date().toISOString(),
+    
+    // Add the missing fields
+    project: item.project || '',
+    projectOther: item.project_other || '',
+    purposeType: item.purpose_type || '',
+    purposeOther: item.purpose_other || '',
+    location: item.location || '',
+    locationOther: item.location_other || '',
+    transportMode: item.transport_mode || '',
+    stationPickDrop: item.station_pick_drop || '',
+    localConveyance: item.local_conveyance || '',
+    rideShareUsed: item.ride_share_used || false,
+    ownVehicleReimbursement: item.own_vehicle_reimbursement || false,
+    
+    // Comments
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments
   }));
 };
+
+
 
 export const getTravelRequestById = async (id: string) => {
   const { data, error } = await supabase
@@ -114,14 +152,29 @@ export const getTravelRequestById = async (id: string) => {
     travelDateTo: data.travel_date_to || new Date().toISOString(),
     totalAmount: data.total_amount || 0,
     status: data.status || 'pending',
-    requestType: data.request_type || 'normal', // Default to normal if undefined
+    requestType: data.request_type || 'normal',
     previousOutstandingAdvance: data.previous_outstanding_advance || 0,
     createdAt: data.created_at || new Date().toISOString(),
     updatedAt: data.updated_at || new Date().toISOString(),
-    comments: data.comments
+    
+    // Add the missing fields
+    project: data.project || '',
+    projectOther: data.project_other || '',
+    purposeType: data.purpose_type || '',
+    purposeOther: data.purpose_other || '',
+    location: data.location || '',
+    locationOther: data.location_other || '',
+    transportMode: data.transport_mode || '',
+    stationPickDrop: data.station_pick_drop || '',
+    localConveyance: data.local_conveyance || '',
+    rideShareUsed: data.ride_share_used || false,
+    ownVehicleReimbursement: data.own_vehicle_reimbursement || false,
+    
+    // Comments
+    approverComments: data.approver_comments,
+    checkerComments: data.checker_comments
   };
 };
-
 export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
   try {
     // Ensure date conversion is correct - start with midnight for consistency
@@ -302,7 +355,6 @@ export const createExpenseItem = async (data: Omit<ExpenseItem, 'id'>) => {
   }
 };
 
-// Receipts
 export const getReceiptsByExpenseItemId = async (expenseItemId: string) => {
   const { data, error } = await supabase
     .from('receipts')
@@ -317,7 +369,9 @@ export const getReceiptsByExpenseItemId = async (expenseItemId: string) => {
     originalFilename: receipt.original_filename,
     storedFilename: receipt.stored_filename,
     fileType: receipt.file_type,
-    uploadDate: receipt.upload_date
+    uploadDate: receipt.upload_date,
+    storagePath: receipt.storage_path,
+    publicUrl: receipt.public_url
   }));
 };
 
@@ -328,7 +382,9 @@ export const createReceipt = async (data: Omit<Receipt, 'id' | 'uploadDate'>) =>
       expense_item_id: data.expenseItemId,
       original_filename: data.originalFilename,
       stored_filename: data.storedFilename,
-      file_type: data.fileType
+      file_type: data.fileType,
+      storage_path: data.storagePath,
+      public_url: data.publicUrl
     }])
     .select()
     .single();
@@ -344,7 +400,9 @@ export const createReceipt = async (data: Omit<Receipt, 'id' | 'uploadDate'>) =>
     originalFilename: newReceipt.original_filename,
     storedFilename: newReceipt.stored_filename,
     fileType: newReceipt.file_type,
-    uploadDate: newReceipt.upload_date
+    uploadDate: newReceipt.upload_date,
+    storagePath: newReceipt.storage_path,
+    publicUrl: newReceipt.public_url
   };
 };
 
@@ -415,13 +473,6 @@ export const markNotificationAsRead = async (id: string) => {
   };
 };
 
-// Updated functions in lib/db.ts for the checker workflow
-
-// Add this to the existing functions in lib/db.ts
-
-// Modified function to include additional data and handle new status flow
-// Modified function to include additional data and handle new status flow
-// Fixed updateTravelRequestStatus function with proper error handling
 
 export const updateTravelRequestStatus = async (id: string, status: TravelRequest['status'], additionalData = {}) => {
   try {
@@ -462,7 +513,7 @@ export const updateTravelRequestStatus = async (id: string, status: TravelReques
     
     console.log('Update successful, returned data:', updatedRequest);
     
-    // Map to frontend model
+    // Map to frontend model with all fields
     return {
       id: updatedRequest.id,
       employeeId: updatedRequest.employee_id,
@@ -478,6 +529,21 @@ export const updateTravelRequestStatus = async (id: string, status: TravelReques
       previousOutstandingAdvance: updatedRequest.previous_outstanding_advance,
       createdAt: updatedRequest.created_at,
       updatedAt: updatedRequest.updated_at,
+      
+      // Add the missing fields
+      project: updatedRequest.project || '',
+      projectOther: updatedRequest.project_other || '',
+      purposeType: updatedRequest.purpose_type || '',
+      purposeOther: updatedRequest.purpose_other || '',
+      location: updatedRequest.location || '',
+      locationOther: updatedRequest.location_other || '',
+      transportMode: updatedRequest.transport_mode || '',
+      stationPickDrop: updatedRequest.station_pick_drop || '',
+      localConveyance: updatedRequest.local_conveyance || '',
+      rideShareUsed: updatedRequest.ride_share_used || false,
+      ownVehicleReimbursement: updatedRequest.own_vehicle_reimbursement || false,
+      
+      // Comments
       approverComments: updatedRequest.approver_comments,
       checkerComments: updatedRequest.checker_comments
     };
@@ -486,7 +552,6 @@ export const updateTravelRequestStatus = async (id: string, status: TravelReques
     return null;
   }
 };
-
 
 
 // Function to get pending verification requests for checkers
@@ -515,6 +580,21 @@ export const getPendingVerificationRequests = async () => {
     previousOutstandingAdvance: item.previous_outstanding_advance || 0,
     createdAt: item.created_at || new Date().toISOString(),
     updatedAt: item.updated_at || new Date().toISOString(),
+    
+    // Add the missing fields
+    project: item.project || '',
+    projectOther: item.project_other || '',
+    purposeType: item.purpose_type || '',
+    purposeOther: item.purpose_other || '',
+    location: item.location || '',
+    locationOther: item.location_other || '',
+    transportMode: item.transport_mode || '',
+    stationPickDrop: item.station_pick_drop || '',
+    localConveyance: item.local_conveyance || '',
+    rideShareUsed: item.ride_share_used || false,
+    ownVehicleReimbursement: item.own_vehicle_reimbursement || false,
+    
+    // Comments
     approverComments: item.approver_comments,
     checkerComments: item.checker_comments
   }));
@@ -545,6 +625,21 @@ export const getVerifiedRequestsByChecker = async () => {
     previousOutstandingAdvance: item.previous_outstanding_advance || 0,
     createdAt: item.created_at || new Date().toISOString(),
     updatedAt: item.updated_at || new Date().toISOString(),
+    
+    // Add the missing fields
+    project: item.project || '',
+    projectOther: item.project_other || '',
+    purposeType: item.purpose_type || '',
+    purposeOther: item.purpose_other || '',
+    location: item.location || '',
+    locationOther: item.location_other || '',
+    transportMode: item.transport_mode || '',
+    stationPickDrop: item.station_pick_drop || '',
+    localConveyance: item.local_conveyance || '',
+    rideShareUsed: item.ride_share_used || false,
+    ownVehicleReimbursement: item.own_vehicle_reimbursement || false,
+    
+    // Comments
     approverComments: item.approver_comments,
     checkerComments: item.checker_comments
   }));

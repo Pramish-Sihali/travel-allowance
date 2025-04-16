@@ -60,6 +60,8 @@ export interface Receipt {
   storedFilename: string;
   fileType: string;
   uploadDate: string | Date;
+  storagePath?: string;
+  publicUrl?: string;
 }
 
 export interface Notification {
