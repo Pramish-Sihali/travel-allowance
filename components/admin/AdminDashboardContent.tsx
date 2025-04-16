@@ -228,61 +228,7 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              System Activity Log
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-start gap-3 pb-3 border-b">
-                  <div className="bg-gray-100 p-2 rounded-full">
-                    <UserCircle className="h-5 w-5 text-gray-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">User updated their profile</p>
-                    <p className="text-xs text-gray-500">{new Date().toLocaleTimeString()}</p>
-                  </div>
-                  <Badge variant="outline" className="text-xs">User Activity</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" />
-              Recent Approvals
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.approvedRequests > 0 ? (
-                <div>
-                  <p className="text-lg font-medium text-green-600 flex items-center gap-2 mb-4">
-                    <CheckSquare className="h-5 w-5" />
-                    {stats.approvedRequests} approved requests
-                  </p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    View All Approved Requests
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
-                  <p className="text-muted-foreground">No approved requests yet</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+     
     </div>
   );
 }
