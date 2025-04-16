@@ -760,33 +760,36 @@ const ExpensesSection = ({
                   placeholder="Brief description"
                 />
               </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Label
-                    htmlFor={`receipt-${index}`}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
-                      <PaperclipIcon className="h-4 w-4" />
-                      <span>Upload</span>
-                    </div>
-                  </Label>
-                  <Input
-                    id={`receipt-${index}`}
-                    type="file"
-                    onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
-                    className="hidden"
-                  />
-                  {selectedFiles[`${item.category}-${index}`] && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="truncate max-w-[6rem] text-xs">
-                        {selectedFiles[`${item.category}-${index}`]?.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </TableCell>
+           {/* Update this part in the ExpensesSection component in TravelRequestForm */}
+
+<TableCell>
+  <div className="flex items-center gap-2">
+    <label
+      htmlFor={`receipt-${index}`}
+      className="cursor-pointer"
+    >
+      <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
+        <PaperclipIcon className="h-4 w-4" />
+        <span>Upload</span>
+      </div>
+    </label>
+    <input
+      id={`receipt-${index}`}
+      type="file"
+      accept="image/*,.pdf,.doc,.docx"
+      onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
+      className="hidden"
+    />
+    {selectedFiles[`${item.category}-${index}`] && (
+      <div className="flex items-center text-sm text-green-600">
+        <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
+        <span className="truncate max-w-[6rem] text-xs">
+          {selectedFiles[`${item.category}-${index}`]?.name}
+        </span>
+      </div>
+    )}
+  </div>
+</TableCell>
               <TableCell className="text-center">
                 {expenseItems.length > 1 && (
                   <Button
@@ -893,6 +896,7 @@ export default function TravelRequestForm() {
   
   // Handle file selection for receipts
   const handleFileChange = (category: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File selected:', category, e.target.files?.[0]?.name);
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFiles(prev => ({
         ...prev,
@@ -900,6 +904,7 @@ export default function TravelRequestForm() {
       }));
     }
   };
+  
   
   // Calculate total expense amount
   const calculateTotalAmount = () => {
@@ -941,9 +946,10 @@ export default function TravelRequestForm() {
       
       const createdRequest = await response.json();
       
-      // Create expense items
       for (const expenseItem of expenseItems) {
         if (expenseItem.amount > 0) {
+          console.log('Creating expense item:', expenseItem);
+          
           const expenseResponse = await fetch('/api/expenses', {
             method: 'POST',
             headers: {
@@ -960,21 +966,39 @@ export default function TravelRequestForm() {
           }
           
           const createdExpense = await expenseResponse.json();
+          console.log('Expense item created:', createdExpense);
           
           // Upload receipt if available
-          const file = selectedFiles[expenseItem.category];
+          const fileKey = `${expenseItem.category}-${expenseItems.indexOf(expenseItem)}`;
+          const file = selectedFiles[fileKey];
+          
           if (file) {
+            console.log('Uploading receipt for expense:', { 
+              expenseId: createdExpense.id, 
+              fileName: file.name 
+            });
+            
             const formDataFile = new FormData();
             formDataFile.append('file', file);
             formDataFile.append('expenseItemId', createdExpense.id);
             
-            const uploadResponse = await fetch('/api/receipts/upload', {
-              method: 'POST',
-              body: formDataFile,
-            });
-            
-            if (!uploadResponse.ok) {
-              throw new Error('Failed to upload receipt');
+            try {
+              const uploadResponse = await fetch('/api/receipts/upload', {
+                method: 'POST',
+                body: formDataFile,
+              });
+              
+              const uploadResult = await uploadResponse.json();
+              
+              if (!uploadResponse.ok) {
+                console.error('Receipt upload failed:', uploadResult);
+                // Continue with the next expense item instead of throwing
+              } else {
+                console.log('Receipt uploaded successfully:', uploadResult);
+              }
+            } catch (uploadError) {
+              console.error('Error during receipt upload:', uploadError);
+              // Continue with the next expense item instead of throwing
             }
           }
         }
