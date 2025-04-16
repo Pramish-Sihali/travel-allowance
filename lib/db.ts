@@ -644,3 +644,122 @@ export const getVerifiedRequestsByChecker = async () => {
     checkerComments: item.checker_comments
   }));
 };
+
+// Add these functions to lib/db.ts
+
+// User management functions
+export const getUsersByRole = async (role: UserRole) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('role', role);
+  
+  if (error) return [];
+  return data;
+};
+
+export const createUser = async (userData: any) => {
+  // In a production app, you'd hash the password here
+  const { data, error } = await supabase
+    .from('users')
+    .insert([{
+      email: userData.email,
+      name: userData.name,
+      password: userData.password, // Would be hashed in production
+      role: userData.role,
+      department: userData.department || null,
+      position: userData.designation || null
+    }])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateUser = async (id: string, userData: any) => {
+  const updateData: any = {};
+  
+  // Only update fields that are provided
+  if (userData.name) updateData.name = userData.name;
+  if (userData.email) updateData.email = userData.email;
+  if (userData.password) updateData.password = userData.password; // Would be hashed in production
+  if (userData.role) updateData.role = userData.role;
+  if (userData.department) updateData.department = userData.department;
+  if (userData.designation) updateData.position = userData.designation;
+  
+  const { data, error } = await supabase
+    .from('users')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteUser = async (id: string) => {
+  const { error } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+  return true;
+};
+
+// Project management functions
+export const getAllProjects = async () => {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .order('name', { ascending: true });
+  
+  if (error) return [];
+  
+  return data.map(project => ({
+    value: project.id,
+    label: project.name
+  }));
+};
+
+export const createProject = async (name: string) => {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([{ name }])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    value: data.id,
+    label: data.name
+  };
+};
+
+// Add this function to lib/db.ts
+
+export const deleteTravelRequest = async (id: string) => {
+  try {
+    // First delete any related expense items and receipts
+    // This assumes you have cascade delete set up in your database
+    // If not, you'd need to handle deleting related records explicitly
+    
+    const { error } = await supabase
+      .from('travel_requests')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting travel request:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Exception in deleteTravelRequest:', error);
+    return false;
+  }
+};

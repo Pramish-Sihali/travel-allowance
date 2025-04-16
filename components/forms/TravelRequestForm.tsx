@@ -55,12 +55,14 @@ import {
   Building,
   BriefcaseBusiness,
   BadgeInfo,
-  DollarSign
+  DollarSign,
+  Loader
 } from "lucide-react";
 
 // =============== CONSTANTS & OPTIONS ===============
+// Use the dynamic hook instead of static values
 import { 
-  projectOptions, 
+  useProjectOptions,
   purposeOptions, 
   locationOptions, 
   transportModeOptions,
@@ -300,256 +302,96 @@ const EmployeeInfoSection = ({ form }: { form: any }) => (
   </div>
 );
 
-// 3. TravelDetailsSection Component
-const TravelDetailsSection = ({ form }: { form: any }) => (
-  <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-    <div className="flex items-center mb-4">
-      <MapPin className="h-5 w-5 text-primary mr-2" />
-      <h3 className="text-lg font-medium">Travel Details</h3>
-    </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-6">
-        <div className="p-4 border rounded-md bg-muted/10">
-          <h4 className="text-sm font-medium mb-4 text-muted-foreground">Project & Purpose Information</h4>
-          
-          <div className="space-y-4">
-            {/* Project selection */}
-            <FormField
-              control={form.control}
-              name="project"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select project" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {projectOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {form.watch('project') === 'other' && (
-              <FormField
-                control={form.control}
-                name="projectOther"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Specify Project</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter project name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            {/* Purpose of travel */}
-            <FormField
-              control={form.control}
-              name="purposeType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Purpose of Travel</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select purpose" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {purposeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {form.watch('purposeType') === 'other' && (
-              <FormField
-                control={form.control}
-                name="purposeOther"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Specify Purpose</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter purpose" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            {/* Location */}
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {locationOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {form.watch('location') === 'other' && (
-              <FormField
-                control={form.control}
-                name="locationOther"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Specify Location</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter location" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-          </div>
-        </div>
+// 3. TravelDetailsSection Component - Updated to use dynamic project options
+const TravelDetailsSection = ({ form }: { form: any }) => {
+  // Use our dynamic project options hook
+  const { projectOptions, isLoading, error } = useProjectOptions();
+  
+  return (
+    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+      <div className="flex items-center mb-4">
+        <MapPin className="h-5 w-5 text-primary mr-2" />
+        <h3 className="text-lg font-medium">Travel Details</h3>
       </div>
       
-      <div className="space-y-6">
-        <div className="p-4 border rounded-md bg-muted/10">
-          <h4 className="text-sm font-medium mb-4 text-muted-foreground">Travel Schedule & Transport</h4>
-          
-          <div className="space-y-4">
-            {/* Travel Dates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <div className="p-4 border rounded-md bg-muted/10">
+            <h4 className="text-sm font-medium mb-4 text-muted-foreground">Project & Purpose Information</h4>
+            
+            <div className="space-y-4">
+              {/* Project selection - now using dynamic options */}
               <FormField
                 control={form.control}
-                name="travelDateFrom"
+                name="project"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>From Date</span>
-                      </div>
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <FormLabel>Project</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={isLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          {isLoading ? (
+                            <div className="flex items-center">
+                              <Loader className="h-4 w-4 mr-2 animate-spin" />
+                              <span>Loading projects...</span>
+                            </div>
+                          ) : (
+                            <SelectValue placeholder="Select project" />
+                          )}
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projectOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="travelDateTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>To Date</span>
-                      </div>
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            {/* Mode of Transport */}
-            <FormField
-              control={form.control}
-              name="transportMode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mode of Transport</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select transport mode" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {transportModeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex items-center gap-2">
-                            {option.icon}
-                            {option.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+              {form.watch('project') === 'other' && (
+                <FormField
+                  control={form.control}
+                  name="projectOther"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specify Project</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter project name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
-            
-            {/* Transport Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Station/Pick/Drop */}
+              
+              {/* Purpose of travel */}
               <FormField
                 control={form.control}
-                name="stationPickDrop"
+                name="purposeType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Station/Pick/Drop</FormLabel>
+                    <FormLabel>Purpose of Travel</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select option" />
+                          <SelectValue placeholder="Select purpose" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {yesNoOptions.map(option => (
+                        {purposeOptions.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -561,24 +403,40 @@ const TravelDetailsSection = ({ form }: { form: any }) => (
                 )}
               />
               
-              {/* Local Conveyance */}
+              {form.watch('purposeType') === 'other' && (
+                <FormField
+                  control={form.control}
+                  name="purposeOther"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specify Purpose</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter purpose" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              {/* Location */}
               <FormField
                 control={form.control}
-                name="localConveyance"
+                name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Local Conveyance</FormLabel>
+                    <FormLabel>Location</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select option" />
+                          <SelectValue placeholder="Select location" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {yesNoOptions.map(option => (
+                        {locationOptions.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -589,58 +447,216 @@ const TravelDetailsSection = ({ form }: { form: any }) => (
                   </FormItem>
                 )}
               />
+              
+              {form.watch('location') === 'other' && (
+                <FormField
+                  control={form.control}
+                  name="locationOther"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specify Location</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter location" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
+          </div>
+        </div>
+        
+        <div className="space-y-6">
+          <div className="p-4 border rounded-md bg-muted/10">
+            <h4 className="text-sm font-medium mb-4 text-muted-foreground">Travel Schedule & Transport</h4>
             
-            {/* Checkboxes */}
-            <div className="grid grid-cols-1 gap-3 pt-2">
+            <div className="space-y-4">
+              {/* Travel Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="travelDateFrom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>From Date</span>
+                        </div>
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="travelDateTo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>To Date</span>
+                        </div>
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              {/* Mode of Transport */}
               <FormField
                 control={form.control}
-                name="rideShareUsed"
+                name="transportMode"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Ride Share Used</FormLabel>
-                      <FormDescription>
-                        Check if using ride sharing services
-                      </FormDescription>
-                    </div>
+                  <FormItem>
+                    <FormLabel>Mode of Transport</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transport mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {transportModeOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <div className="flex items-center gap-2">
+                              {option.icon}
+                              {option.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="ownVehicleReimbursement"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Own Vehicle</FormLabel>
-                      <FormDescription>
-                        Request reimbursement for personal vehicle
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
+              {/* Transport Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Station/Pick/Drop */}
+                <FormField
+                  control={form.control}
+                  name="stationPickDrop"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Station/Pick/Drop</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select option" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {yesNoOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Local Conveyance */}
+                <FormField
+                  control={form.control}
+                  name="localConveyance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Local Conveyance</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select option" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {yesNoOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              {/* Checkboxes */}
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                <FormField
+                  control={form.control}
+                  name="rideShareUsed"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Ride Share Used</FormLabel>
+                        <FormDescription>
+                          Check if using ride sharing services
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="ownVehicleReimbursement"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Own Vehicle</FormLabel>
+                        <FormDescription>
+                          Request reimbursement for personal vehicle
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 4. ExpensesSection Component
 const ExpensesSection = ({ 
@@ -760,36 +776,34 @@ const ExpensesSection = ({
                   placeholder="Brief description"
                 />
               </TableCell>
-           {/* Update this part in the ExpensesSection component in TravelRequestForm */}
-
-<TableCell>
-  <div className="flex items-center gap-2">
-    <label
-      htmlFor={`receipt-${index}`}
-      className="cursor-pointer"
-    >
-      <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
-        <PaperclipIcon className="h-4 w-4" />
-        <span>Upload</span>
-      </div>
-    </label>
-    <input
-      id={`receipt-${index}`}
-      type="file"
-      accept="image/*,.pdf,.doc,.docx"
-      onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
-      className="hidden"
-    />
-    {selectedFiles[`${item.category}-${index}`] && (
-      <div className="flex items-center text-sm text-green-600">
-        <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
-        <span className="truncate max-w-[6rem] text-xs">
-          {selectedFiles[`${item.category}-${index}`]?.name}
-        </span>
-      </div>
-    )}
-  </div>
-</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor={`receipt-${index}`}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
+                      <PaperclipIcon className="h-4 w-4" />
+                      <span>Upload</span>
+                    </div>
+                  </label>
+                  <input
+                    id={`receipt-${index}`}
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
+                    className="hidden"
+                  />
+                  {selectedFiles[`${item.category}-${index}`] && (
+                    <div className="flex items-center text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
+                      <span className="truncate max-w-[6rem] text-xs">
+                        {selectedFiles[`${item.category}-${index}`]?.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="text-center">
                 {expenseItems.length > 1 && (
                   <Button
@@ -904,7 +918,6 @@ export default function TravelRequestForm() {
       }));
     }
   };
-  
   
   // Calculate total expense amount
   const calculateTotalAmount = () => {

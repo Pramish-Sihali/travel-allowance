@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Table, 
   TableBody, 
@@ -35,21 +36,10 @@ import {
   Filter,
   ArrowUpDown
 } from 'lucide-react';
-import { UserRole } from '@/types/auth';
-
-// Sample user data for UI display
-const sampleUsers = [
-  { id: '1', name: 'John Doe', email: 'john.doe@example.com', role: 'employee', department: 'Engineering', createdAt: '2023-06-15' },
-  { id: '2', name: 'Jane Smith', email: 'jane.smith@example.com', role: 'approver', department: 'Finance', createdAt: '2023-07-22' },
-  { id: '3', name: 'Robert Johnson', email: 'robert@example.com', role: 'checker', department: 'Finance', createdAt: '2023-08-10' },
-  { id: '4', name: 'Sarah Williams', email: 'sarah@example.com', role: 'admin', department: 'IT', createdAt: '2023-05-05' },
-  { id: '5', name: 'Michael Brown', email: 'michael@example.com', role: 'employee', department: 'Marketing', createdAt: '2023-09-12' },
-  { id: '6', name: 'Emily Davis', email: 'emily@example.com', role: 'employee', department: 'Sales', createdAt: '2023-10-18' },
-  { id: '7', name: 'David Wilson', email: 'david@example.com', role: 'approver', department: 'Operations', createdAt: '2023-07-30' },
-  { id: '8', name: 'Lisa Anderson', email: 'lisa@example.com', role: 'checker', department: 'Finance', createdAt: '2023-08-25' },
-];
+import { UserRole } from '@/types';
 
 export default function AdminUsersTable() {
+  const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,12 +64,14 @@ export default function AdminUsersTable() {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        // In a real app, you would fetch from your API
-        // await fetch('/api/admin/users')
+        const response = await fetch('/api/admin/users');
         
-        // For demo, use sample data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setUsers(sampleUsers);
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        
+        const data = await response.json();
+        setUsers(data);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
@@ -107,8 +99,8 @@ export default function AdminUsersTable() {
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filteredUsers = filteredUsers.filter(user => 
-        user.name.toLowerCase().includes(lowerCaseSearch) ||
-        user.email.toLowerCase().includes(lowerCaseSearch) ||
+        user.name?.toLowerCase().includes(lowerCaseSearch) ||
+        user.email?.toLowerCase().includes(lowerCaseSearch) ||
         user.department?.toLowerCase().includes(lowerCaseSearch)
       );
     }
@@ -121,10 +113,13 @@ export default function AdminUsersTable() {
     // Apply sorting
     if (sortConfig !== null) {
       filteredUsers.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
+        const aValue = a[sortConfig.key] || '';
+        const bValue = b[sortConfig.key] || '';
+        
+        if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
+        if (aValue > bValue) {
           return sortConfig.direction === 'ascending' ? 1 : -1;
         }
         return 0;
@@ -175,49 +170,91 @@ export default function AdminUsersTable() {
   };
   
   // Function to handle adding a new user
-  const handleAddUser = () => {
-    // In a real app, you would call your API
-    // For demo purposes, just add to local state
-    const newUserWithId = {
-      ...newUser,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    
-    setUsers([...users, newUserWithId]);
-    setIsAddDialogOpen(false);
-    setNewUser({
-      name: '',
-      email: '',
-      password: '',
-      role: 'employee',
-      department: ''
-    });
+  const handleAddUser = async () => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create user');
+      }
+      
+      const newUserData = await response.json();
+      setUsers([...users, newUserData]);
+      setIsAddDialogOpen(false);
+      setNewUser({
+        name: '',
+        email: '',
+        password: '',
+        role: 'employee',
+        department: ''
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('Failed to create user. Please try again.');
+    }
   };
   
   // Function to handle editing a user
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!selectedUser) return;
     
-    // Update the user in the array
-    const updatedUsers = users.map(user => 
-      user.id === selectedUser.id ? selectedUser : user
-    );
-    
-    setUsers(updatedUsers);
-    setIsEditDialogOpen(false);
-    setSelectedUser(null);
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(selectedUser),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update user');
+      }
+      
+      const updatedUser = await response.json();
+      
+      // Update the user in the array
+      const updatedUsers = users.map(user => 
+        user.id === updatedUser.id ? updatedUser : user
+      );
+      
+      setUsers(updatedUsers);
+      setIsEditDialogOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Failed to update user. Please try again.');
+    }
   };
   
   // Function to handle deleting a user
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return;
     
-    // Remove the user from the array
-    const updatedUsers = users.filter(user => user.id !== selectedUser.id);
-    setUsers(updatedUsers);
-    setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+      
+      // Remove the user from the array
+      const updatedUsers = users.filter(user => user.id !== selectedUser.id);
+      setUsers(updatedUsers);
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user. Please try again.');
+    }
   };
   
   // Render loading skeleton
@@ -443,7 +480,7 @@ export default function AdminUsersTable() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Badge className={getRoleBadgeClass(user.role)}>
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
                     </Badge>
                   </TableCell>
                   <TableCell>{user.department}</TableCell>
@@ -510,7 +547,7 @@ export default function AdminUsersTable() {
                                 <label className="text-right">Department</label>
                                 <Input
                                   className="col-span-3"
-                                  value={selectedUser.department}
+                                  value={selectedUser.department || ''}
                                   onChange={(e) => setSelectedUser({...selectedUser, department: e.target.value})}
                                 />
                               </div>

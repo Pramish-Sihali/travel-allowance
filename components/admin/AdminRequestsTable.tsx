@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { TravelRequest } from '@/types';
 import { 
   Table, 
   TableBody, 
@@ -50,91 +51,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-// Sample request data for UI display
-const sampleRequests = [
-  { 
-    id: '1', 
-    employeeId: '101', 
-    employeeName: 'John Doe', 
-    department: 'Engineering',
-    purpose: 'Team offsite meeting',
-    travelDateFrom: '2023-10-15',
-    travelDateTo: '2023-10-18',
-    totalAmount: 12500,
-    status: 'approved',
-    requestType: 'normal',
-    createdAt: '2023-10-05'
-  },
-  { 
-    id: '2', 
-    employeeId: '102', 
-    employeeName: 'Jane Smith', 
-    department: 'Finance',
-    purpose: 'Budget planning meeting',
-    travelDateFrom: '2023-10-20',
-    travelDateTo: '2023-10-22',
-    totalAmount: 8900,
-    status: 'pending',
-    requestType: 'advance',
-    createdAt: '2023-10-10'
-  },
-  { 
-    id: '3', 
-    employeeId: '103', 
-    employeeName: 'Robert Johnson', 
-    department: 'Marketing',
-    purpose: 'Client visit',
-    travelDateFrom: '2023-10-25',
-    travelDateTo: '2023-10-27',
-    totalAmount: 15600,
-    status: 'rejected',
-    requestType: 'normal',
-    createdAt: '2023-10-12'
-  },
-  { 
-    id: '4', 
-    employeeId: '104', 
-    employeeName: 'Sarah Williams', 
-    department: 'Sales',
-    purpose: 'Sales conference',
-    travelDateFrom: '2023-11-01',
-    travelDateTo: '2023-11-05',
-    totalAmount: 28900,
-    status: 'pending_verification',
-    requestType: 'normal',
-    createdAt: '2023-10-15'
-  },
-  { 
-    id: '5', 
-    employeeId: '105', 
-    employeeName: 'Michael Brown', 
-    department: 'Engineering',
-    purpose: 'Technical workshop',
-    travelDateFrom: '2023-11-10',
-    travelDateTo: '2023-11-12',
-    totalAmount: 9800,
-    status: 'approved',
-    requestType: 'emergency',
-    createdAt: '2023-10-18'
-  },
-  { 
-    id: '6', 
-    employeeId: '106', 
-    employeeName: 'Emily Davis', 
-    department: 'HR',
-    purpose: 'Job fair',
-    travelDateFrom: '2023-11-15',
-    travelDateTo: '2023-11-16',
-    totalAmount: 5400,
-    status: 'rejected_by_checker',
-    requestType: 'advance',
-    createdAt: '2023-10-22'
-  },
-];
-
 export default function AdminRequestsTable() {
   const router = useRouter();
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -145,19 +64,21 @@ export default function AdminRequestsTable() {
   // Request management state
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
   
   // Fetch requests on component mount
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-        // In a real app, you would fetch from your API
-        // await fetch('/api/admin/requests')
+        const response = await fetch('/api/requests');
         
-        // For demo, use sample data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setRequests(sampleRequests);
+        if (!response.ok) {
+          throw new Error('Failed to fetch requests');
+        }
+        
+        const data = await response.json();
+        setRequests(data);
       } catch (error) {
         console.error('Error fetching requests:', error);
       } finally {
@@ -185,7 +106,7 @@ export default function AdminRequestsTable() {
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filteredRequests = filteredRequests.filter(request => 
-        request.employeeName.toLowerCase().includes(lowerCaseSearch) ||
+        request.employeeName?.toLowerCase().includes(lowerCaseSearch) ||
         request.department?.toLowerCase().includes(lowerCaseSearch) ||
         request.purpose?.toLowerCase().includes(lowerCaseSearch)
       );
@@ -218,10 +139,49 @@ export default function AdminRequestsTable() {
     // Apply sorting
     if (sortConfig !== null) {
       filteredRequests.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
+        const aValue = a[sortConfig.key as keyof TravelRequest];
+        const bValue = b[sortConfig.key as keyof TravelRequest];
+        
+        // Handle date comparisons
+        if (
+          sortConfig.key === 'travelDateFrom' || 
+          sortConfig.key === 'travelDateTo' || 
+          sortConfig.key === 'createdAt'
+        ) {
+          const aDate = new Date(aValue as string).getTime();
+          const bDate = new Date(bValue as string).getTime();
+          
+          if (aDate < bDate) {
+            return sortConfig.direction === 'ascending' ? -1 : 1;
+          }
+          if (aDate > bDate) {
+            return sortConfig.direction === 'ascending' ? 1 : -1;
+          }
+          return 0;
+        }
+        
+        // Handle number comparisons
+        if (sortConfig.key === 'totalAmount') {
+          const aNum = Number(aValue) || 0;
+          const bNum = Number(bValue) || 0;
+          
+          if (aNum < bNum) {
+            return sortConfig.direction === 'ascending' ? -1 : 1;
+          }
+          if (aNum > bNum) {
+            return sortConfig.direction === 'ascending' ? 1 : -1;
+          }
+          return 0;
+        }
+        
+        // Handle string comparisons
+        const aStr = String(aValue || '').toLowerCase();
+        const bStr = String(bValue || '').toLowerCase();
+        
+        if (aStr < bStr) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
+        if (aStr > bStr) {
           return sortConfig.direction === 'ascending' ? 1 : -1;
         }
         return 0;
@@ -266,7 +226,6 @@ export default function AdminRequestsTable() {
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
       case 'rejected_by_checker':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
@@ -307,20 +266,33 @@ export default function AdminRequestsTable() {
   };
   
   // Function to handle viewing a request
-  const handleViewRequest = (request: any) => {
+  const handleViewRequest = (request: TravelRequest) => {
     setSelectedRequest(request);
     setIsViewDialogOpen(true);
   };
   
   // Function to handle deleting a request
-  const handleDeleteRequest = () => {
+  const handleDeleteRequest = async () => {
     if (!selectedRequest) return;
     
-    // Remove the request from the array
-    const updatedRequests = requests.filter(request => request.id !== selectedRequest.id);
-    setRequests(updatedRequests);
-    setIsDeleteDialogOpen(false);
-    setSelectedRequest(null);
+    try {
+      const response = await fetch(`/api/requests/${selectedRequest.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete request');
+      }
+      
+      // Remove the request from the array
+      const updatedRequests = requests.filter(request => request.id !== selectedRequest.id);
+      setRequests(updatedRequests);
+      setIsDeleteDialogOpen(false);
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      alert('Failed to delete request. Please try again.');
+    }
   };
   
   // Render loading skeleton
@@ -737,31 +709,9 @@ export default function AdminRequestsTable() {
                   Expense Items
                 </h4>
                 <div className="space-y-3">
-                  {/* Mock expense items */}
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Accommodation</Badge>
-                      <span className="text-sm">Hotel stay for 3 nights</span>
-                    </div>
-                    <span className="font-medium">Nrs.9,000</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Transportation</Badge>
-                      <span className="text-sm">Flight tickets</span>
-                    </div>
-                    <span className="font-medium">Nrs.12,000</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Meals</Badge>
-                      <span className="text-sm">Per diem for food</span>
-                    </div>
-                    <span className="font-medium">Nrs.4,500</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="font-bold">Total</span>
-                    <span className="font-bold">Nrs.{selectedRequest.totalAmount.toLocaleString()}</span>
+                  {/* We'd fetch and display actual expense items here */}
+                  <div className="text-muted-foreground text-sm text-center py-4">
+                    Expense details would be fetched from the API
                   </div>
                 </div>
               </div>

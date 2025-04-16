@@ -17,7 +17,6 @@ import {
   Cell
 } from 'recharts';
 
-// Define the interface for the stats prop
 interface AdminStatisticsProps {
   stats: {
     pendingRequests: number;
@@ -29,30 +28,32 @@ interface AdminStatisticsProps {
       checker: number;
       admin: number;
     };
+    requestsByMonth: Array<{
+      month: string;
+      pending: number;
+      approved: number;
+      rejected: number;
+      amount: number;
+    }>;
+    departmentData: Array<{
+      name: string;
+      requests: number;
+      amount: number;
+    }>;
   };
 }
 
 const AdminStatistics: React.FC<AdminStatisticsProps> = ({ stats }) => {
   const [timeRange, setTimeRange] = useState('monthly');
   
-  // Sample data for monthly travel requests
-  const monthlyRequestData = [
-    { month: 'Jan', pending: 4, approved: 9, rejected: 2, amount: 32000 },
-    { month: 'Feb', pending: 3, approved: 8, rejected: 3, amount: 28000 },
-    { month: 'Mar', pending: 5, approved: 12, rejected: 4, amount: 42000 },
-    { month: 'Apr', pending: 4, approved: 7, rejected: 2, amount: 30000 },
-    { month: 'May', pending: 3, approved: 9, rejected: 1, amount: 28000 },
-    { month: 'Jun', pending: 6, approved: 10, rejected: 2, amount: 35000 },
-  ];
-  
-  // Sample data for request status distribution
+  // Status distribution data
   const statusDistributionData = [
     { name: 'Pending', value: stats.pendingRequests, color: '#F59E0B' },
     { name: 'Approved', value: stats.approvedRequests, color: '#10B981' },
     { name: 'Rejected', value: stats.rejectedRequests, color: '#EF4444' }
   ];
   
-  // Sample data for user role distribution
+  // User role distribution data
   const roleDistributionData = [
     { name: 'Employees', value: stats.usersByRole.employee, color: '#3B82F6' },
     { name: 'Approvers', value: stats.usersByRole.approver, color: '#8B5CF6' },
@@ -60,14 +61,9 @@ const AdminStatistics: React.FC<AdminStatisticsProps> = ({ stats }) => {
     { name: 'Admins', value: stats.usersByRole.admin, color: '#6B7280' }
   ];
   
-  // Sample data for department distribution
-  const departmentData = [
-    { name: 'Engineering', requests: 45, amount: 90000 },
-    { name: 'Marketing', requests: 30, amount: 60000 },
-    { name: 'Finance', requests: 25, amount: 50000 },
-    { name: 'HR', requests: 15, amount: 30000 },
-    { name: 'Sales', requests: 20, amount: 40000 }
-  ];
+  // Default to empty arrays if data isn't provided
+  const monthlyRequestData = stats.requestsByMonth || [];
+  const departmentData = stats.departmentData || [];
   
   return (
     <div className="space-y-6">
@@ -128,7 +124,7 @@ const AdminStatistics: React.FC<AdminStatisticsProps> = ({ stats }) => {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value) => [`Nrs.${value.toLocaleString()}`, 'Amount']}
+                  formatter={(value) => [`Nrs.${Number(value).toLocaleString()}`, 'Amount']}
                 />
                 <Bar dataKey="amount" fill="#8884d8" />
               </BarChart>

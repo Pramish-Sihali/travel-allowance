@@ -11,19 +11,11 @@ import {
   Users,
   FileText,
   DollarSign,
-  Settings,
   BarChart,
-  UserPlus,
   Bell,
-  Server,
-  Briefcase,
   CheckSquare,
   AlertTriangle,
-  Loader2,
   UserCircle,
-  Building,
-  PieChart,
-  Calendar
 } from 'lucide-react';
 
 import AdminUsersTable from './AdminUsersTable';
@@ -34,11 +26,38 @@ interface AdminDashboardContentProps {
   user: any;
 }
 
+interface AdminStats {
+  totalUsers: number;
+  totalRequests: number;
+  pendingRequests: number;
+  approvedRequests: number;
+  rejectedRequests: number;
+  totalAmount: number;
+  usersByRole: {
+    employee: number;
+    approver: number;
+    checker: number;
+    admin: number;
+  };
+  requestsByMonth: Array<{
+    month: string;
+    pending: number;
+    approved: number;
+    rejected: number;
+    amount: number;
+  }>;
+  departmentData: Array<{
+    name: string;
+    requests: number;
+    amount: number;
+  }>;
+}
+
 export default function AdminDashboardContent({ user }: AdminDashboardContentProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalRequests: 0,
     pendingRequests: 0,
@@ -50,33 +69,23 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
       approver: 0,
       checker: 0,
       admin: 0
-    }
+    },
+    requestsByMonth: [],
+    departmentData: []
   });
   
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        // In a real implementation, you would fetch this data from your API
-        // For now, we'll use mock data
+        const response = await fetch('/api/admin/stats');
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!response.ok) {
+          throw new Error('Failed to fetch admin statistics');
+        }
         
-        setStats({
-          totalUsers: 42,
-          totalRequests: 156,
-          pendingRequests: 18,
-          approvedRequests: 102,
-          rejectedRequests: 36,
-          totalAmount: 245000,
-          usersByRole: {
-            employee: 30,
-            approver: 6,
-            checker: 4,
-            admin: 2
-          }
-        });
+        const data = await response.json();
+        setStats(data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -106,14 +115,6 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold">Admin Dashboard</h2>
-        <Button
-          variant="default"
-          onClick={() => router.push('/admin/settings')}
-          className="flex items-center gap-2"
-        >
-          <Settings size={16} />
-          System Settings
-        </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -128,9 +129,6 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
                 <p className="text-sm text-gray-500">Total Users</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
-                    +4 this month
-                  </Badge>
                 </div>
               </div>
             </div>
@@ -147,9 +145,6 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
                 <p className="text-sm text-gray-500">Total Requests</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.totalRequests}</p>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
-                    +12 this month
-                  </Badge>
                 </div>
               </div>
             </div>
@@ -180,9 +175,11 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
                 <p className="text-sm text-gray-500">Pending Requests</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.pendingRequests}</p>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
-                    Needs action
-                  </Badge>
+                  {stats.pendingRequests > 0 && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                      Needs action
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -231,8 +228,8 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-md md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
@@ -260,42 +257,28 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-primary" />
-              System Health
+              <CheckSquare className="h-5 w-5 text-primary" />
+              Recent Approvals
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">CPU Usage</span>
-                <span className="text-sm font-medium">24%</span>
-              </div>
-              <div className="w-full bg-gray-200 h-2 rounded-full">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '24%' }}></div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Memory Usage</span>
-                <span className="text-sm font-medium">42%</span>
-              </div>
-              <div className="w-full bg-gray-200 h-2 rounded-full">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '42%' }}></div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Disk Usage</span>
-                <span className="text-sm font-medium">65%</span>
-              </div>
-              <div className="w-full bg-gray-200 h-2 rounded-full">
-                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '65%' }}></div>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckSquare className="h-4 w-4" />
-                  All systems operational
-                </p>
-              </div>
+              {stats.approvedRequests > 0 ? (
+                <div>
+                  <p className="text-lg font-medium text-green-600 flex items-center gap-2 mb-4">
+                    <CheckSquare className="h-5 w-5" />
+                    {stats.approvedRequests} approved requests
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-2">
+                    View All Approved Requests
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+                  <p className="text-muted-foreground">No approved requests yet</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
