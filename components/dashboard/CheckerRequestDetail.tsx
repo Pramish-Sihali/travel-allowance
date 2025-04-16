@@ -17,7 +17,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Clock, CheckCircle, AlertTriangle, FileText, DollarSign, Calculator, Receipt as ReceiptIcon, Ban, ThumbsDown, ThumbsUp, Loader2 } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  FileText, 
+  DollarSign, 
+  Calculator, 
+  Receipt as ReceiptIcon, 
+  Ban, 
+  ThumbsDown, 
+  ThumbsUp, 
+  Loader2, 
+  User,
+  MapPin,
+  Building,
+  Calendar,
+  CreditCard,
+  Briefcase
+} from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 // Import the tab content components for reuse
 import RequestDetailsTab from '@/components/dashboard/RequestDetailsTab';
@@ -37,6 +57,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('details');
   
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -159,6 +180,12 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
     }
   };
   
+  // Calculate combined total (including previous outstanding advance)
+  const calculateCombinedTotal = () => {
+    if (!request) return 0;
+    return request.totalAmount + (request.previousOutstandingAdvance || 0);
+  };
+  
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -233,6 +260,9 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
 
   // Safe access to status with fallback
   const status = request.status || 'pending_verification';
+  
+  // Safe access to requestType with fallback
+  const requestType = request.requestType || 'normal';
       
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -270,20 +300,45 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
         </div>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Financial Verification</CardTitle>
-          <CardDescription >
-            Request #{displayRequestId}
-          </CardDescription>
+      <Card className="border shadow-sm">
+        <CardHeader className="border-b bg-muted/10">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-purple-600" />
+                Financial Verification
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Request #{displayRequestId} • From {request.employeeName} • {request.department}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2 items-center">
+              <Badge variant="outline" className="bg-purple-50 text-purple-900 border-purple-200">
+                <Calculator size={12} className="mr-1" />
+                Finance Review
+              </Badge>
+              
+              <Badge className={cn(
+                "flex items-center gap-1.5 h-7 px-3",
+                requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                'bg-red-100 text-red-800 border-red-200'
+              )}>
+                {requestType === 'normal' && <FileText className="h-3.5 w-3.5" />}
+                {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5" />}
+                {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5" />}
+                {requestType.charAt(0).toUpperCase() + requestType.slice(1)} Request
+              </Badge>
+            </div>
+          </div>
         </CardHeader>
         
         <CardContent className="p-0">
-          <Tabs defaultValue="details" className="w-full">
-            <div className="px-6 p-4 border-b">
+          <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="border-b bg-muted/5 px-6 py-2">
               <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
                 <TabsTrigger value="details" className="flex items-center gap-2">
-                  <FileText size={16} />
+                  <User size={16} />
                   <span className="hidden sm:inline">Request Details</span>
                 </TabsTrigger>
                 <TabsTrigger value="expenses" className="flex items-center gap-2">
@@ -297,193 +352,292 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
               </TabsList>
             </div>
             
-            <TabsContent value="details" className="m-0">
-              <RequestDetailsTab 
-                request={request} 
-                travelDates={travelDates} 
-              />
+            <TabsContent value="details">
+              <RequestDetailsTab request={request} travelDates={travelDates} />
             </TabsContent>
             
-            <TabsContent value="expenses" className="m-0">
+            <TabsContent value="expenses">
               <RequestExpensesTab 
                 expenseItems={expenseItems} 
                 receipts={receipts} 
-                totalAmount={request.totalAmount || 0} 
+                totalAmount={request.totalAmount || 0}
+                previousOutstandingAdvance={request.previousOutstandingAdvance}
               />
             </TabsContent>
             
-            <TabsContent value="verification" className="m-0">
-              <div className="p-6 space-y-6">
-                {request.status !== 'pending_verification' ? (
-                  <>
-                    <Alert className={request.status === 'approved' 
-                      ? 'bg-green-50 text-green-800 border-green-200' 
-                      : 'bg-red-50 text-red-800 border-red-200'
-                    }>
-                      {request.status === 'approved' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
+            <TabsContent value="verification" className="p-6 space-y-6">
+              {request.status !== 'pending_verification' ? (
+                <>
+                  <Alert className={request.status === 'approved' 
+                    ? 'bg-green-50 text-green-800 border-green-200' 
+                    : 'bg-red-50 text-red-800 border-red-200'
+                  }>
+                    {request.status === 'approved' ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                    )}
+                    <AlertTitle>{getFormattedStatus(request.status)}</AlertTitle>
+                    <AlertDescription>
+                      This request has already been {request.status === 'rejected_by_checker' ? 'rejected' : request.status}.
+                      {request.checkerComments && (
+                        <div className="mt-2 p-3 bg-white/50 rounded-md border border-current/20">
+                          <p className="font-medium text-sm">Verification Comments:</p>
+                          <p className="text-sm mt-1">{request.checkerComments}</p>
+                        </div>
                       )}
-                      <AlertTitle>{getFormattedStatus(request.status)}</AlertTitle>
-                      <AlertDescription>
-                        This request has already been {request.status === 'rejected_by_checker' ? 'rejected' : request.status}.
-                        {request.checkerComments && (
-                          <div className="mt-2 p-3 bg-white/50 rounded-md border border-current/20">
-                            <p className="font-medium text-sm">Verification Comments:</p>
-                            <p className="text-sm mt-1">{request.checkerComments}</p>
-                          </div>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                    
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => router.push('/checker/dashboard')}
-                        className="flex items-center gap-2"
-                      >
-                        <ArrowLeft size={16} />
-                        Back to Dashboard
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Card className="border-l-4 border-l-purple-400">
-                      <CardHeader className="pb-3">
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push('/checker/dashboard')}
+                      className="flex items-center gap-2"
+                    >
+                      <ArrowLeft size={16} />
+                      Back to Dashboard
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Card className="border-l-4 border-l-purple-400 shadow-sm">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-center">
                         <CardTitle className="text-base flex items-center gap-2">
                           <ReceiptIcon size={16} className="text-purple-500" />
                           Financial Verification
                         </CardTitle>
-                        <CardDescription>
-                          Verify all expenses and ensure they comply with financial policies
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <p className="text-sm text-muted-foreground">
-                            Please review the expenses in this travel request carefully. Ensure all amounts are appropriate and have proper supporting documentation. The approver has already approved this request and it's now awaiting your financial verification.
-                          </p>
-                          
-                          {request.approverComments && (
-                            <Alert className="bg-blue-50 text-blue-800 border-blue-200">
-                              <FileText className="h-4 w-4 text-blue-600" />
-                              <AlertTitle>Approver Comments</AlertTitle>
-                              <AlertDescription>
-                                {request.approverComments}
-                              </AlertDescription>
-                            </Alert>
+                        <div className="flex flex-col items-end">
+                          <Badge className="mb-1 bg-primary/10 text-primary border-0 font-bold">
+                            Request Total: Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          </Badge>
+                          {request.previousOutstandingAdvance > 0 && (
+                            <Badge className="bg-amber-100 text-amber-800 border-0 font-bold text-xs">
+                              <AlertTriangle size={10} className="mr-1" />
+                              Previous Balance: Nrs.{request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </Badge>
                           )}
-                          
-                          <div className="pt-4">
-                            <label className="block mb-2 text-sm font-medium">Verification Comments</label>
-                            <Textarea
-                              value={verificationComment}
-                              onChange={(e) => setVerificationComment(e.target.value)}
-                              placeholder="Add your comments regarding the financial verification..."
-                              className="min-h-[120px] resize-none"
-                            />
+                          {request.previousOutstandingAdvance > 0 && (
+                            <Badge className="mt-1 bg-purple-100 text-purple-800 border-0 font-bold text-xs">
+                              Combined Total: Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <CardDescription>
+                        Verify all expenses and ensure they comply with financial policies
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Please review the expenses in this travel request carefully. Ensure all amounts are appropriate and have proper supporting documentation. The approver has already approved this request and it's now awaiting your financial verification.
+                        </p>
+                        
+                        {request.approverComments && (
+                          <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            <AlertTitle>Approver Comments</AlertTitle>
+                            <AlertDescription>
+                              {request.approverComments}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        
+                        <div className="pt-4">
+                          <label className="block mb-2 text-sm font-medium">Verification Comments</label>
+                          <Textarea
+                            value={verificationComment}
+                            onChange={(e) => setVerificationComment(e.target.value)}
+                            placeholder="Add your comments regarding the financial verification..."
+                            className="min-h-[120px] resize-none"
+                          />
+                          <div className="flex justify-between mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              Your comments will be visible to the requester
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {verificationComment.length} characters
+                            </p>
                           </div>
                         </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <div className="text-sm text-muted-foreground flex items-center">
-                          <Calculator className="h-4 w-4 mr-2" />
-                          Total amount: <strong className="ml-1 text-purple-600">Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Card className="shadow-sm">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm">Request Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <User size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Employee:</span>
+                          <span className="text-sm">{request.employeeName}</span>
                         </div>
-                      </CardFooter>
+                        
+                        <div className="flex items-center gap-2">
+                          <Building size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Department:</span>
+                          <span className="text-sm">{request.department}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Briefcase size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Project:</span>
+                          <span className="text-sm capitalize">{request.project === 'other' ? 
+                            request.projectOther : 
+                            request.project?.replace('-', ' ')}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Location:</span>
+                          <span className="text-sm capitalize">{request.location === 'other' ? 
+                            request.locationOther : 
+                            request.location}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Calendar size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Travel Period:</span>
+                          <span className="text-sm">
+                            {new Date(request.travelDateFrom).toLocaleDateString()} - {new Date(request.travelDateTo).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <FileText size={16} className="text-purple-500" />
+                          <span className="text-sm font-medium">Purpose:</span>
+                          <span className="text-sm">{request.purpose}</span>
+                        </div>
+                      </CardContent>
                     </Card>
                     
-                    <div className="bg-muted/20 p-6 rounded-lg border">
-                      <h3 className="text-base font-medium mb-4 flex items-center gap-2">
-                        <CheckCircle size={16} className="text-purple-500" />
-                        Verification Checklist
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Card className="shadow-sm">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm">Verification Checklist</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 space-y-3">
                         <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5">
+                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
                             <CheckCircle size={12} />
                           </div>
                           <span className="text-sm">All expenses are supported by valid receipts</span>
                         </div>
                         
                         <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5">
+                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
                             <CheckCircle size={12} />
                           </div>
                           <span className="text-sm">Expense amounts comply with company policy</span>
                         </div>
                         
                         <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5">
+                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
                             <CheckCircle size={12} />
                           </div>
                           <span className="text-sm">Calculations and totals are correct</span>
                         </div>
                         
                         <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5">
+                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
                             <CheckCircle size={12} />
                           </div>
                           <span className="text-sm">All required details are provided</span>
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row justify-end gap-3">
-                        <Button
-                          variant="outline"
-                          onClick={() => router.push('/checker/dashboard')}
-                          disabled={isSubmitting}
-                          className="flex items-center gap-2"
-                        >
-                          <ArrowLeft size={16} />
-                          Back to Dashboard
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleVerification('rejected')}
-                          disabled={isSubmitting}
-                          className="flex items-center gap-2"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 size={16} className="animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Ban size={16} />
-                              Reject
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => handleVerification('approved')}
-                          disabled={isSubmitting}
-                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 size={16} className="animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={16} />
-                              Approve
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                        
+                        <div className="flex items-start gap-2 mt-4 p-2 bg-amber-50 rounded-md border border-amber-200">
+                          <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-amber-800">Financial Verification Is Final</p>
+                            <p className="text-xs text-amber-700">
+                              Once approved, funds will be released to the employee. Make sure all documentation is complete.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push('/checker/dashboard')}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2"
+                    >
+                      <ArrowLeft size={16} />
+                      Back to Dashboard
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleVerification('rejected')}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Ban size={16} />
+                          Reject
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => handleVerification('approved')}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={16} />
+                          Approve
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
+        
+        <CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
+            <FileText className="h-4 w-4" />
+            Request #{displayRequestId.substring(0, 6)}
+            <span className="mx-2">•</span>
+            <Clock className="h-4 w-4" />
+            Submitted: {new Date(request.createdAt).toLocaleDateString()}
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 h-8"
+              onClick={() => setActiveTab('expenses')}
+            >
+              <ReceiptIcon size={14} />
+              View Receipts
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

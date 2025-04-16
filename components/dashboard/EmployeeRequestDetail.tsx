@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Accordion,
   AccordionContent,
@@ -48,7 +49,8 @@ import {
   Briefcase, 
   ChevronRight,
   CreditCard,
-  Calculator
+  Calculator,
+  Navigation
 } from 'lucide-react';
 import {
   Tooltip,
@@ -57,6 +59,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+// Import the components
+import RequestDetailsTab from './RequestDetailsTab';
+import RequestExpensesTab from './RequestExpensesTab';
 
 interface EmployeeRequestDetailProps {
   requestId: string;
@@ -68,6 +74,7 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
   const [receipts, setReceipts] = useState<Record<string, Receipt[]>>({});
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('details');
   
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -108,54 +115,50 @@ export default function EmployeeRequestDetail({ requestId }: EmployeeRequestDeta
     fetchRequestDetails();
   }, [requestId]);
   
-
-// In the EmployeeRequestDetail component, update the status badges and alerts:
-
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'pending_verification':
-      return 'bg-purple-100 text-purple-800 border-purple-200';
-    case 'approved':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'rejected':
-    case 'rejected_by_checker':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-};
-
-const getStatusIcon = () => {
-  if (!request) return null;
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'pending_verification':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected':
+      case 'rejected_by_checker':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
   
-  switch (request.status) {
-    case 'pending':
-      return <Clock size={20} className="text-amber-500" />;
-    case 'pending_verification':
-      return <Calculator size={20} className="text-purple-500" />;
-    case 'approved':
-      return <CheckCircle size={20} className="text-green-500" />;
-    case 'rejected':
-    case 'rejected_by_checker':
-      return <AlertTriangle size={20} className="text-red-500" />;
-    default:
-      return <Info size={20} className="text-blue-500" />;
-  }
-};
-
-const getFormattedStatus = (status: string) => {
-  switch (status) {
-    case 'pending_verification':
-      return 'Under Financial Verification';
-    case 'rejected_by_checker':
-      return 'Rejected by Finance';
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1);
-  }
-};
- 
+  const getStatusIcon = () => {
+    if (!request) return null;
+    
+    switch (request.status) {
+      case 'pending':
+        return <Clock size={20} className="text-amber-500" />;
+      case 'pending_verification':
+        return <Calculator size={20} className="text-purple-500" />;
+      case 'approved':
+        return <CheckCircle size={20} className="text-green-500" />;
+      case 'rejected':
+      case 'rejected_by_checker':
+        return <AlertTriangle size={20} className="text-red-500" />;
+      default:
+        return <Info size={20} className="text-blue-500" />;
+    }
+  };
+  
+  const getFormattedStatus = (status: string) => {
+    switch (status) {
+      case 'pending_verification':
+        return 'Under Financial Verification';
+      case 'rejected_by_checker':
+        return 'Rejected by Finance';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
   
   if (loading) {
     return (
@@ -232,9 +235,122 @@ const getFormattedStatus = (status: string) => {
   
   // Safe access to requestType with fallback
   const requestType = request.requestType || 'normal';
+  
+  const statusAlerts = () => {
+    if (status === 'rejected') {
+      return (
+        <Alert className="bg-red-50 text-red-800 border-red-200 mb-6">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle>Request Rejected</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Your travel request has been rejected. Please contact your supervisor for more information.</p>
+            <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 mt-2 text-red-700 border-red-300 hover:bg-red-100">
+              <ExternalLink size={12} />
+              Contact Supervisor
+            </Button>
+          </AlertDescription>
+        </Alert>
+      );
+    } else if (status === 'rejected_by_checker') {
+      return (
+        <Alert className="bg-red-50 text-red-800 border-red-200 mb-6">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle>Request Rejected by Finance</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Your travel request did not pass financial verification. Please review the comments and contact the finance department.</p>
+            {request.checkerComments && (
+              <div className="bg-white/50 p-3 rounded-md border border-red-200 mb-2">
+                <p className="text-sm font-medium">Finance Comments:</p>
+                <p className="text-sm">{request.checkerComments}</p>
+              </div>
+            )}
+            <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 mt-2 text-red-700 border-red-300 hover:bg-red-100">
+              <ExternalLink size={12} />
+              Contact Finance
+            </Button>
+          </AlertDescription>
+        </Alert>
+      );
+    } else if (status === 'approved') {
+      return (
+        <Alert className="bg-green-50 text-green-800 border-green-200 mb-6">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle>Request Approved</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Your travel request has been approved. Please collect your advance from the Finance department.</p>
+            <p className="mb-3">Remember to submit all receipts within 3 days of returning from your travel.</p>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 text-green-700 border-green-300 hover:bg-green-100">
+                <Download size={12} />
+                Download Approval
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 text-green-700 border-green-300 hover:bg-green-100">
+                <ExternalLink size={12} />
+                Contact Finance
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    } else if (status === 'pending') {
+      return (
+        <Alert className="bg-amber-50 text-amber-800 border-amber-200 mb-6">
+          <Clock className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Request Pending</AlertTitle>
+          <AlertDescription>
+            <p className="mb-3">Your travel request is pending approval. You will be notified when it is reviewed.</p>
+            <div className="mt-3 bg-white rounded p-3 border border-amber-100">
+              <div className="flex items-center mb-2">
+                <div className="h-2.5 w-2.5 bg-amber-400 rounded-full mr-2"></div>
+                <p className="text-sm text-amber-700">Submitted for review</p>
+              </div>
+              <div className="ml-[5px] h-6 border-l border-dashed border-amber-200"></div>
+              <div className="flex items-center mb-2">
+                <div className="h-2.5 w-2.5 bg-muted rounded-full mr-2"></div>
+                <p className="text-sm text-muted-foreground">Manager approval</p>
+              </div>
+              <div className="ml-[5px] h-6 border-l border-dashed border-muted"></div>
+              <div className="flex items-center">
+                <div className="h-2.5 w-2.5 bg-muted rounded-full mr-2"></div>
+                <p className="text-sm text-muted-foreground">Finance verification</p>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    } else if (status === 'pending_verification') {
+      return (
+        <Alert className="bg-purple-50 text-purple-800 border-purple-200 mb-6">
+          <Calculator className="h-4 w-4 text-purple-600" />
+          <AlertTitle>Under Financial Verification</AlertTitle>
+          <AlertDescription>
+            <p className="mb-3">Your request has been approved by your manager and is now with Finance for final verification.</p>
+            <div className="mt-3 bg-white rounded p-3 border border-purple-100">
+              <div className="flex items-center mb-2">
+                <div className="h-2.5 w-2.5 bg-green-400 rounded-full mr-2"></div>
+                <p className="text-sm text-green-700">Submitted for review ✓</p>
+              </div>
+              <div className="ml-[5px] h-6 border-l border-dashed border-green-200"></div>
+              <div className="flex items-center mb-2">
+                <div className="h-2.5 w-2.5 bg-green-400 rounded-full mr-2"></div>
+                <p className="text-sm text-green-700">Manager approval ✓</p>
+              </div>
+              <div className="ml-[5px] h-6 border-l border-dashed border-purple-200"></div>
+              <div className="flex items-center">
+                <div className="h-2.5 w-2.5 bg-purple-400 rounded-full mr-2"></div>
+                <p className="text-sm text-purple-700">Finance verification (in progress)</p>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    return null;
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <Button
           variant="ghost"
@@ -248,356 +364,101 @@ const getFormattedStatus = (status: string) => {
         <div className="flex items-center gap-2">
           {getStatusIcon()}
           <Badge className={getStatusBadgeClass(status)}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+            {getFormattedStatus(status)}
           </Badge>
         </div>
       </div>
       
-      <Card>
-        <CardHeader className=" text-primary">
-          <CardTitle className="text-xl">Travel Request Details</CardTitle>
-          <CardDescription className="text-primary/90">{request.purpose || 'No purpose specified'}</CardDescription>
+      {statusAlerts()}
+      
+      <Card className="border shadow-sm">
+        <CardHeader className="border-b bg-muted/10">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Travel Request Details
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Request #{displayRequestId} • Submitted on {new Date(request.createdAt).toLocaleDateString()}
+              </CardDescription>
+            </div>
+            <Badge className={cn(
+              "flex items-center gap-1.5 h-7 px-3",
+              requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+              requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+              'bg-red-100 text-red-800 border-red-200'
+            )}>
+              {requestType === 'normal' && <FileText className="h-3.5 w-3.5" />}
+              {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5" />}
+              {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5" />}
+              {requestType.charAt(0).toUpperCase() + requestType.slice(1)} Request
+            </Badge>
+          </div>
         </CardHeader>
         
         <CardContent className="p-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-            <div className="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Calendar size={18} className="text-primary" />
-                    Travel Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-muted-foreground text-sm mb-1">From</p>
-                      <p className="font-medium">
-                        {travelDates.start.toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-muted-foreground text-sm mb-1">To</p>
-                      <p className="font-medium">
-                        {travelDates.end.toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-muted-foreground text-sm mb-1">Duration</p>
-                      <p className="font-medium">{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-muted-foreground text-sm mb-1">Submitted On</p>
-                      <p className="font-medium">
-                        {new Date(request.createdAt).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Accordion type="single" collapsible defaultValue="expenses">
-                <AccordionItem value="expenses" className="border rounded-lg">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <span className="flex items-center gap-2 text-lg font-medium">
-                      <DollarSign size={18} className="text-primary" />
-                      Expense Details
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4 pt-2">
-                    {expenseItems.length === 0 ? (
-                      <div className="bg-muted/30 p-6 rounded-lg text-center">
-                        <FileText size={32} className="mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">No expense items found.</p>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Receipts</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {expenseItems.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-medium">
-                                {(item.category || "").charAt(0).toUpperCase() + (item.category || "").slice(1).replace('-', ' ')}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">{item.description || '-'}</TableCell>
-                              <TableCell className="font-medium">
-                                Nrs.{(item.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                              </TableCell>
-                              <TableCell>
-                                {receipts[item.id] && receipts[item.id].length > 0 ? (
-                                  <div className="flex flex-col space-y-1">
-                                    {receipts[item.id].map((receipt) => (
-                                      <TooltipProvider key={receipt.id}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="flex items-center gap-1 h-auto p-1 w-fit"
-                                              asChild
-                                            >
-                                              <Link
-                                                href={`/uploads/${receipt.storedFilename}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary hover:text-primary/80 text-sm flex items-center gap-1"
-                                              >
-                                                <Paperclip size={14} />
-                                                <span className="truncate max-w-[150px]">{receipt.originalFilename}</span>
-                                              </Link>
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Click to view receipt</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">No receipts</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow className="font-bold bg-muted/20">
-                            <TableCell colSpan={2} className="text-right">Total</TableCell>
-                            <TableCell className="text-primary font-bold">
-                              Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                            </TableCell>
-                            <TableCell></TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            
-              {status === 'rejected' && (
-  <Alert className="bg-red-50 text-red-800 border-red-200">
-    <AlertTriangle className="h-4 w-4 text-red-600" />
-    <AlertTitle>Request Rejected</AlertTitle>
-    <AlertDescription>
-      <p className="mb-2">Your travel request has been rejected. Please contact your supervisor for more information.</p>
-      <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 mt-2 text-red-700 border-red-300 hover:bg-red-100">
-        <ExternalLink size={12} />
-        Contact Supervisor
-      </Button>
-    </AlertDescription>
-  </Alert>
-)}
-
-{status === 'rejected_by_checker' && (
-  <Alert className="bg-red-50 text-red-800 border-red-200">
-    <AlertTriangle className="h-4 w-4 text-red-600" />
-    <AlertTitle>Request Rejected by Finance</AlertTitle>
-    <AlertDescription>
-      <p className="mb-2">Your travel request did not pass financial verification. Please review the comments and contact the finance department.</p>
-      {request.checkerComments && (
-        <div className="bg-white/50 p-3 rounded-md border border-red-200 mb-2">
-          <p className="text-sm font-medium">Finance Comments:</p>
-          <p className="text-sm">{request.checkerComments}</p>
-        </div>
-      )}
-      <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 mt-2 text-red-700 border-red-300 hover:bg-red-100">
-        <ExternalLink size={12} />
-        Contact Finance
-      </Button>
-    </AlertDescription>
-  </Alert>
-)}
-
-{status === 'approved' && (
-  <Alert className="bg-green-50 text-green-800 border-green-200">
-    <CheckCircle className="h-4 w-4 text-green-600" />
-    <AlertTitle>Request Approved</AlertTitle>
-    <AlertDescription>
-      <p className="mb-2">Your travel request has been approved. Please collect your advance from the Finance department.</p>
-      <p className="mb-3">Remember to submit all receipts within 3 days of returning from your travel.</p>
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 text-green-700 border-green-300 hover:bg-green-100">
-          <Download size={12} />
-          Download Approval
-        </Button>
-        <Button variant="outline" size="sm" className="text-xs flex items-center gap-1 text-green-700 border-green-300 hover:bg-green-100">
-          <ExternalLink size={12} />
-          Contact Finance
-        </Button>
-      </div>
-    </AlertDescription>
-  </Alert>
-)}
-
-{status === 'pending' && (
-  <Alert className="bg-amber-50 text-amber-800 border-amber-200">
-    <Clock className="h-4 w-4 text-amber-600" />
-    <AlertTitle>Request Pending</AlertTitle>
-    <AlertDescription>
-      <p className="mb-3">Your travel request is pending approval. You will be notified when it is reviewed.</p>
-      <div className="mt-3 bg-white rounded p-3 border border-amber-100">
-        <div className="flex items-center mb-2">
-          <div className="h-2.5 w-2.5 bg-amber-400 rounded-full mr-2"></div>
-          <p className="text-sm text-amber-700">Submitted for review</p>
-        </div>
-        <div className="ml-[5px] h-6 border-l border-dashed border-amber-200"></div>
-        <div className="flex items-center mb-2">
-          <div className="h-2.5 w-2.5 bg-muted rounded-full mr-2"></div>
-          <p className="text-sm text-muted-foreground">Manager approval</p>
-        </div>
-        <div className="ml-[5px] h-6 border-l border-dashed border-muted"></div>
-        <div className="flex items-center">
-          <div className="h-2.5 w-2.5 bg-muted rounded-full mr-2"></div>
-          <p className="text-sm text-muted-foreground">Finance verification</p>
-        </div>
-      </div>
-    </AlertDescription>
-  </Alert>
-)}
-
-{status === 'pending_verification' && (
-  <Alert className="bg-purple-50 text-purple-800 border-purple-200">
-    <Calculator className="h-4 w-4 text-purple-600" />
-    <AlertTitle>Under Financial Verification</AlertTitle>
-    <AlertDescription>
-      <p className="mb-3">Your request has been approved by your manager and is now with Finance for final verification.</p>
-      <div className="mt-3 bg-white rounded p-3 border border-purple-100">
-        <div className="flex items-center mb-2">
-          <div className="h-2.5 w-2.5 bg-green-400 rounded-full mr-2"></div>
-          <p className="text-sm text-green-700">Submitted for review ✓</p>
-        </div>
-        <div className="ml-[5px] h-6 border-l border-dashed border-green-200"></div>
-        <div className="flex items-center mb-2">
-          <div className="h-2.5 w-2.5 bg-green-400 rounded-full mr-2"></div>
-          <p className="text-sm text-green-700">Manager approval ✓</p>
-        </div>
-        <div className="ml-[5px] h-6 border-l border-dashed border-purple-200"></div>
-        <div className="flex items-center">
-          <div className="h-2.5 w-2.5 bg-purple-400 rounded-full mr-2"></div>
-          <p className="text-sm text-purple-700">Finance verification (in progress)</p>
-        </div>
-      </div>
-    </AlertDescription>
-  </Alert>
-)}
-
+          <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="border-b bg-muted/5 px-6 py-2">
+              <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                <TabsTrigger value="details" className="flex items-center gap-2">
+                  <User size={16} />
+                  <span className="hidden sm:inline">Request Details</span>
+                </TabsTrigger>
+                <TabsTrigger value="expenses" className="flex items-center gap-2">
+                  <DollarSign size={16} />
+                  <span className="hidden sm:inline">Expenses</span>
+                </TabsTrigger>
+              </TabsList>
             </div>
             
-            <div className="md:col-span-1 space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Info size={18} className="text-primary" />
-                    Request Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-muted-foreground text-sm">Request ID</p>
-                    <p className="font-mono">{displayRequestId}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Request Type</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {(requestType === 'normal' || !requestType) && <FileText className="h-3.5 w-3.5 text-blue-500" />}
-                      {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5 text-green-500" />}
-                      {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-                      <p className="capitalize">{requestType}</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Total Amount</p>
-                    <p className="font-bold text-primary">
-                      Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Duration</p>
-                    <p>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Status</p>
-                    <p className="capitalize">{status}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Expense Items</p>
-                    <p>{expenseItems.length}</p>
-                  </div>
-                  
-                  {request.previousOutstandingAdvance !== undefined && request.previousOutstandingAdvance > 0 && (
-                    <div>
-                      <p className="text-muted-foreground text-sm">Previous Outstanding Advance</p>
-                      <p>Nrs.{request.previousOutstandingAdvance}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-3 bg-muted/30">
-                  <CardTitle className="text-base">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y">
-                    <Button
-                      variant="ghost"
-                      className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-                    >
-                      <Download size={16} className="text-primary" />
-                      <span>Download as PDF</span>
-                    </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-                    >
-                      <FileText size={16} className="text-primary" />
-                      <span>View Attachments</span>
-                    </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-                    >
-                      <MapPin size={16} className="text-primary" />
-                      <span>View Itinerary</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+            <TabsContent value="details">
+              <RequestDetailsTab request={request} travelDates={travelDates} />
+            </TabsContent>
+            
+            <TabsContent value="expenses">
+              <RequestExpensesTab 
+                expenseItems={expenseItems} 
+                receipts={receipts} 
+                totalAmount={request.totalAmount || 0}
+                previousOutstandingAdvance={request.previousOutstandingAdvance} 
+              />
+            </TabsContent>
+          </Tabs>
         </CardContent>
+        
+        <CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-4 w-4" />
+            {travelDates.start.toLocaleDateString()} - {travelDates.end.toLocaleDateString()}
+            <span className="mx-2">•</span>
+            <span>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 h-8"
+              asChild
+            >
+              <Link href="#">
+                <Download size={14} />
+                Download PDF
+              </Link>
+            </Button>
+            
+            <Button
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1 h-8"
+              onClick={() => router.push('/employee/requests/new')}
+            >
+              <FileText size={14} />
+              New Request
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );
