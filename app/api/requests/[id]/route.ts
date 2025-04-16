@@ -33,28 +33,7 @@ export async function GET(
 
 // Add this function to lib/db.ts
 
-export const deleteTravelRequest = async (id: string) => {
-  try {
-    // First delete any related expense items and receipts
-    // This assumes you have cascade delete set up in your database
-    // If not, you'd need to handle deleting related records explicitly
-    
-    const { error } = await supabase
-      .from('travel_requests')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      console.error('Error deleting travel request:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Exception in deleteTravelRequest:', error);
-    return false;
-  }
-};
+
 
 export async function PATCH(
   request: NextRequest,
