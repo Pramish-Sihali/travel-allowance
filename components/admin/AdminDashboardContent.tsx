@@ -1,4 +1,6 @@
-'use client';
+// This adds a settings button to the AdminDashboardContent component
+
+'use client'; 
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,6 +18,7 @@ import {
   CheckSquare,
   AlertTriangle,
   UserCircle,
+  Settings,
 } from 'lucide-react';
 
 import AdminUsersTable from './AdminUsersTable';
@@ -96,6 +99,10 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
     fetchDashboardData();
   }, []);
   
+  const handleNavigateToSettings = () => {
+    router.push('/admin/settings');
+  };
+  
   const renderSkeleton = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -115,6 +122,16 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold">Admin Dashboard</h2>
+        
+        {/* Added Settings Button */}
+        <Button 
+          variant="outline"
+          onClick={handleNavigateToSettings}
+          className="flex items-center gap-2"
+        >
+          <Settings className="h-4 w-4" />
+          System Settings
+        </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -228,7 +245,35 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         </CardContent>
       </Card>
       
-     
+      {/* Settings Card with Quick Links */}
+      <Card className="shadow-md">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            Quick Settings
+          </CardTitle>
+          <CardDescription>
+            Configure system settings and manage projects
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Button 
+              variant="outline" 
+              className="h-auto py-6 flex flex-col items-center justify-center gap-3 border-dashed"
+              onClick={handleNavigateToSettings}
+            >
+              <Settings className="h-8 w-8 text-primary" />
+              <div className="text-center">
+                <p className="font-medium">System Settings</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage projects, budgets and configurations
+                </p>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

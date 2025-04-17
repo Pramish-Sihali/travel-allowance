@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { TravelRequest } from '@/types';
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle, CheckCircle, CheckSquare } from 'lucide-react';
+import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle, CheckCircle, CheckSquare, Settings } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+interface Budget {
+  id: string;
+  project_id: string;
+  amount: number;
+  fiscal_year: number;
+  description: string;
+}
 
 export default function CheckerDashboard() {
   const router = useRouter();
@@ -22,20 +37,22 @@ export default function CheckerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<TravelRequest[]>([]);
   const [completedRequests, setCompletedRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  // const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('pending_verification');
   const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('all');
-
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   
-  useEffect(() => {
-    fetchRequests();
-  }, []);
+  // New state for projects and budgets
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-fetching
+  const [refreshing, setRefreshing] = useState(false);
   
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching requests...");
       
       // Fetch all requests
       const response = await fetch('/api/requests');
@@ -57,15 +74,91 @@ export default function CheckerDashboard() {
       setRequests(data);
       setPendingRequests(pendingVerificationRequests);
       setCompletedRequests(verifiedRequests);
+      console.log(`Fetched ${data.length} requests (${pendingVerificationRequests.length} pending, ${verifiedRequests.length} completed)`);
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   
+  const fetchProjects = useCallback(async () => {
+    try {
+      setProjectsLoading(true);
+      console.log("Fetching projects...");
+      
+      // Fetch projects
+      const projectsResponse = await fetch('/api/projects?includeInactive=true', {
+        cache: 'no-store',
+      });
+      
+      if (!projectsResponse.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const projectsData = await projectsResponse.json();
+      console.log(`Fetched ${projectsData.length} projects`);
+      setProjects(projectsData);
+      
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+  
+  const fetchBudgets = useCallback(async () => {
+    try {
+      console.log("Fetching budgets from the public API...");
+      
+      // Use the public API endpoint (not the admin one)
+      // Add a timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const budgetsResponse = await fetch(`/api/budgets?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!budgetsResponse.ok) {
+        console.error('Budget fetch error status:', budgetsResponse.status);
+        const errorText = await budgetsResponse.text();
+        console.error('Budget fetch error response:', errorText);
+        throw new Error(`Failed to fetch budgets: ${budgetsResponse.status} ${errorText}`);
+      }
+      
+      const budgetsData = await budgetsResponse.json();
+      console.log(`Fetched ${budgetsData.length} budgets:`, budgetsData);
+      setBudgets(budgetsData);
+      
+    } catch (error) {
+      console.error('Error fetching budgets:', error);
+    }
+  }, []);
+  
+  // Initial data loading
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await Promise.all([fetchRequests(), fetchProjects(), fetchBudgets()]);
+    };
+    
+    loadInitialData();
+  }, [fetchRequests, fetchProjects, fetchBudgets, refreshKey]);
+  
+  // Handle refresh button click
   const handleRefresh = async () => {
-    await fetchRequests();
+    try {
+      setRefreshing(true);
+      console.log("Manually refreshing all data...");
+      await Promise.all([fetchRequests(), fetchProjects(), fetchBudgets()]);
+      console.log("Data refresh complete");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setRefreshing(false);
+    }
   };
   
   const requestSort = (key: string) => {
@@ -85,9 +178,9 @@ export default function CheckerDashboard() {
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filteredRequests = filteredRequests.filter(req => 
-        req.employeeName.toLowerCase().includes(lowerCaseSearch) ||
-        req.department?.toLowerCase().includes(lowerCaseSearch) ||
-        req.purpose?.toLowerCase().includes(lowerCaseSearch)
+        req.employeeName?.toLowerCase()?.includes(lowerCaseSearch) ||
+        req.department?.toLowerCase()?.includes(lowerCaseSearch) ||
+        req.purpose?.toLowerCase()?.includes(lowerCaseSearch)
       );
     }
     
@@ -172,6 +265,24 @@ export default function CheckerDashboard() {
     }
   };
   
+  // Calculate total budget across all projects
+  const calculateTotalBudget = () => {
+    return budgets.reduce((total, budget) => total + budget.amount, 0);
+  };
+  
+  // Calculate total approved amount
+  const calculateApprovedAmount = () => {
+    return completedRequests
+      .filter(req => req.status === 'approved')
+      .reduce((total, req) => total + (req.totalAmount || 0), 0);
+  };
+  
+  // Get a project's budget
+  const getProjectBudget = (projectId: string) => {
+    const projectBudget = budgets.find(budget => budget.project_id === projectId);
+    return projectBudget?.amount || 0;
+  };
+  
   const renderSkeletonTable = () => (
     <div className="rounded-md border">
       <Table>
@@ -231,10 +342,10 @@ export default function CheckerDashboard() {
               <Button 
                 variant="outline"
                 onClick={handleRefresh} 
-                disabled={loading}
+                disabled={loading || refreshing}
                 size="icon"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
@@ -255,6 +366,10 @@ export default function CheckerDashboard() {
                 <CheckCircle className="h-4 w-4" />
                 <span className="hidden sm:inline">Completed Requests</span>
                 <Badge variant="secondary" className="ml-1">{completedRequests.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="projects" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                <span className="hidden sm:inline">Project Budgets</span>
               </TabsTrigger>
             </TabsList>
             
@@ -535,6 +650,170 @@ export default function CheckerDashboard() {
               <div className="mt-4 text-sm text-muted-foreground">
                 Showing {filteredRequests.length} of {completedRequests.length} completed requests
               </div>
+            </TabsContent>
+            
+            {/* Project Budgets Tab */}
+            <TabsContent value="projects" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  Project Budgets
+                </h3>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/admin/settings')}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Manage Settings
+                </Button>
+              </div>
+              
+              {projectsLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-12 w-full" />
+                  {Array(4).fill(0).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-12 border rounded-lg">
+                  <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground mb-2">No projects found</p>
+                  <p className="text-sm text-muted-foreground mb-6">Add projects in the settings to manage budgets</p>
+                  <Button
+                    onClick={() => router.push('/admin/settings')}
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Go to Settings
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="border-l-4 border-l-blue-500 shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-blue-100 p-3 rounded-full">
+                            <Briefcase className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Total Projects</p>
+                            <p className="text-xl font-bold">{projects.length}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {projects.filter(p => p.active).length} active projects
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border-l-4 border-l-green-500 shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-green-100 p-3 rounded-full">
+                            <DollarSign className="h-5 w-5 text-green-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Total Budget</p>
+                            <p className="text-xl font-bold">
+                              Nrs.{calculateTotalBudget().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Across all projects
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border-l-4 border-l-purple-500 shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-purple-100 p-3 rounded-full">
+                            <CheckCircle className="h-5 w-5 text-purple-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Approved Expenses</p>
+                            <p className="text-xl font-bold">
+                              Nrs.{calculateApprovedAmount().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {completedRequests.filter(req => req.status === 'approved').length} approved requests
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[250px]">Project Name</TableHead>
+                          <TableHead className="w-[100px]">Status</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead className="text-right">Current Budget</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {projects.map((project) => {
+                          // Find budget for this project
+                          const projectBudget = budgets.find(b => b.project_id === project.id);
+                          const budgetAmount = projectBudget ? projectBudget.amount : 0;
+                          
+                          return (
+                            <TableRow key={project.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <Briefcase className="h-4 w-4 text-primary" />
+                                  {project.name}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={project.active ? 
+                                  'bg-green-100 text-green-800 border-green-200' : 
+                                  'bg-gray-100 text-gray-800 border-gray-200'
+                                }>
+                                  {project.active ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="max-w-[300px] truncate">
+                                        {project.description || 'No description'}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{project.description || 'No description'}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-medium">
+                                Nrs.{budgetAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <p>
+                      Showing {projects.length} projects
+                    </p>
+                    <p>
+                      Last updated: {new Date().toLocaleString()}
+                    </p>
+                  </div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

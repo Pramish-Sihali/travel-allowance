@@ -17,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft, 
   Clock, 
@@ -43,6 +45,25 @@ import { cn } from "@/lib/utils";
 import RequestDetailsTab from '@/components/dashboard/RequestDetailsTab';
 import RequestExpensesTab from '@/components/dashboard/RequestExpensesTab';
 
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Budget {
+  id: string;
+  project_id: string;
+  amount: number;
+  fiscal_year: number;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface CheckerRequestDetailProps {
   requestId: string;
 }
@@ -58,6 +79,13 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('details');
+  
+  // New state for projects and budgets
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
   
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -96,14 +124,138 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
     };
     
     fetchRequestDetails();
+    fetchProjects();
   }, [requestId]);
   
+  // Fetch projects
+  const fetchProjects = async () => {
+    try {
+      setProjectsLoading(true);
+      
+      // Fetch projects
+      const projectsResponse = await fetch('/api/projects?includeInactive=true', {
+        cache: 'no-store',
+      });
+      
+      if (!projectsResponse.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const projectsData = await projectsResponse.json();
+      console.log('Projects data:', projectsData);
+      setProjects(projectsData);
+      
+      if (projectsData.length > 0) {
+        const firstProjectId = projectsData[0].id;
+        setSelectedProjectId(firstProjectId);
+        
+        // Fetch budgets for this project 
+        await fetchBudgets(firstProjectId);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+  
+  // Fetch budgets, optionally for a specific project
+  const fetchBudgets = async (projectId?: string) => {
+    try {
+      setBudgetsLoading(true);
+      
+      // Construct the URL with optional project_id filter and cache-busting timestamp
+      const timestamp = new Date().getTime();
+      let url = `/api/budgets?t=${timestamp}`;
+      if (projectId) {
+        url += `&project_id=${projectId}`;
+      }
+      
+      console.log('Fetching budgets from:', url);
+      const budgetsResponse = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!budgetsResponse.ok) {
+        console.error('Budget fetch error status:', budgetsResponse.status);
+        const errorText = await budgetsResponse.text();
+        console.error('Budget fetch error response:', errorText);
+        throw new Error(`Failed to fetch budgets: ${budgetsResponse.status} ${errorText}`);
+      }
+      
+      const budgetsData = await budgetsResponse.json();
+      console.log('Budgets data:', budgetsData);
+      setBudgets(budgetsData);
+      
+    } catch (error) {
+      console.error('Error fetching budgets:', error);
+    } finally {
+      setBudgetsLoading(false);
+    }
+  };
+  
+  // When selected project changes, fetch its budget
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchBudgets(selectedProjectId);
+    }
+  }, [selectedProjectId]);
+  
+  // Update budget after approval
+  const updateProjectBudget = async (projectId: string, amount: number) => {
+    try {
+      // Find the current budget for the project
+      const currentBudget = budgets.find(budget => budget.project_id === projectId);
+      
+      if (!currentBudget) {
+        console.error('No budget found for project:', projectId);
+        return false;
+      }
+      
+      // Calculate new amount (deduct the expense amount)
+      const newAmount = Math.max(0, currentBudget.amount - amount);
+      
+      console.log('Updating budget:', currentBudget.id, 'New amount:', newAmount);
+      
+      // Update the budget using the public API
+      const response = await fetch('/api/budgets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: currentBudget.id,
+          amount: newAmount,
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Budget update error status:', response.status);
+        const errorData = await response.json();
+        console.error('Budget update error:', errorData);
+        throw new Error('Failed to update budget');
+      }
+      
+      console.log(`Successfully updated budget for project ${projectId}. New amount: ${newAmount}`);
+      return true;
+    } catch (error) {
+      console.error('Error updating project budget:', error);
+      return false;
+    }
+  };
+
   const handleVerification = async (status: 'approved' | 'rejected') => {
     setIsSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
     
     try {
+      // First, update the request status
       const response = await fetch(`/api/requests/${requestId}`, {
         method: 'PATCH',
         headers: {
@@ -122,6 +274,19 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
       
       const updatedRequest = await response.json();
       setRequest(updatedRequest);
+      
+      // If approved, update the project budget
+      if (status === 'approved' && selectedProjectId) {
+        const budgetUpdated = await updateProjectBudget(
+          selectedProjectId, 
+          updatedRequest.totalAmount || 0
+        );
+        
+        if (!budgetUpdated) {
+          setErrorMessage(`The request was approved but there was an issue updating the project budget. Please check the budget manually.`);
+          return;
+        }
+      }
       
       // Show success message
       setSuccessMessage(`Request has been ${status === 'approved' ? 'approved' : 'rejected'} successfully. Redirecting...`);
@@ -184,6 +349,30 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
   const calculateCombinedTotal = () => {
     if (!request) return 0;
     return request.totalAmount + (request.previousOutstandingAdvance || 0);
+  };
+  
+  // Find budget for selected project
+  const getSelectedProjectBudget = () => {
+    if (!selectedProjectId) return null;
+    
+    const projectBudget = budgets.find(budget => budget.project_id === selectedProjectId);
+    console.log('Selected project budget:', projectBudget);
+    return projectBudget;
+  };
+  
+  const selectedBudget = getSelectedProjectBudget();
+
+  // Check if the project has enough budget for the request
+  const hasEnoughBudget = () => {
+    if (!selectedBudget || !request) return false;
+    return selectedBudget.amount >= request.totalAmount;
+  };
+  
+  // Calculate budget usage percentage
+  const calculateBudgetUsagePercentage = () => {
+    if (!selectedBudget || !request || selectedBudget.amount === 0) return 0;
+    const percentage = (request.totalAmount / selectedBudget.amount) * 100;
+    return Math.min(100, percentage); // Cap at 100%
   };
   
   if (loading) {
@@ -446,6 +635,144 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                           </Alert>
                         )}
                         
+                        {/* Project & Budget Selection - 2 column layout */}
+                        <div className="pt-4 border-t">
+                          <label className="block mb-2 text-base font-medium">Select Project for Budget Allocation</label>
+                          {projectsLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                            </div>
+                          ) : projects.length === 0 ? (
+                            <Alert className="bg-amber-50 text-amber-800 border-amber-200">
+                              <AlertTriangle className="h-4 w-4 text-amber-500" />
+                              <AlertTitle>No Projects Available</AlertTitle>
+                              <AlertDescription>
+                                No projects found. Please add projects in the admin settings before approving requests.
+                              </AlertDescription>
+                            </Alert>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Project Selection Column */}
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="text-sm font-medium">Project</h4>
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                    <Briefcase className="h-3 w-3 mr-1" />
+                                    {projects.length} Projects
+                                  </Badge>
+                                </div>
+                                <Select 
+                                  value={selectedProjectId} 
+                                  onValueChange={setSelectedProjectId}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a project" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {projects.map(project => (
+                                      <SelectItem key={project.id} value={project.id}>
+                                        {project.name} {!project.active && '(Inactive)'}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                
+                                {selectedProjectId && (
+                                  <div className="bg-blue-50 rounded-md p-3 border border-blue-200">
+                                    <h5 className="text-sm font-medium text-blue-800 mb-1">Project Details</h5>
+                                    <p className="text-xs text-blue-700 mb-2">
+                                      {projects.find(p => p.id === selectedProjectId)?.description || 'No description available'}
+                                    </p>
+                                    <Badge className={projects.find(p => p.id === selectedProjectId)?.active ? 
+                                      'bg-green-100 text-green-700 border-0' : 
+                                      'bg-gray-100 text-gray-700 border-0'
+                                    }>
+                                      {projects.find(p => p.id === selectedProjectId)?.active ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Budget Display Column */}
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="text-sm font-medium">Budget</h4>
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                                    <DollarSign className="h-3 w-3 mr-1" />
+                                    Available Funds
+                                  </Badge>
+                                </div>
+                                
+                                {budgetsLoading ? (
+                                  <Skeleton className="h-32 w-full" />
+                                ) : selectedProjectId && selectedBudget ? (
+                                  <div className="border rounded-md p-3 bg-white">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-sm font-medium">Current Budget:</span>
+                                      <span className="text-sm font-bold">
+                                        Nrs.{selectedBudget.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-sm font-medium">Request Amount:</span>
+                                      <span className="text-sm font-bold text-purple-700">
+                                        Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="mt-3 mb-2">
+                                      <div className="flex justify-between text-xs mb-1">
+                                        <span>Usage</span>
+                                        <span className={hasEnoughBudget() ? 'text-green-700' : 'text-red-700'}>
+                                          {calculateBudgetUsagePercentage().toFixed(1)}%
+                                        </span>
+                                      </div>
+                                      <Progress 
+                                        value={calculateBudgetUsagePercentage()} 
+                                        className={hasEnoughBudget() ? 'bg-green-100' : 'bg-red-100'}
+                                        indicatorClassName={hasEnoughBudget() ? 'bg-green-500' : 'bg-red-500'}
+                                      />
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center pt-2 border-t">
+                                      <span className="text-sm font-medium">Remaining After Approval:</span>
+                                      <span className={`text-sm font-bold ${hasEnoughBudget() ? 'text-green-700' : 'text-red-700'}`}>
+                                        Nrs.{Math.max(0, selectedBudget.amount - request.totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                      </span>
+                                    </div>
+                                    
+                                    {!hasEnoughBudget() && (
+                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                                        <AlertTriangle className="h-3 w-3 inline mr-1" />
+                                        Insufficient budget! Select a different project or update budget in settings.
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : selectedProjectId ? (
+                                  <div className="border rounded-md p-4 bg-amber-50 text-center">
+                                    <AlertTriangle className="h-5 w-5 mx-auto mb-2 text-amber-600" />
+                                    <p className="text-sm font-medium text-amber-800">No budget found for this project</p>
+                                    <p className="text-xs text-amber-700 mt-1">
+                                      Please select a different project or add a budget in admin settings
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="border rounded-md p-4 bg-gray-50 text-center text-muted-foreground text-sm">
+                                    <DollarSign className="h-5 w-5 mx-auto mb-2 text-muted-foreground/70" />
+                                    Select a project to view budget
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs text-muted-foreground">
+                                  Project budgets are managed in the admin settings. Current fiscal year: {new Date().getFullYear()}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
                         <div className="pt-4">
                           <label className="block mb-2 text-sm font-medium">Verification Comments</label>
                           <Textarea
@@ -467,103 +794,74 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                     </CardContent>
                   </Card>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <Card className="shadow-sm">
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm">Request Summary</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <User size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Employee:</span>
-                          <span className="text-sm">{request.employeeName}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Building size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Department:</span>
-                          <span className="text-sm">{request.department}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Briefcase size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Project:</span>
-                          <span className="text-sm capitalize">{request.project === 'other' ? 
-                            request.projectOther : 
-                            request.project?.replace('-', ' ')}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <MapPin size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Location:</span>
-                          <span className="text-sm capitalize">{request.location === 'other' ? 
-                            request.locationOther : 
-                            request.location}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Calendar size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Travel Period:</span>
-                          <span className="text-sm">
-                            {new Date(request.travelDateFrom).toLocaleDateString()} - {new Date(request.travelDateTo).toLocaleDateString()}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <FileText size={16} className="text-purple-500" />
-                          <span className="text-sm font-medium">Purpose:</span>
-                          <span className="text-sm">{request.purpose}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="shadow-sm">
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm">Verification Checklist</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0 space-y-3">
-                        <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-                            <CheckCircle size={12} />
+                  <Card className="shadow-sm">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm">Request Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <User size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Employee:</span>
+                            <span className="text-sm">{request.employeeName}</span>
                           </div>
-                          <span className="text-sm">All expenses are supported by valid receipts</span>
-                        </div>
-                        
-                        <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-                            <CheckCircle size={12} />
+                          
+                          <div className="flex items-center gap-2">
+                            <Building size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Department:</span>
+                            <span className="text-sm">{request.department}</span>
                           </div>
-                          <span className="text-sm">Expense amounts comply with company policy</span>
-                        </div>
-                        
-                        <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-                            <CheckCircle size={12} />
+                          
+                          <div className="flex items-center gap-2">
+                            <Briefcase size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Project:</span>
+                            <span className="text-sm capitalize">{request.project === 'other' ? 
+                              request.projectOther : 
+                              request.project?.replace('-', ' ')}
+                            </span>
                           </div>
-                          <span className="text-sm">Calculations and totals are correct</span>
-                        </div>
-                        
-                        <div className="flex items-start gap-2">
-                          <div className="h-5 w-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-                            <CheckCircle size={12} />
-                          </div>
-                          <span className="text-sm">All required details are provided</span>
-                        </div>
-                        
-                        <div className="flex items-start gap-2 mt-4 p-2 bg-amber-50 rounded-md border border-amber-200">
-                          <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-amber-800">Financial Verification Is Final</p>
-                            <p className="text-xs text-amber-700">
-                              Once approved, funds will be released to the employee. Make sure all documentation is complete.
-                            </p>
+                          
+                          <div className="flex items-center gap-2">
+                            <MapPin size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Location:</span>
+                            <span className="text-sm capitalize">{request.location === 'other' ? 
+                              request.locationOther : 
+                              request.location}
+                            </span>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Travel Period:</span>
+                            <span className="text-sm">
+                              {new Date(request.travelDateFrom).toLocaleDateString()} - {new Date(request.travelDateTo).toLocaleDateString()}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <FileText size={16} className="text-purple-500" />
+                            <span className="text-sm font-medium">Purpose:</span>
+                            <span className="text-sm">{request.purpose}</span>
+                          </div>
+                          
+                          <div className="space-y-2 mt-2 p-2 bg-amber-50 rounded-md border border-amber-200">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-amber-800">Financial Verification Is Final</p>
+                                <p className="text-xs text-amber-700">
+                                  Once approved, funds will be released to the employee and project budget will be updated. Make sure all documentation is complete.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                   
                   <div className="flex flex-col sm:flex-row justify-end gap-3">
                     <Button
@@ -595,7 +893,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                     </Button>
                     <Button
                       onClick={() => handleVerification('approved')}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !selectedProjectId || !hasEnoughBudget()}
                       className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
                     >
                       {isSubmitting ? (
