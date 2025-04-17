@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle } from 'lucide-react';
+import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle, MapPin, Plane } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +24,8 @@ export default function ApproverDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'normal' | 'in-valley' | 'advance' | 'emergency'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   
   useEffect(() => {
@@ -34,18 +35,32 @@ export default function ApproverDashboard() {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/requests');
-      if (!response.ok) {
-        throw new Error('Failed to fetch requests');
+      
+      // Fetch travel requests
+      const travelResponse = await fetch('/api/requests');
+      if (!travelResponse.ok) {
+        throw new Error('Failed to fetch travel requests');
+      }
+      const travelData = await travelResponse.json();
+      
+      // Fetch in-valley requests
+      const valleyResponse = await fetch('/api/valley-requests');
+      let valleyData: any[] = [];
+      
+      if (valleyResponse.ok) {
+        valleyData = await valleyResponse.json();
+      } else {
+        console.warn('Failed to fetch in-valley requests, might not be implemented yet');
       }
       
-      const data = await response.json();
-      console.log('Fetched approver requests:', data);
-      setRequests(data);
+      // Combine both types of requests
+      const allRequests = [...travelData, ...valleyData];
+      console.log('Fetched approver requests:', allRequests);
+      setRequests(allRequests);
       
       // Filter by status
-      const pending = data.filter((req: TravelRequest) => req.status === 'pending');
-      const completed = data.filter((req: TravelRequest) => req.status !== 'pending');
+      const pending = allRequests.filter((req: TravelRequest) => req.status === 'pending');
+      const completed = allRequests.filter((req: TravelRequest) => req.status !== 'pending');
       setPendingRequests(pending);
       setCompletedRequests(completed);
     } catch (error) {
@@ -76,22 +91,27 @@ export default function ApproverDashboard() {
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filteredRequests = filteredRequests.filter(req => 
-        req.employeeName.toLowerCase().includes(lowerCaseSearch) ||
+        req.employeeName?.toLowerCase().includes(lowerCaseSearch) ||
         req.department?.toLowerCase().includes(lowerCaseSearch) ||
         req.purpose?.toLowerCase().includes(lowerCaseSearch)
       );
     }
     
-    // Apply additional filtering if on completed tab
-    if (activeTab === 'completed' && filter !== 'all') {
-      filteredRequests = filteredRequests.filter(req => req.status === filter);
+    // Apply status filtering if on completed tab
+    if (activeTab === 'completed' && statusFilter !== 'all') {
+      filteredRequests = filteredRequests.filter(req => req.status === statusFilter);
+    }
+    
+    // Apply type filtering
+    if (typeFilter !== 'all') {
+      filteredRequests = filteredRequests.filter(req => req.requestType === typeFilter);
     }
     
     // Apply sorting
     if (sortConfig !== null) {
       filteredRequests.sort((a, b) => {
         const getValueByKey = (obj: any, key: string) => {
-          if (key === 'travelDateFrom' || key === 'travelDateTo' || key === 'createdAt' || key === 'updatedAt') {
+          if (key === 'travelDateFrom' || key === 'travelDateTo' || key === 'createdAt' || key === 'updatedAt' || key === 'expenseDate') {
             return new Date(obj[key] || 0).getTime();
           }
           return obj[key] || '';
@@ -113,8 +133,13 @@ export default function ApproverDashboard() {
     return filteredRequests;
   };
   
-  const handleViewDetails = (id: string) => {
-    router.push(`/approver/request-detail/${id}`);
+  const handleViewDetails = (request: TravelRequest) => {
+    const id = request.id;
+    if (request.requestType === 'in-valley') {
+      router.push(`/approver/request-detail/in-valley/${id}`);
+    } else {
+      router.push(`/approver/request-detail/${id}`);
+    }
   };
   
   const getSortIndicator = (key: string) => {
@@ -166,6 +191,35 @@ export default function ApproverDashboard() {
     }
   };
   
+  const getRequestTypeLabel = (type: string) => {
+    switch (type) {
+      case 'in-valley':
+        return 'In-Valley';
+      case 'normal':
+        return 'Travel';
+      case 'advance':
+        return 'Advance';
+      case 'emergency':
+        return 'Emergency';
+      default:
+        return 'Travel';
+    }
+  };
+  
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'in-valley':
+        return <MapPin className="h-3 w-3" />;
+      case 'advance':
+        return <CreditCard className="h-3 w-3" />;
+      case 'emergency':
+        return <AlertTriangle className="h-3 w-3" />;
+      case 'normal':
+      default:
+        return <Plane className="h-3 w-3" />;
+    }
+  };
+  
   const renderSkeletonTable = () => (
     <div className="rounded-md border">
       <Table>
@@ -201,6 +255,12 @@ export default function ApproverDashboard() {
   
   const filteredRequests = getFilteredRequests();
   
+  // Count by request type
+  const travelCount = requests.filter(req => req.requestType === 'normal' || !req.requestType).length;
+  const inValleyCount = requests.filter(req => req.requestType === 'in-valley').length;
+  const advanceCount = requests.filter(req => req.requestType === 'advance').length;
+  const emergencyCount = requests.filter(req => req.requestType === 'emergency').length;
+  
   return (
     <div className="max-w-9xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -234,27 +294,25 @@ export default function ApproverDashboard() {
           </CardContent>
         </Card>
         
-        <Card className="border-l-4 border-l-red-400">
+        <Card className="border-l-4 border-l-purple-400">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-red-100">
-                <AlertTriangle size={20} className="text-red-600" />
+              <div className="p-3 rounded-full bg-purple-100">
+                <MapPin size={20} className="text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Rejected</p>
-                <p className="text-xl font-bold">
-                  {completedRequests.filter(req => req.status === 'rejected').length}
-                </p>
+                <p className="text-sm text-muted-foreground font-medium">In-Valley</p>
+                <p className="text-xl font-bold">{inValleyCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="border-l-4 border-l-purple-400">
+        <Card className="border-l-4 border-l-amber-400">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-purple-100">
-                <DollarSign size={20} className="text-purple-600" />
+              <div className="p-3 rounded-full bg-amber-100">
+                <DollarSign size={20} className="text-amber-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Total Amount</p>
@@ -275,7 +333,7 @@ export default function ApproverDashboard() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
             <div className="flex items-center">
               <Briefcase className="mr-2 text-primary h-5 w-5" />
-              <CardTitle>Travel Requests Dashboard</CardTitle>
+              <CardTitle>Expense Requests Dashboard</CardTitle>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -285,24 +343,41 @@ export default function ApproverDashboard() {
                   placeholder="Search requests..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 max-w-[300px]"
+                  className="pl-9 max-w-[250px]"
                 />
               </div>
               
               <div className="flex items-center gap-2">
                 <Select
-                  value={filter}
-                  onValueChange={(value) => setFilter(value as 'all' | 'pending' | 'approved' | 'rejected')}
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as 'all' | 'pending' | 'approved' | 'rejected')}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[150px]">
                     <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Filter requests" />
+                    <SelectValue placeholder="Status filter" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending Requests</SelectItem>
-                    <SelectItem value="approved">Approved Requests</SelectItem>
-                    <SelectItem value="rejected">Rejected Requests</SelectItem>
-                    <SelectItem value="all">All Requests</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={typeFilter}
+                  onValueChange={(value) => setTypeFilter(value as 'all' | 'normal' | 'in-valley' | 'advance' | 'emergency')}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Type filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Travel</SelectItem>
+                    <SelectItem value="in-valley">In-Valley</SelectItem>
+                    <SelectItem value="advance">Advance</SelectItem>
+                    <SelectItem value="emergency">Emergency</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -318,7 +393,7 @@ export default function ApproverDashboard() {
             </div>
           </div>
           <CardDescription>
-            Manage and review employee travel reimbursement requests
+            Manage and review employee expense reimbursement requests
           </CardDescription>
         </CardHeader>
         
@@ -386,7 +461,7 @@ export default function ApproverDashboard() {
                         >
                           <div className="flex items-center">
                             <Calendar size={16} className="mr-2 text-muted-foreground" />
-                            Travel Dates
+                            Dates
                             {getSortIndicator('travelDateFrom')}
                           </div>
                         </TableHead>
@@ -420,26 +495,31 @@ export default function ApproverDashboard() {
                           <TableCell>
                             <Badge className={cn(
                               "flex items-center gap-1.5 w-fit",
-                              !request.requestType || request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              request.requestType === 'normal' || !request.requestType ? 'bg-blue-100 text-blue-800 border-blue-200' :
                               request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                              request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                               'bg-red-100 text-red-800 border-red-200'
                             )}>
-                              {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
-                              {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
-                              {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                              {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
+                              {getTypeIcon(request.requestType || 'normal')}
+                              {getRequestTypeLabel(request.requestType || 'normal')}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{request.department}</TableCell>
                           <TableCell>
-                            <div className="flex flex-col">
-                              <span>
-                                {new Date(request.travelDateFrom).toLocaleDateString()}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                to {new Date(request.travelDateTo).toLocaleDateString()}
-                              </span>
-                            </div>
+                            {request.requestType === 'in-valley' ? (
+                              <div>
+                                {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col">
+                                <span>
+                                  {new Date(request.travelDateFrom).toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  to {new Date(request.travelDateTo).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             <TooltipProvider>
@@ -461,7 +541,7 @@ export default function ApproverDashboard() {
                           <TableCell className="text-right">
                             <Button
                               size="sm"
-                              onClick={() => handleViewDetails(request.id)}
+                              onClick={() => handleViewDetails(request)}
                               className="opacity-80 group-hover:opacity-100"
                             >
                               Review
@@ -498,6 +578,16 @@ export default function ApproverDashboard() {
                             <Users size={16} className="mr-2 text-muted-foreground" />
                             Employee
                             {getSortIndicator('employeeName')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer"
+                          onClick={() => requestSort('requestType')}
+                        >
+                          <div className="flex items-center">
+                            <FileText size={16} className="mr-2 text-muted-foreground" />
+                            Type
+                            {getSortIndicator('requestType')}
                           </div>
                         </TableHead>
                         <TableHead 
@@ -548,6 +638,18 @@ export default function ApproverDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
+                            <Badge className={cn(
+                              "flex items-center gap-1.5 w-fit",
+                              request.requestType === 'normal' || !request.requestType ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                              request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                              'bg-red-100 text-red-800 border-red-200'
+                            )}>
+                              {getTypeIcon(request.requestType || 'normal')}
+                              {getRequestTypeLabel(request.requestType || 'normal')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             {new Date(request.createdAt).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
@@ -576,7 +678,7 @@ export default function ApproverDashboard() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewDetails(request.id)}
+                              onClick={() => handleViewDetails(request)}
                               className="opacity-80 group-hover:opacity-100"
                             >
                               View

@@ -51,50 +51,72 @@ export default function EmployeeDashboard() {
     pending: 0,
     approved: 0,
     rejected: 0,
-    totalAmount: 0
+    totalAmount: 0,
+    travelCount: 0,
+    inValleyCount: 0
   });
   const [activeTab, setActiveTab] = useState('current');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   
   // Get employeeId from session, or generate one if not available
   const employeeId = session?.user?.id || uuidv4();
   
-  useEffect(() => {
-    const fetchRequests = async () => {
-      if (status === 'loading') return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/requests?employeeId=${employeeId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch requests');
-        }
-        
-        const data = await response.json();
-        console.log('Fetched employee requests:', data);
-        setRequests(data);
-        
-        // Calculate statistics
-        const pendingCount = data.filter((req: TravelRequest) => req.status === 'pending' || req.status === 'pending_verification').length;
-        const approvedCount = data.filter((req: TravelRequest) => req.status === 'approved').length;
-        const rejectedCount = data.filter((req: TravelRequest) => req.status === 'rejected' || req.status === 'rejected_by_checker').length;
-        const totalAmount = data.reduce((sum: number, req: TravelRequest) => sum + req.totalAmount, 0);
-        
-        setStats({
-          pending: pendingCount,
-          approved: approvedCount,
-          rejected: rejectedCount,
-          totalAmount: totalAmount
-        });
-      } catch (error) {
-        console.error('Error fetching requests:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Fetch both regular travel requests and in-valley requests
+  const fetchAllRequests = async () => {
+    if (status === 'loading') return;
     
-    fetchRequests();
+    try {
+      setLoading(true);
+      
+      // Fetch travel requests
+      const travelResponse = await fetch(`/api/requests?employeeId=${employeeId}`);
+      if (!travelResponse.ok) {
+        throw new Error('Failed to fetch travel requests');
+      }
+      const travelData = await travelResponse.json();
+      
+      // Fetch in-valley requests
+      const valleyResponse = await fetch(`/api/valley-requests?employeeId=${employeeId}`);
+      let valleyData: any[] = [];
+      
+      if (valleyResponse.ok) {
+        valleyData = await valleyResponse.json();
+      } else {
+        console.warn('Failed to fetch in-valley requests, might not be implemented yet');
+      }
+      
+      // Combine both types of requests
+      const allRequests = [...travelData, ...valleyData];
+      console.log('Fetched all employee requests:', allRequests);
+      setRequests(allRequests);
+      
+      // Calculate statistics
+      const pendingCount = allRequests.filter((req: TravelRequest) => req.status === 'pending' || req.status === 'pending_verification').length;
+      const approvedCount = allRequests.filter((req: TravelRequest) => req.status === 'approved').length;
+      const rejectedCount = allRequests.filter((req: TravelRequest) => req.status === 'rejected' || req.status === 'rejected_by_checker').length;
+      const totalAmount = allRequests.reduce((sum: number, req: TravelRequest) => sum + req.totalAmount, 0);
+      const travelCount = travelData.length;
+      const inValleyCount = valleyData.length;
+      
+      setStats({
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        totalAmount: totalAmount,
+        travelCount: travelCount,
+        inValleyCount: inValleyCount
+      });
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchAllRequests();
   }, [employeeId, status]);
   
   // Get CSS classes for status badges
@@ -124,6 +146,34 @@ export default function EmployeeDashboard() {
     }
   };
   
+  const getRequestTypeLabel = (type: string) => {
+    switch (type) {
+      case 'in-valley':
+        return 'In-Valley';
+      case 'normal':
+        return 'Travel';
+      case 'advance':
+        return 'Advance';
+      case 'emergency':
+        return 'Emergency';
+      default:
+        return 'Travel';
+    }
+  };
+  
+  const getRequestRoutePrefix = (requestType: string) => {
+    return requestType === 'in-valley' ? 'in-valley' : '';
+  };
+  
+  const handleRequestClick = (request: TravelRequest) => {
+    if (request.requestType === 'in-valley') {
+      router.push(`/employee/requests/in-valley/${request.id}`);
+    } else {
+      router.push(`/employee/requests/${request.id}`);
+    }
+  };
+  
+  // Apply all filters to requests
   const filteredRequests = requests
     .filter(request => {
       // Filter by search term
@@ -145,6 +195,11 @@ export default function EmployeeDashboard() {
       if (filterStatus === 'approved') return request.status === 'approved';
       if (filterStatus === 'rejected') return request.status === 'rejected' || request.status === 'rejected_by_checker';
       return true;
+    })
+    .filter(request => {
+      // Filter by request type
+      if (filterType === 'all') return true;
+      return request.requestType === filterType;
     });
   
   const currentRequests = filteredRequests.filter(
@@ -178,7 +233,7 @@ export default function EmployeeDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-2xl font-bold text-foreground">My Travel Requests</h1>
+                <h1 className="text-2xl font-bold text-foreground">My Expense Requests</h1>
                 
                 {/* New Request Dropdown Button */}
                 <DropdownMenu>
@@ -231,15 +286,15 @@ export default function EmployeeDashboard() {
                   </CardContent>
                 </Card>
                 
-                <Card className="border-l-4 border-l-red-400">
+                <Card className="border-l-4 border-l-purple-400">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-full bg-red-100">
-                        <AlertTriangle size={20} className="text-red-600" />
+                      <div className="p-3 rounded-full bg-purple-100">
+                        <Plane size={20} className="text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground font-medium">Rejected</p>
-                        <p className="text-xl font-bold">{stats.rejected}</p>
+                        <p className="text-sm text-muted-foreground font-medium">Travel</p>
+                        <p className="text-xl font-bold">{stats.travelCount}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -267,7 +322,7 @@ export default function EmployeeDashboard() {
                   <CardContent className="p-8 text-center">
                     <div className="mb-4">
                       <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground mb-4">You haven't submitted any travel requests yet.</p>
+                      <p className="text-muted-foreground mb-4">You haven't submitted any expense requests yet.</p>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -293,7 +348,7 @@ export default function EmployeeDashboard() {
                 <Card>
                   <CardHeader>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
-                      <CardTitle className="text-lg">Travel Requests</CardTitle>
+                      <CardTitle className="text-lg">All Expense Requests</CardTitle>
                       
                       <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                         <div className="relative">
@@ -302,13 +357,13 @@ export default function EmployeeDashboard() {
                             placeholder="Search requests..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 max-w-[300px]"
+                            className="pl-9 w-full sm:w-[200px]"
                           />
                         </div>
                         
                         <div className="flex items-center gap-2">
                           <select
-                            className="w-[150px] border rounded-md p-2 text-sm bg-background"
+                            className="w-[130px] border rounded-md p-2 text-sm bg-background"
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
                           >
@@ -318,11 +373,24 @@ export default function EmployeeDashboard() {
                             <option value="rejected">Rejected</option>
                           </select>
                           
+                          <select
+                            className="w-[130px] border rounded-md p-2 text-sm bg-background"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                          >
+                            <option value="all">All Types</option>
+                            <option value="normal">Travel</option>
+                            <option value="in-valley">In-Valley</option>
+                            <option value="advance">Advance</option>
+                            <option value="emergency">Emergency</option>
+                          </select>
+                          
                           <Button 
                             variant="outline"
                             onClick={() => {
                               setSearchTerm('');
                               setFilterStatus('all');
+                              setFilterType('all');
                             }} 
                             size="icon"
                           >
@@ -332,7 +400,7 @@ export default function EmployeeDashboard() {
                       </div>
                     </div>
                     <CardDescription>
-                      View and manage your submitted travel requests
+                      View and manage all your submitted expense requests
                     </CardDescription>
                   </CardHeader>
                   
@@ -369,7 +437,7 @@ export default function EmployeeDashboard() {
                                   <TableHead>
                                     <div className="flex items-center">
                                       <Calendar size={16} className="mr-2 text-muted-foreground" />
-                                      Dates
+                                      Date
                                     </div>
                                   </TableHead>
                                   <TableHead>
@@ -406,20 +474,32 @@ export default function EmployeeDashboard() {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <div className="flex flex-col text-sm">
-                                        <span className="font-medium">
-                                          {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
-                                            month: 'short',
-                                            day: 'numeric'
-                                          })}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
-                                            month: 'short',
-                                            day: 'numeric'
-                                          })}
-                                        </span>
-                                      </div>
+                                      {request.requestType === 'in-valley' ? (
+                                        <div className="text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
                                     </TableCell>
                                     <TableCell>
                                       <Badge className={cn(
@@ -429,11 +509,11 @@ export default function EmployeeDashboard() {
                                         request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                                         'bg-red-100 text-red-800 border-red-200'
                                       )}>
-                                        {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
+                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
                                         {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
                                         {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
                                         {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                                        {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
+                                        {getRequestTypeLabel(request.requestType || 'normal')}
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">
@@ -448,7 +528,7 @@ export default function EmployeeDashboard() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => router.push(`/employee/requests/${request.id}`)}
+                                        onClick={() => handleRequestClick(request)}
                                         className="flex items-center gap-1"
                                       >
                                         View
@@ -483,7 +563,13 @@ export default function EmployeeDashboard() {
                                   <TableHead>
                                     <div className="flex items-center">
                                       <Calendar size={16} className="mr-2 text-muted-foreground" />
-                                      Dates
+                                      Date
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <FileText size={16} className="mr-2 text-muted-foreground" />
+                                      Type
                                     </div>
                                   </TableHead>
                                   <TableHead>
@@ -515,20 +601,47 @@ export default function EmployeeDashboard() {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <div className="flex flex-col text-sm">
-                                        <span className="font-medium">
-                                          {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
-                                            month: 'short',
-                                            day: 'numeric'
-                                          })}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
-                                            month: 'short',
-                                            day: 'numeric'
-                                          })}
-                                        </span>
-                                      </div>
+                                      {request.requestType === 'in-valley' ? (
+                                        <div className="text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={cn(
+                                        "flex items-center gap-1.5 w-fit",
+                                        request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                        request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                        'bg-red-100 text-red-800 border-red-200'
+                                      )}>
+                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
+                                        {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
+                                        {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                                        {getRequestTypeLabel(request.requestType || 'normal')}
+                                      </Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">
                                       Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -549,7 +662,7 @@ export default function EmployeeDashboard() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => router.push(`/employee/requests/${request.id}`)}
+                                        onClick={() => handleRequestClick(request)}
                                         className="flex items-center gap-1"
                                       >
                                         View
@@ -673,7 +786,7 @@ export default function EmployeeDashboard() {
                 <CardContent className="p-4">
                   <h3 className="font-medium text-blue-800 mb-2">Need Help?</h3>
                   <p className="text-blue-700 text-sm mb-3">
-                    If you have any questions about your travel reimbursements or need assistance with your requests, contact the finance team.
+                    If you have any questions about your expense reimbursements or need assistance with your requests, contact the finance team.
                   </p>
                   <Button variant="link" asChild className="p-0 h-auto text-blue-600 hover:text-blue-800 flex items-center gap-1">
                     <a href="mailto:finance@company.com">

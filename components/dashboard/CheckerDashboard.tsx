@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle, CheckCircle, CheckSquare, Settings } from 'lucide-react';
+import { Calendar, Users, Search, Filter, Briefcase, ArrowUpDown, Clock, DollarSign, RefreshCw, ArrowRight, FileText, CreditCard, AlertTriangle, CheckCircle, CheckSquare, Settings, MapPin, Plane } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -33,11 +33,14 @@ interface Budget {
 
 export default function CheckerDashboard() {
   const router = useRouter();
-  const [requests, setRequests] = useState<TravelRequest[]>([]);
+  const [travelRequests, setTravelRequests] = useState<TravelRequest[]>([]);
+  const [valleyRequests, setValleyRequests] = useState<TravelRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<TravelRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<TravelRequest[]>([]);
   const [completedRequests, setCompletedRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending_verification' | 'approved' | 'rejected_by_checker'>('all');
+  const [requestTypeFilter, setRequestTypeFilter] = useState<'all' | 'normal' | 'in-valley' | 'advance' | 'emergency'>('all');
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
@@ -49,32 +52,50 @@ export default function CheckerDashboard() {
   const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-fetching
   const [refreshing, setRefreshing] = useState(false);
   
+  // Fetch both travel requests and in-valley requests
   const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching requests...");
+      console.log("Fetching all requests...");
       
-      // Fetch all requests
-      const response = await fetch('/api/requests');
-      if (!response.ok) {
-        throw new Error('Failed to fetch requests');
+      // Fetch travel requests
+      const travelResponse = await fetch('/api/requests');
+      if (!travelResponse.ok) {
+        throw new Error('Failed to fetch travel requests');
+      }
+      const travelData = await travelResponse.json();
+      setTravelRequests(travelData);
+      
+      // Fetch in-valley requests
+      const valleyResponse = await fetch('/api/valley-requests');
+      let valleyData: any[] = [];
+      
+      if (valleyResponse.ok) {
+        valleyData = await valleyResponse.json();
+        setValleyRequests(valleyData);
+      } else {
+        console.warn('Failed to fetch in-valley requests, might not be implemented yet');
       }
       
-      const data = await response.json();
+      // Combine both types of requests
+      const allRequestsData = [...travelData, ...valleyData];
       
       // Filter out requests by status
-      const pendingVerificationRequests = data.filter(
+      const pendingVerificationRequests = allRequestsData.filter(
         (req: TravelRequest) => req.status === 'pending_verification'
       );
       
-      const verifiedRequests = data.filter(
+      const verifiedRequests = allRequestsData.filter(
         (req: TravelRequest) => req.status === 'approved' || req.status === 'rejected_by_checker'
       );
       
-      setRequests(data);
+      setAllRequests(allRequestsData);
       setPendingRequests(pendingVerificationRequests);
       setCompletedRequests(verifiedRequests);
-      console.log(`Fetched ${data.length} requests (${pendingVerificationRequests.length} pending, ${verifiedRequests.length} completed)`);
+      
+      console.log(`Fetched ${allRequestsData.length} requests (${pendingVerificationRequests.length} pending, ${verifiedRequests.length} completed)`);
+      console.log(`Travel requests: ${travelData.length}, In-valley requests: ${valleyData.length}`);
+      
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
@@ -184,6 +205,11 @@ export default function CheckerDashboard() {
       );
     }
     
+    // Apply request type filter
+    if (requestTypeFilter !== 'all') {
+      filteredRequests = filteredRequests.filter(req => req.requestType === requestTypeFilter);
+    }
+    
     // Apply additional filtering if on completed tab
     if (activeTab === 'completed' && filter !== 'all') {
       filteredRequests = filteredRequests.filter(req => req.status === filter);
@@ -215,8 +241,12 @@ export default function CheckerDashboard() {
     return filteredRequests;
   };
   
-  const handleViewDetails = (id: string) => {
-    router.push(`/checker/request-detail/${id}`);
+  const handleViewDetails = (request: TravelRequest) => {
+    if (request.requestType === 'in-valley') {
+      router.push(`/checker/request-detail/in-valley/${request.id}`);
+    } else {
+      router.push(`/checker/request-detail/${request.id}`);
+    }
   };
   
   const getSortIndicator = (key: string) => {
@@ -262,6 +292,21 @@ export default function CheckerDashboard() {
         return 'Rejected';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
+
+  const getRequestTypeLabel = (type: string) => {
+    switch (type) {
+      case 'in-valley':
+        return 'In-Valley';
+      case 'normal':
+        return 'Travel';
+      case 'advance':
+        return 'Advance';
+      case 'emergency':
+        return 'Emergency';
+      default:
+        return 'Travel';
     }
   };
   
@@ -318,6 +363,12 @@ export default function CheckerDashboard() {
   
   const filteredRequests = getFilteredRequests();
   
+  // Counts for the different request types
+  const travelCount = allRequests.filter(req => req.requestType === 'normal' || !req.requestType).length;
+  const inValleyCount = allRequests.filter(req => req.requestType === 'in-valley').length;
+  const advanceCount = allRequests.filter(req => req.requestType === 'advance').length;
+  const emergencyCount = allRequests.filter(req => req.requestType === 'emergency').length;
+  
   return (
     <div className="max-w-7xl mx-auto p-6">
       <Card>
@@ -350,7 +401,7 @@ export default function CheckerDashboard() {
             </div>
           </div>
           <CardDescription>
-            Verify and manage travel reimbursement requests
+            Verify and manage reimbursement requests
           </CardDescription>
         </CardHeader>
         
@@ -374,6 +425,25 @@ export default function CheckerDashboard() {
             </TabsList>
             
             <TabsContent value="pending" className="space-y-4">
+              <div className="flex justify-end gap-3 mb-4">
+                <Select
+                  value={requestTypeFilter}
+                  onValueChange={(value) => setRequestTypeFilter(value as any)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="All Request Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Request Types</SelectItem>
+                    <SelectItem value="normal">Travel Requests</SelectItem>
+                    <SelectItem value="in-valley">In-Valley Requests</SelectItem>
+                    <SelectItem value="advance">Advance Requests</SelectItem>
+                    <SelectItem value="emergency">Emergency Requests</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            
               {loading ? (
                 renderSkeletonTable()
               ) : filteredRequests.length === 0 ? (
@@ -422,7 +492,7 @@ export default function CheckerDashboard() {
                         >
                           <div className="flex items-center">
                             <Calendar size={16} className="mr-2 text-muted-foreground" />
-                            Travel Dates
+                            Date
                             {getSortIndicator('travelDateFrom')}
                           </div>
                         </TableHead>
@@ -456,26 +526,36 @@ export default function CheckerDashboard() {
                           <TableCell>
                             <Badge className={cn(
                               "flex items-center gap-1.5 w-fit",
-                              !request.requestType || request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              request.requestType === 'normal' || !request.requestType ? 'bg-blue-100 text-blue-800 border-blue-200' :
                               request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                              request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                               'bg-red-100 text-red-800 border-red-200'
                             )}>
-                              {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
+                              {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
                               {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                              {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
                               {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                              {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
+                              {getRequestTypeLabel(request.requestType || 'normal')}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{request.department}</TableCell>
                           <TableCell>
-                            <div className="flex flex-col">
-                              <span>
-                                {new Date(request.travelDateFrom).toLocaleDateString()}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                to {new Date(request.travelDateTo).toLocaleDateString()}
-                              </span>
-                            </div>
+                            {request.requestType === 'in-valley' ? (
+                              <div className="text-sm">
+                                <span className="font-medium">
+                                  {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col">
+                                <span>
+                                  {new Date(request.travelDateFrom).toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  to {new Date(request.travelDateTo).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             <TooltipProvider>
@@ -497,7 +577,7 @@ export default function CheckerDashboard() {
                           <TableCell className="text-right">
                             <Button
                               size="sm"
-                              onClick={() => handleViewDetails(request.id)}
+                              onClick={() => handleViewDetails(request)}
                               className="opacity-80 group-hover:opacity-100"
                             >
                               Verify
@@ -517,19 +597,36 @@ export default function CheckerDashboard() {
             </TabsContent>
             
             <TabsContent value="completed" className="space-y-4">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end gap-3 mb-4">
                 <Select
                   value={filter}
                   onValueChange={(value) => setFilter(value as any)}
                 >
                   <SelectTrigger className="w-[180px]">
                     <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Filter requests" />
+                    <SelectValue placeholder="Filter by Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Verified</SelectItem>
                     <SelectItem value="approved">Approved Requests</SelectItem>
                     <SelectItem value="rejected_by_checker">Rejected Requests</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={requestTypeFilter}
+                  onValueChange={(value) => setRequestTypeFilter(value as any)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Filter by Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Request Types</SelectItem>
+                    <SelectItem value="normal">Travel Requests</SelectItem>
+                    <SelectItem value="in-valley">In-Valley Requests</SelectItem>
+                    <SelectItem value="advance">Advance Requests</SelectItem>
+                    <SelectItem value="emergency">Emergency Requests</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -555,6 +652,16 @@ export default function CheckerDashboard() {
                             <Users size={16} className="mr-2 text-muted-foreground" />
                             Employee
                             {getSortIndicator('employeeName')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer"
+                          onClick={() => requestSort('requestType')}
+                        >
+                          <div className="flex items-center">
+                            <FileText size={16} className="mr-2 text-muted-foreground" />
+                            Type
+                            {getSortIndicator('requestType')}
                           </div>
                         </TableHead>
                         <TableHead 
@@ -605,6 +712,21 @@ export default function CheckerDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
+                            <Badge className={cn(
+                              "flex items-center gap-1.5 w-fit",
+                              request.requestType === 'normal' || !request.requestType ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                              request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                              'bg-red-100 text-red-800 border-red-200'
+                            )}>
+                              {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
+                              {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                              {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
+                              {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                              {getRequestTypeLabel(request.requestType || 'normal')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             {new Date(request.createdAt).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
@@ -633,7 +755,7 @@ export default function CheckerDashboard() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewDetails(request.id)}
+                              onClick={() => handleViewDetails(request)}
                               className="opacity-80 group-hover:opacity-100"
                             >
                               View
@@ -819,7 +941,7 @@ export default function CheckerDashboard() {
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
         <Card className="border-l-4 border-l-purple-400">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -827,8 +949,36 @@ export default function CheckerDashboard() {
                 <Clock size={20} className="text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Pending Verification</p>
+                <p className="text-sm text-muted-foreground font-medium">Pending</p>
                 <p className="text-xl font-bold">{pendingRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-blue-400">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-blue-100">
+                <Plane size={20} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Travel</p>
+                <p className="text-xl font-bold">{travelCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-purple-400">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-purple-100">
+                <MapPin size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">In-Valley</p>
+                <p className="text-xl font-bold">{inValleyCount}</p>
               </div>
             </div>
           </CardContent>
@@ -844,22 +994,6 @@ export default function CheckerDashboard() {
                 <p className="text-sm text-muted-foreground font-medium">Approved</p>
                 <p className="text-xl font-bold">
                   {completedRequests.filter(req => req.status === 'approved').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-l-4 border-l-red-400">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-red-100">
-                <AlertTriangle size={20} className="text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Rejected</p>
-                <p className="text-xl font-bold">
-                  {completedRequests.filter(req => req.status === 'rejected_by_checker').length}
                 </p>
               </div>
             </div>
