@@ -1,7 +1,7 @@
-// Updated types/index.ts with additional status for checker workflow
+// Updated types/index.ts with additional request type for in-valley reimbursement
 
 // Travel Request Types
-export type RequestType = 'normal' | 'advance' | 'emergency';
+export type RequestType = 'normal' | 'advance' | 'emergency' | 'in-valley';
 
 export interface TravelRequest {
   id: string;
@@ -40,6 +40,21 @@ export interface TravelRequest {
   comments?: string;
   approverComments?: string;
   checkerComments?: string;
+  // In-valley specific fields
+  expenseDate?: string | Date;
+  meetingType?: string;
+  meetingParticipants?: string;
+  paymentMethod?: string;
+  description?: string;
+}
+
+// Valley-specific types
+export interface ValleyExpense {
+  id: string;
+  requestId: string;
+  category: string;
+  amount: number;
+  description?: string;
 }
 
 // Expense Categories

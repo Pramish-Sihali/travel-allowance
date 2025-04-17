@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from './NotificationsPanel';
@@ -25,7 +32,9 @@ import {
   AlertTriangle,
   ArrowRight,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  MapPin,
+  Plane
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -125,13 +134,26 @@ export default function EmployeeDashboard() {
         <div className="md:col-span-2 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 className="text-2xl font-bold text-foreground">My Travel Requests</h1>
-            <Button
-              onClick={handleNewRequest}
-              className="flex items-center gap-2"
-            >
-              <PlusCircle size={16} />
-              New Request
-            </Button>
+            
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button className="flex items-center gap-2">
+      <PlusCircle size={16} />
+      New Request
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={() => router.push('/employee/requests/new')}>
+      <Plane className="h-4 w-4 mr-2" />
+      Travel Request
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={() => router.push('/employee/requests/in-valley')}>
+      <MapPin className="h-4 w-4 mr-2" />
+      In-Valley Reimbursement
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
           </div>
           
           {/* Stats Cards */}

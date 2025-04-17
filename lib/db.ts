@@ -763,3 +763,339 @@ export const deleteTravelRequest = async (id: string) => {
     return false;
   }
 };
+
+
+// Add these functions to lib/db.ts
+
+// In-Valley Request Functions
+export const getAllValleyRequests = async () => {
+  const { data, error } = await supabase
+    .from('valley_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  // Map database column names to frontend field names
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || item.expense_date || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || item.expense_date || new Date().toISOString(),
+    expenseDate: item.expense_date || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'pending',
+    requestType: 'in-valley', // Hard-code type for valley requests
+    project: item.project || '',
+    location: item.location || '',
+    description: item.description || '',
+    meetingType: item.meeting_type || '',
+    meetingParticipants: item.meeting_participants || '',
+    paymentMethod: item.payment_method || '',
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString(),
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments,
+    previousOutstandingAdvance: 0 // Default value for compatibility
+  }));
+};
+
+export const getValleyRequestsByEmployeeId = async (employeeId: string) => {
+  const { data, error } = await supabase
+    .from('valley_requests')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  
+  // Map database column names to frontend field names
+  return data.map(item => ({
+    id: item.id,
+    employeeId: item.employee_id || '',
+    employeeName: item.employee_name || 'Unknown',
+    department: item.department || '',
+    designation: item.designation || '',
+    purpose: item.purpose || '',
+    travelDateFrom: item.travel_date_from || item.expense_date || new Date().toISOString(),
+    travelDateTo: item.travel_date_to || item.expense_date || new Date().toISOString(),
+    expenseDate: item.expense_date || new Date().toISOString(),
+    totalAmount: item.total_amount || 0,
+    status: item.status || 'pending',
+    requestType: 'in-valley', // Hard-code type for valley requests
+    project: item.project || '',
+    location: item.location || '',
+    description: item.description || '',
+    meetingType: item.meeting_type || '',
+    meetingParticipants: item.meeting_participants || '',
+    paymentMethod: item.payment_method || '',
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString(),
+    approverComments: item.approver_comments,
+    checkerComments: item.checker_comments,
+    previousOutstandingAdvance: 0 // Default value for compatibility
+  }));
+};
+
+export const getValleyRequestById = async (id: string) => {
+  const { data, error } = await supabase
+    .from('valley_requests')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) return null;
+  
+  // Map database column names to frontend field names
+  return {
+    id: data.id,
+    employeeId: data.employee_id || '',
+    employeeName: data.employee_name || 'Unknown',
+    department: data.department || '',
+    designation: data.designation || '',
+    purpose: data.purpose || '',
+    travelDateFrom: data.travel_date_from || data.expense_date || new Date().toISOString(),
+    travelDateTo: data.travel_date_to || data.expense_date || new Date().toISOString(),
+    expenseDate: data.expense_date || new Date().toISOString(),
+    totalAmount: data.total_amount || 0,
+    status: data.status || 'pending',
+    requestType: 'in-valley', // Hard-code type for valley requests
+    project: data.project || '',
+    location: data.location || '',
+    description: data.description || '',
+    meetingType: data.meeting_type || '',
+    meetingParticipants: data.meeting_participants || '',
+    paymentMethod: data.payment_method || '',
+    createdAt: data.created_at || new Date().toISOString(),
+    updatedAt: data.updated_at || new Date().toISOString(),
+    approverComments: data.approver_comments,
+    checkerComments: data.checker_comments,
+    previousOutstandingAdvance: 0 // Default value for compatibility
+  };
+};
+
+export const createValleyRequest = async (data: any) => {
+  try {
+    // Ensure date conversion is correct
+    let expenseDate, travelDateFrom, travelDateTo;
+    
+    try {
+      if (typeof data.expenseDate === 'string') {
+        if (data.expenseDate.includes('T')) {
+          expenseDate = data.expenseDate;
+        } else {
+          expenseDate = `${data.expenseDate}T00:00:00Z`;
+        }
+      } else if (data.expenseDate instanceof Date) {
+        expenseDate = data.expenseDate.toISOString();
+      } else {
+        expenseDate = new Date().toISOString();
+      }
+      
+      // Use expense date for travel dates for compatibility
+      travelDateFrom = travelDateTo = expenseDate;
+    } catch (e: unknown) {
+      console.error('Date conversion error:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      throw new Error(`Date conversion failed: ${errorMessage}`);
+    }
+    
+    // Parse total amount to ensure it's a number
+    const totalAmount = typeof data.totalAmount === 'string' 
+      ? parseFloat(data.totalAmount) 
+      : data.totalAmount;
+    
+    const insertData = {
+      id: data.id || undefined, // Allow passing an existing ID
+      employee_id: data.employeeId,
+      employee_name: data.employeeName,
+      department: data.department,
+      designation: data.designation,
+      purpose: data.purpose,
+      travel_date_from: travelDateFrom,
+      travel_date_to: travelDateTo,
+      expense_date: expenseDate,
+      total_amount: totalAmount,
+      status: data.status || 'pending',
+      request_type: 'in-valley',
+      project: data.project,
+      description: data.description,
+      location: data.location,
+      meeting_type: data.meetingType,
+      meeting_participants: data.meetingParticipants,
+      payment_method: data.paymentMethod,
+    };
+    
+    console.log('Inserting in-valley request with data:', insertData);
+    
+    const { data: newRequest, error } = await supabase
+      .from('valley_requests')
+      .insert([insertData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error creating in-valley request:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    if (!newRequest) {
+      throw new Error('No data returned from in-valley request creation');
+    }
+    
+    return {
+      id: newRequest.id,
+      employeeId: newRequest.employee_id,
+      employeeName: newRequest.employee_name,
+      department: newRequest.department,
+      designation: newRequest.designation,
+      purpose: newRequest.purpose,
+      travelDateFrom: newRequest.travel_date_from || newRequest.expense_date,
+      travelDateTo: newRequest.travel_date_to || newRequest.expense_date,
+      expenseDate: newRequest.expense_date,
+      totalAmount: newRequest.total_amount,
+      status: newRequest.status,
+      requestType: 'in-valley',
+      project: newRequest.project,
+      location: newRequest.location,
+      description: newRequest.description,
+      meetingType: newRequest.meeting_type,
+      meetingParticipants: newRequest.meeting_participants,
+      paymentMethod: newRequest.payment_method,
+      createdAt: newRequest.created_at,
+      updatedAt: newRequest.updated_at,
+      previousOutstandingAdvance: 0 // For compatibility
+    };
+  } catch (error: unknown) {
+    console.error('Error in createValleyRequest:', error);
+    throw error;
+  }
+};
+
+export const updateValleyRequestStatus = async (id: string, status: string, additionalData = {}) => {
+  try {
+    console.log('updateValleyRequestStatus called with:', { id, status, additionalData });
+    
+    const updateData = { 
+      status, 
+      updated_at: new Date().toISOString(),
+      ...additionalData
+    };
+    
+    // Convert camelCase to snake_case for database
+    const formattedData: Record<string, any> = {}; 
+    Object.keys(updateData).forEach(key => {
+      // Convert camelCase to snake_case
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      formattedData[snakeKey] = updateData[key as keyof typeof updateData];
+    });
+    
+    console.log('Formatted data for update:', formattedData);
+    
+    const { data: updatedRequest, error } = await supabase
+      .from('valley_requests')
+      .update(formattedData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error updating in-valley request:', error);
+      return null;
+    }
+    
+    if (!updatedRequest) {
+      console.error('No data returned from update operation');
+      return null;
+    }
+    
+    console.log('Update successful, returned data:', updatedRequest);
+    
+    // Map to frontend model with all fields
+    return {
+      id: updatedRequest.id,
+      employeeId: updatedRequest.employee_id,
+      employeeName: updatedRequest.employee_name,
+      department: updatedRequest.department,
+      designation: updatedRequest.designation,
+      purpose: updatedRequest.purpose,
+      travelDateFrom: updatedRequest.travel_date_from || updatedRequest.expense_date,
+      travelDateTo: updatedRequest.travel_date_to || updatedRequest.expense_date,
+      expenseDate: updatedRequest.expense_date,
+      totalAmount: updatedRequest.total_amount,
+      status: updatedRequest.status,
+      requestType: 'in-valley',
+      project: updatedRequest.project,
+      location: updatedRequest.location,
+      description: updatedRequest.description,
+      meetingType: updatedRequest.meeting_type,
+      meetingParticipants: updatedRequest.meeting_participants,
+      paymentMethod: updatedRequest.payment_method,
+      createdAt: updatedRequest.created_at,
+      updatedAt: updatedRequest.updated_at,
+      approverComments: updatedRequest.approver_comments,
+      checkerComments: updatedRequest.checker_comments,
+      previousOutstandingAdvance: 0 // For compatibility
+    };
+  } catch (error) {
+    console.error('Exception in updateValleyRequestStatus:', error);
+    return null;
+  }
+};
+
+export const getValleyExpensesByRequestId = async (requestId: string) => {
+  const { data, error } = await supabase
+    .from('valley_expenses')
+    .select('*')
+    .eq('request_id', requestId);
+  
+  if (error) return [];
+  
+  return data.map(item => ({
+    id: item.id,
+    requestId: item.request_id,
+    category: item.category || 'other',
+    amount: item.amount || 0,
+    description: item.description || ''
+  }));
+};
+
+export const createValleyExpense = async (data: any) => {
+  try {
+    // Ensure amount is a number
+    const amount = typeof data.amount === 'string' 
+      ? parseFloat(data.amount) 
+      : data.amount;
+    
+    const { data: newItem, error } = await supabase
+      .from('valley_expenses')
+      .insert([{
+        request_id: data.requestId,
+        category: data.category,
+        amount: amount,
+        description: data.description
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error creating valley expense item:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    return {
+      id: newItem.id,
+      requestId: newItem.request_id,
+      category: newItem.category,
+      amount: newItem.amount,
+      description: newItem.description
+    };
+  } catch (error: unknown) {
+    console.error('Error in createValleyExpense:', error);
+    throw error;
+  }
+};

@@ -14,6 +14,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   PlusCircle, 
   Calendar, 
@@ -30,7 +36,9 @@ import {
   CreditCard,
   Search,
   Filter,
-  RefreshCw
+  RefreshCw,
+  MapPin,
+  Plane
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -88,10 +96,6 @@ export default function EmployeeDashboard() {
     
     fetchRequests();
   }, [employeeId, status]);
-  
-  const handleNewRequest = () => {
-    router.push('/employee/requests/new');
-  };
   
   // Get CSS classes for status badges
   const getStatusBadgeClass = (status: string) => {
@@ -175,13 +179,26 @@ export default function EmployeeDashboard() {
             <div className="md:col-span-2 space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-foreground">My Travel Requests</h1>
-                <Button
-                  onClick={handleNewRequest}
-                  className="flex items-center gap-2"
-                >
-                  <PlusCircle size={16} />
-                  New Request
-                </Button>
+                
+                {/* New Request Dropdown Button */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="flex items-center gap-2">
+                      <PlusCircle size={16} />
+                      New Request
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => router.push('/employee/requests/new')}>
+                      <Plane className="h-4 w-4 mr-2" />
+                      Travel Request
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/employee/requests/in-valley')}>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      In-Valley Reimbursement
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               
               {/* Stats Cards */}
@@ -252,14 +269,24 @@ export default function EmployeeDashboard() {
                       <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
                       <p className="text-muted-foreground mb-4">You haven't submitted any travel requests yet.</p>
                     </div>
-                    <Button
-                      onClick={handleNewRequest}
-                      className="flex items-center gap-2"
-                      size="lg"
-                    >
-                      <PlusCircle size={16} />
-                      Create Your First Request
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="lg" className="flex items-center gap-2">
+                          <PlusCircle size={16} />
+                          Create Your First Request
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push('/employee/requests/new')}>
+                          <Plane className="h-4 w-4 mr-2" />
+                          Travel Request
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push('/employee/requests/in-valley')}>
+                          <MapPin className="h-4 w-4 mr-2" />
+                          In-Valley Reimbursement
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardContent>
                 </Card>
               ) : (
@@ -399,10 +426,12 @@ export default function EmployeeDashboard() {
                                         "flex items-center gap-1.5 w-fit",
                                         request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                                         request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                                         'bg-red-100 text-red-800 border-red-200'
                                       )}>
                                         {(request.requestType === 'normal' || !request.requestType) && <FileText className="h-3 w-3" />}
                                         {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
                                         {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
                                         {(request.requestType || 'normal').charAt(0).toUpperCase() + (request.requestType || 'normal').slice(1)}
                                       </Badge>
