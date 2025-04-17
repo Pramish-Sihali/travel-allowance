@@ -931,6 +931,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
               className="flex items-center gap-1 h-8"
               onClick={() => setActiveTab('expenses')}
             >
+              
               <ReceiptIcon size={14} />
               View Receipts
             </Button>
