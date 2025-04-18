@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import RequestDetail from '@/components/dashboard/RequestDetail';
+import ApproverRequestDetail from '@/components/dashboard/ApproverRequestDetail';
 import Header from '@/components/layout/Header';
 
 interface PageProps {
@@ -15,11 +15,9 @@ export default async function RequestDetailPage({ params }: PageProps) {
       <Header variant="approver" />
       
       <main className="flex-grow p-6">
-        <div className="max-w-6xl mx-auto">
-          <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-            <RequestDetail requestId={id} />
-          </Suspense>
-        </div>
+        <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+          <ApproverRequestDetail requestId={id} />
+        </Suspense>
       </main>
       
       <footer className="bg-gray-800 text-white p-4 text-center text-sm">

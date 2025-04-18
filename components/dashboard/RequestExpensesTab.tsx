@@ -1,13 +1,6 @@
 import { useState } from 'react';
 import { ExpenseItem, Receipt } from '@/types';
 import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
   Table, 
   TableBody, 
   TableCell, 
@@ -25,12 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { 
   DollarSign, 
   FileText, 
@@ -38,12 +25,8 @@ import {
   Download, 
   Eye, 
   Check,
-  FileCheck,
-  FilePenLine,
-  Receipt as ReceiptIcon,
   AlertTriangle,
-  Building,
-  Calendar,
+  Receipt as ReceiptIcon,
   Image
 } from 'lucide-react';
 
@@ -62,7 +45,15 @@ export default function RequestExpensesTab({
 }: RequestExpensesTabProps) {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
 
-  // Helper function to get category-specific icons
+  // Format category name
+  const formatCategoryName = (category: string) => {
+    return category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Get category icon
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'accommodation':
@@ -71,10 +62,8 @@ export default function RequestExpensesTab({
         return <DollarSign className="h-4 w-4 text-green-600" />;
       case 'vehicle-hiring':
         return <CarIcon className="h-4 w-4 text-orange-600" />;
-      case 'program-cost':
-        return <CalendarIcon className="h-4 w-4 text-purple-600" />;
-      case 'meeting-cost':
-        return <Users className="h-4 w-4 text-indigo-600" />;
+      case 'food':
+        return <CoffeeIcon className="h-4 w-4 text-amber-600" />;
       default:
         return <FileText className="h-4 w-4 text-gray-600" />;
     }
@@ -90,7 +79,7 @@ export default function RequestExpensesTab({
     return fileType.startsWith('image/');
   };
   
-  // Render icons for categories
+  // Custom icons for categories
   const BuildingIcon = ({ className }: { className?: string }) => (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
@@ -134,7 +123,7 @@ export default function RequestExpensesTab({
     </svg>
   );
   
-  const CalendarIcon = ({ className }: { className?: string }) => (
+  const CoffeeIcon = ({ className }: { className?: string }) => (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
       viewBox="0 0 24 24" 
@@ -145,221 +134,158 @@ export default function RequestExpensesTab({
       strokeLinejoin="round" 
       className={className}
     >
-      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-      <line x1="16" x2="16" y1="2" y2="6" />
-      <line x1="8" x2="8" y1="2" y2="6" />
-      <line x1="3" x2="21" y1="10" y2="10" />
-      <path d="M8 14h.01" />
-      <path d="M12 14h.01" />
-      <path d="M16 14h.01" />
-      <path d="M8 18h.01" />
-      <path d="M12 18h.01" />
-      <path d="M16 18h.01" />
+      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z" />
+      <line x1="6" x2="6" y1="2" y2="4" />
+      <line x1="10" x2="10" y1="2" y2="4" />
+      <line x1="14" x2="14" y1="2" y2="4" />
     </svg>
   );
-  
-  const Users = ({ className }: { className?: string }) => (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-  
+
   return (
-    <div className="p-6 space-y-6">
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3 bg-muted/30">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ReceiptIcon size={16} className="text-primary" />
-              Expense Details
-            </CardTitle>
-            <div className="flex flex-col items-end">
-              <Badge className="mb-1 bg-primary/10 text-primary border-0 font-bold">
-                Request Total: Nrs.{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </Badge>
-              {previousOutstandingAdvance > 0 && (
-                <Badge className="bg-amber-100 text-amber-800 border-0 font-bold text-xs">
-                  <AlertTriangle size={10} className="mr-1" />
-                  Previous Balance: Nrs.{previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                </Badge>
-              )}
-            </div>
-          </div>
-          <CardDescription>
-            All expense items and attached receipts
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          {expenseItems.length === 0 ? (
-            <div className="bg-muted/10 p-10 rounded-lg text-center border border-dashed">
-              <FileText size={32} className="mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">No expense items found for this request.</p>
-            </div>
-          ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader className="bg-muted/20">
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Purpose</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Receipts</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenseItems.map((item, index) => (
-                    <TableRow key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-muted/10"}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {getCategoryIcon(item.category)}
-                          <span className="capitalize">
-                            {item.category.charAt(0).toUpperCase() + item.category.slice(1).replace('-', ' ')}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {item.description || 
-                          <span className="text-muted-foreground/60 italic text-sm">No purpose specified</span>
-                        }
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <Badge variant="outline" className="bg-muted/30 font-semibold text-foreground border-0">
-                          Nrs.{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {receipts[item.id] && receipts[item.id].length > 0 ? (
-                          <div className="flex items-center gap-2">
-                            {receipts[item.id].map((receipt) => (
-                              <Dialog key={receipt.id}>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2 flex items-center gap-1 text-primary"
-                                    onClick={() => setSelectedReceipt(receipt)}
-                                  >
-                                    {isImageFile(receipt.fileType) ? (
-                                      <Image size={14} />
-                                    ) : (
-                                      <Paperclip size={14} />
-                                    )}
-                                    <span className="truncate max-w-[150px] text-xs">
-                                      {receipt.originalFilename}
-                                    </span>
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl">
-                                  <DialogHeader>
-                                    <DialogTitle>Receipt: {receipt.originalFilename}</DialogTitle>
-                                    <DialogDescription>
-                                      {/* Uploaded on {new Date(receipt.uploadDate).toLocaleString()} */}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  
-                                  <div className="mt-4 flex flex-col items-center">
-                                    {isImageFile(receipt.fileType) && receipt.publicUrl ? (
-                                      <div className="border rounded-md overflow-hidden max-h-[70vh] flex items-center justify-center">
-                                        <img 
-                                          src={receipt.publicUrl} 
-                                          alt={receipt.originalFilename}
-                                          className="max-w-full max-h-[70vh] object-contain"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="p-8 bg-muted/10 rounded-md text-center">
-                                        <FileText size={48} className="mx-auto text-muted-foreground mb-4" />
-                                        <p className="mb-4">This file type cannot be previewed.</p>
-                                      </div>
-                                    )}
-                                    
-                                    <div className="flex justify-center mt-4">
-                                      <Button asChild variant="secondary">
-                                        <a 
-                                          href={receipt.publicUrl || '#'} 
-                                          download={receipt.originalFilename}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <Download size={16} className="mr-2" />
-                                          Download Receipt
-                                        </a>
-                                      </Button>
+    <div className="p-6">
+      {expenseItems.length === 0 ? (
+        <div className="text-center py-10 bg-muted/20 rounded-md">
+          <ReceiptIcon className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+          <p className="text-muted-foreground">No expense items found</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader className="bg-muted/10">
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount (Nrs.)</TableHead>
+                  <TableHead>Receipts</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenseItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {getCategoryIcon(item.category)}
+                        <span>{formatCategoryName(item.category)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.description || '-'}</TableCell>
+                    <TableCell className="text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                    <TableCell>
+                      {receipts[item.id] && receipts[item.id].length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {receipts[item.id].map((receipt) => (
+                            <Dialog key={receipt.id}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 flex items-center gap-1 text-primary"
+                                  onClick={() => setSelectedReceipt(receipt)}
+                                >
+                                  {isImageFile(receipt.fileType) ? (
+                                    <Image size={14} />
+                                  ) : (
+                                    <Paperclip size={14} />
+                                  )}
+                                  <span className="truncate max-w-[150px] text-xs">
+                                    {receipt.originalFilename}
+                                  </span>
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl">
+                                <DialogHeader>
+                                  <DialogTitle>Receipt: {receipt.originalFilename}</DialogTitle>
+                                  <DialogDescription>
+                                    {receipt.uploadDate && `Uploaded on ${new Date(receipt.uploadDate).toLocaleString()}`}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                
+                                <div className="mt-4 flex flex-col items-center">
+                                  {isImageFile(receipt.fileType) && receipt.publicUrl ? (
+                                    <div className="border rounded-md overflow-hidden max-h-[70vh] flex items-center justify-center">
+                                      <img 
+                                        src={receipt.publicUrl} 
+                                        alt={receipt.originalFilename}
+                                        className="max-w-full max-h-[70vh] object-contain"
+                                      />
                                     </div>
+                                  ) : (
+                                    <div className="p-8 bg-muted/10 rounded-md text-center">
+                                      <FileText size={48} className="mx-auto text-muted-foreground mb-4" />
+                                      <p className="mb-4">This file type cannot be previewed.</p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-center mt-4">
+                                    <Button asChild variant="secondary">
+                                      <a 
+                                        href={receipt.publicUrl || '#'} 
+                                        download={receipt.originalFilename}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Download size={16} className="mr-2" />
+                                        Download Receipt
+                                      </a>
+                                    </Button>
                                   </div>
-                                </DialogContent>
-                              </Dialog>
-                            ))}
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            No receipt
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2} className="text-right">Subtotal</TableCell>
-                    <TableCell className="text-primary font-bold">
-                      Nrs.{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          ))}
+                        </div>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          No receipt
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/10 font-medium">
+                  <TableCell colSpan={2} className="text-right">Total</TableCell>
+                  <TableCell className="text-right">
+                    {totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+                
+                {previousOutstandingAdvance > 0 && (
+                  <TableRow className="font-bold bg-amber-50/50">
+                    <TableCell colSpan={2} className="text-right text-amber-800">
+                      Previous Outstanding Advance
+                    </TableCell>
+                    <TableCell className="text-right text-amber-800 font-bold">
+                      {previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
-                  
-                  {previousOutstandingAdvance > 0 && (
-                    <TableRow className="font-bold bg-amber-50/50">
-                      <TableCell colSpan={2} className="text-right text-amber-800">
-                        Previous Outstanding Advance
-                      </TableCell>
-                      <TableCell className="text-amber-800 font-bold">
-                        Nrs.{previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                      </TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  )}
-                  
-                  {previousOutstandingAdvance > 0 && (
-                    <TableRow className="font-bold bg-primary/10">
-                      <TableCell colSpan={2} className="text-right">Total Amount</TableCell>
-                      <TableCell className="text-primary font-bold">
-                        Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                      </TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3 bg-muted/30">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileCheck size={16} className="text-primary" />
-              Document Check
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+                )}
+                
+                {previousOutstandingAdvance > 0 && (
+                  <TableRow className="font-bold bg-primary/10">
+                    <TableCell colSpan={2} className="text-right">Total Amount</TableCell>
+                    <TableCell className="text-right text-primary font-bold">
+                      {calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="bg-muted/10 p-4 rounded-md border">
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <FileText size={16} className="text-primary" />
+              Receipt Verification
+            </h3>
+            
             <div className="space-y-3">
-              <div className="flex items-start gap-2 p-3 bg-muted/10 rounded-md">
+              <div className="flex items-start gap-2">
                 <div className="mt-0.5">
                   {expenseItems.every(item => 
                     receipts[item.id] && receipts[item.id].length > 0
@@ -370,7 +296,7 @@ export default function RequestExpensesTab({
                   )}
                 </div>
                 <div>
-                  <p className="font-medium">Receipt Verification</p>
+                  <p className="font-medium">Receipt Status</p>
                   <p className="text-sm text-muted-foreground">
                     {expenseItems.every(item => 
                       receipts[item.id] && receipts[item.id].length > 0
@@ -383,7 +309,7 @@ export default function RequestExpensesTab({
                 </div>
               </div>
               
-              <div className="flex items-start gap-2 p-3 bg-muted/10 rounded-md">
+              <div className="flex items-start gap-2">
                 <div className="mt-0.5">
                   {expenseItems.every(item => item.description && item.description.trim() !== '') ? (
                     <Check className="h-5 w-5 text-green-600" />
@@ -392,68 +318,20 @@ export default function RequestExpensesTab({
                   )}
                 </div>
                 <div>
-                  <p className="font-medium">Purpose Completeness</p>
+                  <p className="font-medium">Description Completeness</p>
                   <p className="text-sm text-muted-foreground">
                     {expenseItems.every(item => item.description && item.description.trim() !== '') ? (
-                      "All expense items have purpose descriptions"
+                      "All expense items have descriptions"
                     ) : (
-                      "Some expense items are missing purpose descriptions"
+                      "Some expense items are missing descriptions"
                     )}
                   </p>
                 </div>
               </div>
-              
-              <div className="flex items-start gap-2 p-3 bg-muted/10 rounded-md">
-                <div className="mt-0.5">
-                  <Check className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium">Expense Categories</p>
-                  <p className="text-sm text-muted-foreground">
-                    All expense categories are valid and appropriate
-                  </p>
-                </div>
-              </div>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3 bg-muted/30">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FilePenLine size={16} className="text-primary" />
-              Quick Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              <Button
-                variant="ghost"
-                className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-              >
-                <Download size={16} className="text-primary" />
-                <span>Download All Receipts</span>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-              >
-                <Eye size={16} className="text-primary" />
-                <span>View Expense Summary</span>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                className="flex items-center justify-start gap-2 w-full p-3 rounded-none h-auto"
-              >
-                <FileText size={16} className="text-primary" />
-                <span>Export as PDF</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

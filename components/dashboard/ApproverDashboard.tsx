@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { TravelRequest } from '@/types';
 import { Card, CardContent } from "@/components/ui/card";
 
-// Import our reusable components
+// Import components
 import {
   StatsCard,
   DashboardHeader,
@@ -15,9 +16,7 @@ import {
   filterRequests,
   sortRequests,
   toggleSort,
-  splitRequestsByStatus,
-  getRequestDetailRoute,
-  getRequestStatistics
+  getRequestDetailRoute
 } from '@/components/dashboard';
 
 // Import icons
@@ -26,12 +25,15 @@ import {
   Clock,
   FileText,
   DollarSign,
-  MapPin
+  MapPin,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
 export default function ApproverDashboard() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<TravelRequest[]>([]);
   const [completedRequests, setCompletedRequests] = useState<TravelRequest[]>([]);
@@ -42,6 +44,15 @@ export default function ApproverDashboard() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'normal' | 'in-valley' | 'advance' | 'emergency'>('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   
+  // Stats counters
+  const [stats, setStats] = useState({
+    pendingCount: 0,
+    approvedCount: 0,
+    rejectedCount: 0,
+    inValleyCount: 0,
+    totalAmount: 0
+  });
+  
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -50,37 +61,69 @@ export default function ApproverDashboard() {
     try {
       setLoading(true);
       
-      // Fetch travel requests
-      const travelResponse = await fetch('/api/requests');
-      if (!travelResponse.ok) {
-        throw new Error('Failed to fetch travel requests');
-      }
-      const travelData = await travelResponse.json();
+      // Fetch requests assigned to this approver
+      const response = await fetch('/api/approver-requests');
       
-      // Fetch in-valley requests
-      const valleyResponse = await fetch('/api/valley-requests');
-      let valleyData: any[] = [];
-      
-      if (valleyResponse.ok) {
-        valleyData = await valleyResponse.json();
-      } else {
-        console.warn('Failed to fetch in-valley requests, might not be implemented yet');
+      if (!response.ok) {
+        throw new Error('Failed to fetch approver requests');
       }
       
-      // Combine both types of requests
-      const allRequests = [...travelData, ...valleyData];
-      console.log('Fetched approver requests:', allRequests);
-      setRequests(allRequests);
+      const data = await response.json();
+      console.log('Fetched approver requests:', data);
+      setRequests(data);
       
       // Split requests by status
-      const { pendingRequests, completedRequests } = splitRequestsByStatus(allRequests);
-      setPendingRequests(pendingRequests);
-      setCompletedRequests(completedRequests);
+      const pending = data.filter((req: TravelRequest) => 
+        req.status === 'pending' || req.status === 'travel_approved'
+      );
+      
+      const completed = data.filter((req: TravelRequest) => 
+        req.status === 'approved' || 
+        req.status === 'rejected' || 
+        req.status === 'pending_verification' ||
+        req.status === 'rejected_by_checker'
+      );
+      
+      setPendingRequests(pending);
+      setCompletedRequests(completed);
+      
+      // Calculate statistics
+      calculateStats(data);
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const calculateStats = (data: TravelRequest[]) => {
+    const pendingCount = data.filter(req => 
+      req.status === 'pending' || req.status === 'travel_approved'
+    ).length;
+    
+    const approvedCount = data.filter(req => 
+      req.status === 'approved' || req.status === 'pending_verification'
+    ).length;
+    
+    const rejectedCount = data.filter(req => 
+      req.status === 'rejected' || req.status === 'rejected_by_checker'
+    ).length;
+    
+    const inValleyCount = data.filter(req => 
+      req.requestType === 'in-valley'
+    ).length;
+    
+    const approvedAmount = data
+      .filter(req => req.status === 'approved' || req.status === 'pending_verification')
+      .reduce((sum, req) => sum + (req.totalAmount || 0), 0);
+    
+    setStats({
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      inValleyCount,
+      totalAmount: approvedAmount
+    });
   };
   
   const handleRefresh = async () => {
@@ -114,14 +157,11 @@ export default function ApproverDashboard() {
   
   const filteredRequests = getFilteredRequests();
   
-  // Get statistics
-  const stats = getRequestStatistics(requests);
-  
   // Define the tabs
   const tabs = [
     {
       id: 'pending',
-      label: 'Pending Requests',
+      label: 'Pending Approval',
       icon: Clock,
       count: pendingRequests.length,
       hideTextOnMobile: true
@@ -136,25 +176,25 @@ export default function ApproverDashboard() {
   ];
 
   return (
-    <div className="max-w-9xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Stats Cards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <StatsCard
           icon={Clock}
           title="Pending Approval"
-          value={pendingRequests.length}
-          borderColor="border-l-green-400"
-          iconColor="text-green-600"
-          iconBgColor="bg-green-100"
+          value={stats.pendingCount}
+          borderColor="border-l-amber-400"
+          iconColor="text-amber-600"
+          iconBgColor="bg-amber-100"
         />
         
         <StatsCard
-          icon={FileText}
+          icon={CheckCircle}
           title="Approved"
-          value={completedRequests.filter(req => req.status === 'approved' || req.status === 'pending_verification').length}
-          borderColor="border-l-blue-400"
-          iconColor="text-blue-600"
-          iconBgColor="bg-blue-100"
+          value={stats.approvedCount}
+          borderColor="border-l-green-400"
+          iconColor="text-green-600"
+          iconBgColor="bg-green-100"
         />
         
         <StatsCard
@@ -168,20 +208,20 @@ export default function ApproverDashboard() {
         
         <StatsCard
           icon={DollarSign}
-          title="Total Amount"
-          value={stats.approvedAmount}
+          title="Approved Amount"
+          value={stats.totalAmount}
           valuePrefix="Nrs."
-          borderColor="border-l-amber-400"
-          iconColor="text-amber-600"
-          iconBgColor="bg-amber-100"
+          borderColor="border-l-blue-400"
+          iconColor="text-blue-600"
+          iconBgColor="bg-blue-100"
         />
       </div>
       
       {/* Main Dashboard Card */}
       <Card>
         <DashboardHeader
-          title="Expense Requests Dashboard"
-          description="Manage and review employee expense reimbursement requests"
+          title="Approver Dashboard"
+          description="Review and approve expense requests assigned to you"
           icon={Briefcase}
           role="approver"
           searchTerm={searchTerm}
@@ -208,18 +248,21 @@ export default function ApproverDashboard() {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 emptyStateProps={{
-                  icon: Briefcase,
-                  title: "No pending requests found",
-                  description: "All requests have been processed or check back later for new requests"
+                  icon: Clock,
+                  title: "No pending requests",
+                  description: "You have no requests awaiting your approval at this time"
                 }}
                 variant="approver"
                 mode="pending"
                 actionVariant="review"
+                rowClassName={(request) => {
+                  return request.status === 'pending' ? 'border-l-2 border-l-amber-400' : '';
+                }}
               />
               
               <div className="mt-4 text-sm text-muted-foreground flex justify-between items-center">
                 <div>
-                  Total requests: {requests.length}
+                  Total: {activeTab === 'pending' ? pendingRequests.length : completedRequests.length} request(s)
                 </div>
                 <div>
                   Showing {filteredRequests.length} of {activeTab === 'pending' ? pendingRequests.length : completedRequests.length} requests
@@ -236,17 +279,18 @@ export default function ApproverDashboard() {
                 onSort={handleSort}
                 emptyStateProps={{
                   icon: FileText,
-                  title: "No processed requests found",
-                  description: "Adjust your filters or check back later"
+                  title: "No processed requests",
+                  description: "You haven't processed any requests yet"
                 }}
                 variant="approver"
                 mode="completed"
                 actionVariant="view"
+                showSubmittedDate={true}
               />
               
               <div className="mt-4 text-sm text-muted-foreground flex justify-between items-center">
                 <div>
-                  Total requests: {requests.length}
+                  Total: {activeTab === 'pending' ? pendingRequests.length : completedRequests.length} request(s)
                 </div>
                 <div>
                   Showing {filteredRequests.length} of {activeTab === 'pending' ? pendingRequests.length : completedRequests.length} requests
@@ -256,6 +300,74 @@ export default function ApproverDashboard() {
           </RequestTabs>
         </CardContent>
       </Card>
+      
+      {/* Help Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <Card className="border shadow-sm">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Approval Process
+            </h3>
+            <div className="space-y-4 mt-4">
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-amber-700">1</span>
+                </div>
+                <div>
+                  <p className="font-medium">Review Request Details</p>
+                  <p className="text-sm text-muted-foreground">Verify that the travel purpose aligns with business needs and company policy</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-amber-700">2</span>
+                </div>
+                <div>
+                  <p className="font-medium">Approve or Reject</p>
+                  <p className="text-sm text-muted-foreground">Make a decision based on your review and provide any necessary comments</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-amber-700">3</span>
+                </div>
+                <div>
+                  <p className="font-medium">Financial Verification</p>
+                  <p className="text-sm text-muted-foreground">After your approval, the request will be sent to Finance for final verification</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border shadow-sm">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Approval Guidelines
+            </h3>
+            <div className="space-y-4 mt-4">
+              <div className="p-3 bg-muted/10 rounded-md">
+                <p className="font-medium">Expense Policy Compliance</p>
+                <p className="text-sm text-muted-foreground">Ensure that all expenses comply with company policy limits and guidelines</p>
+              </div>
+              
+              <div className="p-3 bg-muted/10 rounded-md">
+                <p className="font-medium">Business Justification</p>
+                <p className="text-sm text-muted-foreground">Verify that each request has a clear business purpose and justification</p>
+              </div>
+              
+              <div className="p-3 bg-muted/10 rounded-md">
+                <p className="font-medium">Budget Considerations</p>
+                <p className="text-sm text-muted-foreground">Check that expenses are within departmental or project budget constraints</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
