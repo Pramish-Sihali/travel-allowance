@@ -155,7 +155,7 @@ export default function RequestApprovalTab({
                     Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </Badge>
                 </div>
-                
+{/*                 
                 {request.previousOutstandingAdvance > 0 && (
                   <div className="flex items-center gap-2">
                     <AlertTriangle size={16} className="text-amber-500" />
@@ -174,7 +174,7 @@ export default function RequestApprovalTab({
                       Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </Badge>
                   </div>
-                )}
+                )} */}
               </div>
             </div>
           </div>

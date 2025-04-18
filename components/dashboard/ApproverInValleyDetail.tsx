@@ -1,4 +1,5 @@
-'use client';
+"use client";                     // ✏️ Marks this as a Client Component
+
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';

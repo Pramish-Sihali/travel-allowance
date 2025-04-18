@@ -50,7 +50,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Add these to lib/db.ts
-// export const createUser = async (userData: any) => {...}
-// export const updateUser = async (id: string, userData: any) => {...}
-// export const deleteUser = async (id: string) => {...}

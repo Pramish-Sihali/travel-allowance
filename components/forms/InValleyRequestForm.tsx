@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Select,
   SelectContent,
@@ -30,69 +28,31 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { 
   FileText, 
   Loader2, 
-  PaperclipIcon,
-  TrashIcon,
   UserIcon, 
   CheckCircle2,
+  Calendar,
   Building,
   BriefcaseBusiness,
   BadgeInfo,
-  DollarSign,
-  Calendar,
-  CreditCard,
-  Users,
   MapPin,
-  Plus,
-  Trash2,
-  Receipt,
-  Coffee,
-  Car
+  CreditCard,
+  Users
 } from "lucide-react";
 
+// Import shared expense section component
+import SharedExpenseSection, { ExpenseItemFormData } from '@/components/forms/SharedExpenseSection';
+
 // Purpose options for in-valley reimbursements
-const valleyPurposeOptions = [
-  { value: "meeting", label: "Business Meeting", icon: <Users className="h-4 w-4" /> },
-  { value: "office-supplies", label: "Office Supplies", icon: <FileText className="h-4 w-4" /> },
-  { value: "lunch", label: "Lunch/Dinner with Clients", icon: <Coffee className="h-4 w-4" /> },
-  { value: "local-transport", label: "Local Transportation", icon: <Car className="h-4 w-4" /> },
-  { value: "refreshments", label: "Team Refreshments", icon: <Coffee className="h-4 w-4" /> },
-  { value: "other", label: "Other", icon: <FileText className="h-4 w-4" /> },
-];
-
-// Expense category options for in-valley
-const valleyExpenseCategoryOptions = [
-  { value: "ride-share", label: "Ride Share Service" },
-  { value: "taxi", label: "Taxi" },
-  { value: "food", label: "Food & Beverages" },
-  { value: "meeting-venue", label: "Meeting Venue" },
-  { value: "stationery", label: "Stationery & Supplies" },
-  { value: "printing", label: "Printing & Photocopying" },
-  { value: "courier", label: "Courier & Postage" },
-  { value: "other", label: "Other" },
-];
-
-// Meeting types for in-valley reimbursements
-const meetingTypeOptions = [
-  { value: "internal", label: "Internal Team Meeting" },
-  { value: "client", label: "Client Meeting" },
-  { value: "vendor", label: "Vendor Meeting" },
-  { value: "interview", label: "Interview" },
-  { value: "other", label: "Other" },
-];
-
-// Payment methods
-const paymentMethodOptions = [
-  { value: "cash", label: "Cash" },
-  { value: "personal-card", label: "Personal Credit/Debit Card" },
-  { value: "company-card", label: "Company Card" },
-  { value: "digital-wallet", label: "Digital Wallet" },
-  { value: "other", label: "Other" },
-];
+import { 
+  valleyPurposeOptions, 
+  valleyExpenseCategoryOptions,
+  meetingTypeOptions,
+  paymentMethodOptions
+} from "./valley-constants";
 
 // Define project type
 interface ProjectOption {
@@ -100,9 +60,16 @@ interface ProjectOption {
   label: string;
 }
 
+// Define approver type
+interface ApproverOption {
+  value: string;
+  label: string;
+  email?: string;
+}
+
 // =============== SCHEMA & TYPES ===============
-// Define Zod schema for form validation
-const inValleyRequestSchema = z.object({
+// Define Zod schema for expense details (Phase 1)
+const valleyDetailsSchema = z.object({
   // Employee Information
   employeeId: z.string(),
   employeeName: z.string().min(1, "Name is required"),
@@ -121,6 +88,9 @@ const inValleyRequestSchema = z.object({
   description: z.string().min(1, "Description is required"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   paymentMethodOther: z.string().optional(),
+  
+  // Approver selection
+  approverId: z.string().min(1, "Please select an approver"),
 })
 .refine(
   (data) => {
@@ -171,15 +141,8 @@ const inValleyRequestSchema = z.object({
   }
 );
 
-// Expense item type
-interface ExpenseItemFormData {
-  category: string;
-  amount: number;
-  description?: string;
-}
-
 // Infer the type from the schema
-type FormValues = z.infer<typeof inValleyRequestSchema>;
+type ValleyDetailsFormValues = z.infer<typeof valleyDetailsSchema>;
 
 // =============== COMPONENTS ===============
 
@@ -247,10 +210,20 @@ const EmployeeInfoSection = ({ form }: { form: any }) => (
 );
 
 // 2. RequestDetailsSection Component
-const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form: any, projectOptions: ProjectOption[], loadingProjects: boolean }) => (
+const RequestDetailsSection = ({ 
+  form, 
+  projectOptions, 
+  loadingProjects,
+  readOnly = false 
+}: { 
+  form: any, 
+  projectOptions: ProjectOption[], 
+  loadingProjects: boolean,
+  readOnly?: boolean 
+}) => (
   <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
     <div className="flex items-center mb-4">
-      <Receipt className="h-5 w-5 text-primary mr-2" />
+      <MapPin className="h-5 w-5 text-primary mr-2" />
       <h3 className="text-lg font-medium">Expense Details</h3>
     </div>
     
@@ -267,30 +240,39 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Project</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={loadingProjects}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select project"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {projectOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input 
+                      {...field} 
+                      readOnly 
+                      className="bg-muted/30" 
+                      value={projectOptions.find(p => p.value === field.value)?.label || field.value}
+                    />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={loadingProjects || readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select project"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projectOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('project') === 'other' && (
+            {!readOnly && form.watch('project') === 'other' && (
               <FormField
                 control={form.control}
                 name="projectOther"
@@ -313,32 +295,42 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Purpose of Expense</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select purpose" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {valleyPurposeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex items-center gap-2">
-                            {option.icon}
-                            {option.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input 
+                      {...field} 
+                      readOnly 
+                      className="bg-muted/30" 
+                      value={valleyPurposeOptions.find(p => p.value === field.value)?.label || field.value}
+                    />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select purpose" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {valleyPurposeOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <div className="flex items-center gap-2">
+                              {option.icon}
+                              {option.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('purposeType') === 'other' && (
+            {!readOnly && form.watch('purposeType') === 'other' && (
               <FormField
                 control={form.control}
                 name="purposeOther"
@@ -370,6 +362,8 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                     <Input
                       type="date"
                       {...field}
+                      readOnly={readOnly}
+                      className={readOnly ? "bg-muted/30" : ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -388,7 +382,12 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                     <span>Location</span>
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter location in the valley" />
+                    <Input 
+                      {...field} 
+                      placeholder="Enter location in the valley" 
+                      readOnly={readOnly}
+                      className={readOnly ? "bg-muted/30" : ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -404,7 +403,7 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
           
           <div className="space-y-4">
             {/* Meeting Type - Conditionally shown if purpose is meeting */}
-            {form.watch('purposeType') === 'meeting' && (
+            {(readOnly || form.watch('purposeType') === 'meeting') && (
               <>
                 <FormField
                   control={form.control}
@@ -412,23 +411,33 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Meeting Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select meeting type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {meetingTypeOptions.map(option => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {readOnly ? (
+                        <Input 
+                          {...field} 
+                          readOnly 
+                          className="bg-muted/30" 
+                          value={meetingTypeOptions.find(m => m.value === field.value)?.label || field.value}
+                        />
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={readOnly}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select meeting type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {meetingTypeOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -448,6 +457,8 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                           {...field} 
                           placeholder="List the names of participants" 
                           className="resize-none min-h-[80px]"
+                          readOnly={readOnly}
+                          disabled={readOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -469,6 +480,8 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                       {...field} 
                       placeholder="Provide details about the expense" 
                       className="resize-none min-h-[100px]"
+                      readOnly={readOnly}
+                      disabled={readOnly}
                     />
                   </FormControl>
                   <FormMessage />
@@ -486,29 +499,39 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
                     <CreditCard className="h-4 w-4" />
                     <span>Payment Method</span>
                   </FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {paymentMethodOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input 
+                      {...field} 
+                      readOnly 
+                      className="bg-muted/30" 
+                      value={paymentMethodOptions.find(p => p.value === field.value)?.label || field.value}
+                    />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {paymentMethodOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('paymentMethod') === 'other' && (
+            {!readOnly && form.watch('paymentMethod') === 'other' && (
               <FormField
                 control={form.control}
                 name="paymentMethodOther"
@@ -530,151 +553,64 @@ const RequestDetailsSection = ({ form, projectOptions, loadingProjects }: { form
   </div>
 );
 
-// 3. ExpensesSection Component
-const ExpensesSection = ({ 
-  expenseItems,
-  addExpenseItem,
-  removeExpenseItem,
-  handleExpenseChange,
-  handleFileChange,
-  selectedFiles,
-  calculateTotalAmount 
+// 3. ApproverSelectionSection Component
+const ApproverSelectionSection = ({ 
+  form, 
+  approverOptions, 
+  loadingApprovers,
+  readOnly = false 
 }: { 
-  expenseItems: ExpenseItemFormData[],
-  addExpenseItem: () => void,
-  removeExpenseItem: (index: number) => void,
-  handleExpenseChange: (index: number, field: keyof ExpenseItemFormData, value: any) => void,
-  handleFileChange: (category: string, e: React.ChangeEvent<HTMLInputElement>) => void,
-  selectedFiles: Record<string, File | null>,
-  calculateTotalAmount: () => number
+  form: any, 
+  approverOptions: ApproverOption[], 
+  loadingApprovers: boolean,
+  readOnly?: boolean
 }) => (
   <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center">
-        <Receipt className="h-5 w-5 text-primary mr-2" />
-        <h3 className="text-lg font-medium">Expense Items</h3>
-      </div>
-      
-      <Button 
-        type="button" 
-        variant="outline" 
-        size="sm"
-        onClick={addExpenseItem}
-        className="flex items-center gap-1"
-      >
-        <Plus className="h-4 w-4" />
-        Add Item
-      </Button>
+    <div className="flex items-center mb-4">
+      <Users className="h-5 w-5 text-primary mr-2" />
+      <h3 className="text-lg font-medium">Approver Selection</h3>
     </div>
     
-    <div className="rounded-md border overflow-hidden shadow-sm">
-      <Table>
-        <TableHeader className="bg-muted/30">
-          <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Receipt</TableHead>
-            <TableHead className="w-[80px] text-center">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {expenseItems.map((item, index) => (
-            <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-muted/10"}>
-              <TableCell>
-                <Select
-                  value={item.category}
-                  onValueChange={(value) => handleExpenseChange(index, 'category', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {valleyExpenseCategoryOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  <span className="px-2 py-2 bg-muted border-y border-l rounded-l-md text-muted-foreground text-xs">Nrs.</span>
-                  <Input
-                    type="number"
-                    value={item.amount}
-                    onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                    className="max-w-24 rounded-l-none"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="text"
-                  value={item.description || ''}
-                  onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                  placeholder="Brief description"
-                />
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor={`receipt-${index}`}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
-                      <PaperclipIcon className="h-4 w-4" />
-                      <span>Upload</span>
+    <FormField
+      control={form.control}
+      name="approverId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Select Approver</FormLabel>
+          {readOnly ? (
+            <Input {...field} readOnly className="bg-muted/30" value={
+              approverOptions.find(a => a.value === field.value)?.label || field.value
+            } />
+          ) : (
+            <Select
+              onValueChange={field.onChange}
+              defaultValue={field.value}
+              disabled={loadingApprovers || readOnly}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingApprovers ? "Loading approvers..." : "Select an approver"} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {approverOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex flex-col">
+                      <span>{option.label}</span>
+                      {option.email && <span className="text-xs text-muted-foreground">{option.email}</span>}
                     </div>
-                  </label>
-                  <input
-                    id={`receipt-${index}`}
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
-                    className="hidden"
-                  />
-                  {selectedFiles[`${item.category}-${index}`] && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="truncate max-w-[6rem] text-xs">
-                        {selectedFiles[`${item.category}-${index}`]?.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-center">
-                {expenseItems.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeExpenseItem(index)}
-                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="font-medium bg-muted/20">
-            <TableCell colSpan={1} className="text-right">Total Amount</TableCell>
-            <TableCell>
-              <div className="flex items-center font-bold">
-                <span className="mr-1">Nrs.</span>
-                <span>{calculateTotalAmount().toFixed(2)}</span>
-              </div>
-            </TableCell>
-            <TableCell colSpan={3}></TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <FormDescription>
+            This person will review and approve your expense request
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   </div>
 );
 
@@ -682,18 +618,28 @@ const ExpensesSection = ({
 export default function InValleyRequestForm() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [employeeId, setEmployeeId] = useState<string>(uuidv4());
+  const searchParams = useSearchParams();
+  
+  const [employeeId, setEmployeeId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
+  const [approverOptions, setApproverOptions] = useState<ApproverOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingApprovers, setLoadingApprovers] = useState(true);
+  const [phase, setPhase] = useState<1 | 2>(1);  // Phase 1: Request Details, Phase 2: Expenses
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [requestDetails, setRequestDetails] = useState<any>(null);
+  const [approverComments, setApproverComments] = useState<string>('');
+  
+  // Expense items for Phase 2
   const [expenseItems, setExpenseItems] = useState<ExpenseItemFormData[]>([
     { category: 'ride-share', amount: 0, description: '' },
   ]);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   
-  // Initialize form with react-hook-form and zod resolver
-  const form = useForm<FormValues>({
-    resolver: zodResolver(inValleyRequestSchema) as any,
+  // Initialize form for Phase 1
+  const valleyDetailsForm = useForm<ValleyDetailsFormValues>({
+    resolver: zodResolver(valleyDetailsSchema) as any,
     defaultValues: {
       employeeId: '',
       employeeName: '',
@@ -710,8 +656,43 @@ export default function InValleyRequestForm() {
       description: '',
       paymentMethod: '',
       paymentMethodOther: '',
+      approverId: '',
     },
   });
+  
+  // Check if we're in expense submission mode (Phase 2)
+  useEffect(() => {
+    const id = searchParams.get('id');
+    const expenseMode = searchParams.get('expenses');
+    
+    if (id && expenseMode === 'true') {
+      setPhase(2);
+      setRequestId(id);
+      
+      // Fetch request details to display in the expense form
+      const fetchRequestDetails = async () => {
+        try {
+          const response = await fetch(`/api/valley-requests/${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setRequestDetails(data);
+            
+            if (data.approverComments) {
+              setApproverComments(data.approverComments);
+            }
+          } else {
+            console.error('Failed to fetch request details');
+            router.push('/employee/dashboard');
+          }
+        } catch (error) {
+          console.error('Error fetching request details:', error);
+          router.push('/employee/dashboard');
+        }
+      };
+      
+      fetchRequestDetails();
+    }
+  }, [searchParams, router]);
   
   // Fetch projects from the database
   useEffect(() => {
@@ -751,22 +732,49 @@ export default function InValleyRequestForm() {
     fetchProjects();
   }, []);
   
+  // Fetch approvers from the database
+  useEffect(() => {
+    const fetchApprovers = async () => {
+      try {
+        setLoadingApprovers(true);
+        // Use the new API endpoint
+        const response = await fetch('/api/approvers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch approvers');
+        }
+        
+        const data = await response.json();
+        setApproverOptions(data);
+      } catch (error) {
+        console.error('Error fetching approvers:', error);
+        // Fallback to empty list if fetch fails
+        setApproverOptions([]);
+      } finally {
+        setLoadingApprovers(false);
+      }
+    };
+    
+    // Add this line to call the function:
+    fetchApprovers();
+    
+  }, []); // Add empty dependency array here
+  
   // Update employeeId and prefill form with session data when available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setEmployeeId(session.user.id);
-      form.setValue('employeeId', session.user.id);
+      valleyDetailsForm.setValue('employeeId', session.user.id);
       
       if (session.user.name) {
-        form.setValue('employeeName', session.user.name);
+        valleyDetailsForm.setValue('employeeName', session.user.name);
       }
       
       // You would typically fetch these from a user profile API
       // For now, we'll set some demo values
-      form.setValue('department', 'Engineering');
-      form.setValue('designation', 'Software Engineer');
+      valleyDetailsForm.setValue('department', 'Engineering');
+      valleyDetailsForm.setValue('designation', 'Software Engineer');
     }
-  }, [session, status, form]);
+  }, [session, status, valleyDetailsForm]);
   
   // Function to add a new expense item
   const addExpenseItem = () => {
@@ -803,8 +811,8 @@ export default function InValleyRequestForm() {
     return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
   };
   
-  // Handle form submission
-  const onSubmit = async (data: FormValues) => {
+  // Handle Phase 1 form submission (Valley request details)
+  const onSubmitValleyDetails = async (data: ValleyDetailsFormValues) => {
     setIsSubmitting(true);
     
     try {
@@ -818,12 +826,13 @@ export default function InValleyRequestForm() {
       const requestData = {
         ...data,
         employeeId: finalEmployeeId,
+        phase: 1,
         requestType: 'in-valley', // Set request type to in-valley
         purpose: data.purposeType === 'other' ? data.purposeOther : data.purposeType,
         expenseDate: formattedExpenseDate,
         travelDateFrom: formattedExpenseDate, // Use expense date for both fields
         travelDateTo: formattedExpenseDate,   // to maintain compatibility with existing API
-        totalAmount: calculateTotalAmount(),
+        totalAmount: 0, // No expenses yet in Phase 1
         status: 'pending' as const,
       };
       
@@ -844,7 +853,56 @@ export default function InValleyRequestForm() {
       }
       
       const createdRequest = await response.json();
+      console.log('In-valley request created:', createdRequest);
       
+      // Navigate to dashboard on success
+      router.push('/employee/dashboard?success=valley_details_submitted');
+      
+    } catch (error) {
+      console.error('Error submitting in-valley details:', error);
+      alert('There was an error submitting your request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle Phase 2 form submission (Expenses)
+  const onSubmitExpenses = async () => {
+    if (!requestId) {
+      alert('No request ID found. Please try again.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update the request with expense info
+      const updateData = {
+        phase: 2,
+        totalAmount: calculateTotalAmount(),
+        status: 'pending_verification', // Move directly to financial verification
+        expenses_submitted_at: new Date().toISOString()
+      };
+      
+      console.log('Updating request with expenses:', updateData);
+      
+      // Update the in-valley request
+      const response = await fetch(`/api/valley-requests/${requestId}/expenses`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Server error: ${errorData.error || response.statusText}`);
+      }
+      
+      const updatedRequest = await response.json();
+      
+      // Create expense items
       for (const expenseItem of expenseItems) {
         if (expenseItem.amount > 0) {
           console.log('Creating expense item:', expenseItem);
@@ -856,7 +914,7 @@ export default function InValleyRequestForm() {
             },
             body: JSON.stringify({
               ...expenseItem,
-              requestId: createdRequest.id,
+              requestId: requestId,
             }),
           });
           
@@ -904,11 +962,11 @@ export default function InValleyRequestForm() {
       }
       
       // Navigate to dashboard on success
-      router.push('/employee/dashboard');
+      router.push('/employee/dashboard?success=expenses_submitted');
       
     } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('There was an error submitting your request. Please try again.');
+      console.error('Error submitting expenses:', error);
+      alert('There was an error submitting your expenses. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -919,29 +977,155 @@ export default function InValleyRequestForm() {
       <CardHeader className="bg-primary/5 border-b">
         <CardTitle className="text-2xl flex items-center gap-2">
           <MapPin className="h-6 w-6 text-primary" />
-          In-Valley Reimbursement Form
+          {phase === 1 
+            ? "In-Valley Reimbursement Form" 
+            : "In-Valley Expense Submission"}
         </CardTitle>
         <CardDescription>
-          Submit reimbursement requests for expenses within the city
+          {phase === 1 
+            ? "Submit reimbursement requests for expenses within the city" 
+            : "Add your expenses and upload receipts for your approved in-valley request"}
         </CardDescription>
       </CardHeader>
       
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit as any)}>
+      {phase === 1 ? (
+        // Phase 1: Valley Request Details Form
+        <Form {...valleyDetailsForm}>
+          <form onSubmit={valleyDetailsForm.handleSubmit(onSubmitValleyDetails)}>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-6">
+                {/* Employee Information Section */}
+                <EmployeeInfoSection form={valleyDetailsForm} />
+                
+                {/* Request Details Section */}
+                <RequestDetailsSection 
+                  form={valleyDetailsForm} 
+                  projectOptions={projectOptions}
+                  loadingProjects={loadingProjects}
+                />
+                
+                {/* Approver Selection Section */}
+                <ApproverSelectionSection 
+                  form={valleyDetailsForm}
+                  approverOptions={approverOptions}
+                  loadingApprovers={loadingApprovers}
+                />
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => router.back()}
+                className="gap-2 px-4"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="gap-2 px-6"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Submit Request
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      ) : (
+        // Phase 2: Expenses Form
+        <form onSubmit={(e) => { e.preventDefault(); onSubmitExpenses(); }}>
           <CardContent className="p-6 space-y-6">
             <div className="space-y-6">
-              {/* Employee Information Section */}
-              <EmployeeInfoSection form={form} />
+              {/* Display request details in read-only mode */}
+              {requestDetails && (
+                <>
+                  {/* Show the approved request details in read-only */}
+                  <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                    <div className="flex items-center text-green-700 mb-2">
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      <h3 className="font-medium">Approved Expense Request</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Your expense request has been approved by the manager. Please add your expenses below.
+                    </p>
+                  </div>
+                  
+                  {/* Show approver comments if available */}
+                  {approverComments && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                      <h4 className="font-medium text-blue-700 mb-1">Approver Comments</h4>
+                      <p className="text-sm">{approverComments}</p>
+                    </div>
+                  )}
+                  
+                  {/* Employee information */}
+                  <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+                    <div className="flex items-center mb-4">
+                      <UserIcon className="h-5 w-5 text-primary mr-2" />
+                      <h3 className="text-lg font-medium">Employee Information</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label className="text-sm font-medium flex items-center mb-1">
+                          <BadgeInfo className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Full Name
+                        </label>
+                        <div className="py-2 px-3 border rounded-md bg-muted/10">
+                          {requestDetails.employeeName}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium flex items-center mb-1">
+                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Department
+                        </label>
+                        <div className="py-2 px-3 border rounded-md bg-muted/10">
+                          {requestDetails.department}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium flex items-center mb-1">
+                          <BriefcaseBusiness className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Designation
+                        </label>
+                        <div className="py-2 px-3 border rounded-md bg-muted/10">
+                          {requestDetails.designation}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Request details section with read-only values */}
+                  <RequestDetailsSection
+                    form={{
+                      control: {
+                        // Mock control for read-only
+                        register: () => ({}),
+                        watch: () => requestDetails.purposeType || "",
+                      },
+                      setValue: () => {},
+                      formState: { errors: {} },
+                    }}
+                    projectOptions={projectOptions}
+                    loadingProjects={false}
+                    readOnly={true}
+                  />
+                </>
+              )}
               
-              {/* Request Details Section */}
-              <RequestDetailsSection 
-                form={form} 
-                projectOptions={projectOptions}
-                loadingProjects={loadingProjects}
-              />
-              
-              {/* Expenses Section */}
-              <ExpensesSection 
+              {/* Expenses Section (Phase 2) */}
+              <SharedExpenseSection
                 expenseItems={expenseItems}
                 addExpenseItem={addExpenseItem}
                 removeExpenseItem={removeExpenseItem}
@@ -949,6 +1133,7 @@ export default function InValleyRequestForm() {
                 handleFileChange={handleFileChange}
                 selectedFiles={selectedFiles}
                 calculateTotalAmount={calculateTotalAmount}
+                categoryOptions={valleyExpenseCategoryOptions}
               />
             </div>
           </CardContent>
@@ -957,7 +1142,7 @@ export default function InValleyRequestForm() {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => router.back()}
+              onClick={() => router.push('/employee/dashboard')}
               className="gap-2 px-4"
             >
               Cancel
@@ -975,13 +1160,13 @@ export default function InValleyRequestForm() {
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  Submit Request
+                  Submit Expenses
                 </>
               )}
             </Button>
           </CardFooter>
         </form>
-      </Form>
+      )}
     </Card>
   );
 }

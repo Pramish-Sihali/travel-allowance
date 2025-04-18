@@ -4,15 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TravelRequest } from '@/types';
 import Header from '@/components/layout/Header';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
+
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel';
 import {
   DropdownMenu,
@@ -20,25 +21,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import { 
   PlusCircle, 
   Calendar, 
   DollarSign, 
   Clock, 
   FileText, 
-  ExternalLink, 
-  BookOpen, 
-  Mail, 
-  HelpCircle, 
-  AlertTriangle,
   ArrowRight,
-  ChevronRight,
-  CreditCard,
-  Search,
-  Filter,
   RefreshCw,
   MapPin,
-  Plane
+  Plane,
+  CreditCard,
+  AlertTriangle,
+  Search,
+  Filter
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -53,7 +50,8 @@ export default function EmployeeDashboard() {
     rejected: 0,
     totalAmount: 0,
     travelCount: 0,
-    inValleyCount: 0
+    inValleyCount: 0,
+    waitingForExpenses: 0
   });
   const [activeTab, setActiveTab] = useState('current');
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,9 +91,10 @@ export default function EmployeeDashboard() {
       setRequests(allRequests);
       
       // Calculate statistics
-      const pendingCount = allRequests.filter((req: TravelRequest) => req.status === 'pending' || req.status === 'pending_verification').length;
+      const pendingCount = allRequests.filter((req: TravelRequest) => req.status === 'pending').length;
       const approvedCount = allRequests.filter((req: TravelRequest) => req.status === 'approved').length;
       const rejectedCount = allRequests.filter((req: TravelRequest) => req.status === 'rejected' || req.status === 'rejected_by_checker').length;
+      const waitingForExpensesCount = allRequests.filter((req: TravelRequest) => req.status === 'travel_approved').length;
       const totalAmount = allRequests.reduce((sum: number, req: TravelRequest) => sum + req.totalAmount, 0);
       const travelCount = travelData.length;
       const inValleyCount = valleyData.length;
@@ -106,7 +105,8 @@ export default function EmployeeDashboard() {
         rejected: rejectedCount,
         totalAmount: totalAmount,
         travelCount: travelCount,
-        inValleyCount: inValleyCount
+        inValleyCount: inValleyCount,
+        waitingForExpenses: waitingForExpensesCount
       });
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -123,8 +123,11 @@ export default function EmployeeDashboard() {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'pending':
-      case 'pending_verification':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'travel_approved':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending_verification':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected':
@@ -137,10 +140,18 @@ export default function EmployeeDashboard() {
   
   const getFormattedStatus = (status: string) => {
     switch (status) {
+      case 'pending':
+        return 'Pending Approval';
+      case 'travel_approved':
+        return 'Ready for Expenses';
       case 'pending_verification':
         return 'Under Verification';
       case 'rejected_by_checker':
         return 'Rejected by Finance';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -161,15 +172,21 @@ export default function EmployeeDashboard() {
     }
   };
   
-  const getRequestRoutePrefix = (requestType: string) => {
-    return requestType === 'in-valley' ? 'in-valley' : '';
-  };
-  
   const handleRequestClick = (request: TravelRequest) => {
-    if (request.requestType === 'in-valley') {
-      router.push(`/employee/requests/in-valley/${request.id}`);
+    // For travel_approved requests, route to the expense submission form
+    if (request.status === 'travel_approved') {
+      if (request.requestType === 'in-valley') {
+        router.push(`/employee/requests/in-valley?id=${request.id}&expenses=true`);
+      } else {
+        router.push(`/employee/requests/new?id=${request.id}&expenses=true`);
+      }
     } else {
-      router.push(`/employee/requests/${request.id}`);
+      // For other requests, route to the detail view
+      if (request.requestType === 'in-valley') {
+        router.push(`/employee/requests/in-valley/${request.id}`);
+      } else {
+        router.push(`/employee/requests/${request.id}`);
+      }
     }
   };
   
@@ -191,9 +208,11 @@ export default function EmployeeDashboard() {
     .filter(request => {
       // Filter by status
       if (filterStatus === 'all') return true;
-      if (filterStatus === 'pending') return request.status === 'pending' || request.status === 'pending_verification';
+      if (filterStatus === 'pending') return request.status === 'pending';
       if (filterStatus === 'approved') return request.status === 'approved';
       if (filterStatus === 'rejected') return request.status === 'rejected' || request.status === 'rejected_by_checker';
+      if (filterStatus === 'awaiting_expenses') return request.status === 'travel_approved';
+      if (filterStatus === 'under_verification') return request.status === 'pending_verification';
       return true;
     })
     .filter(request => {
@@ -202,13 +221,37 @@ export default function EmployeeDashboard() {
       return request.requestType === filterType;
     });
   
-  const currentRequests = filteredRequests.filter(
-    req => req.status === 'pending' || req.status === 'pending_verification' || new Date(req.travelDateTo) >= new Date()
+  // Group requests
+  const pendingRequests = filteredRequests.filter(req => req.status === 'pending');
+  const awaitingExpensesRequests = filteredRequests.filter(req => req.status === 'travel_approved');
+  const pendingVerificationRequests = filteredRequests.filter(req => req.status === 'pending_verification');
+  const completedRequests = filteredRequests.filter(
+    req => ['approved', 'rejected', 'rejected_by_checker'].includes(req.status)
   );
   
-  const pastRequests = filteredRequests.filter(
-    req => (req.status === 'approved' || req.status === 'rejected' || req.status === 'rejected_by_checker') && new Date(req.travelDateTo) < new Date()
-  );
+  const currentRequests = [...pendingRequests, ...awaitingExpensesRequests, ...pendingVerificationRequests];
+  const pastRequests = [...completedRequests];
+  
+  const activeRequests = activeTab === 'current' ? currentRequests : pastRequests;
+  
+  // Status options for filters
+  const statusOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending Approval' },
+    { value: 'awaiting_expenses', label: 'Ready for Expenses' },
+    { value: 'under_verification', label: 'Under Verification' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' }
+  ];
+  
+  // Request type options for filters
+  const typeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'normal', label: 'Travel' },
+    { value: 'in-valley', label: 'In-Valley' },
+    { value: 'advance', label: 'Advance' },
+    { value: 'emergency', label: 'Emergency' }
+  ];
   
   if (loading) {
     return (
@@ -272,6 +315,20 @@ export default function EmployeeDashboard() {
                   </CardContent>
                 </Card>
                 
+                <Card className="border-l-4 border-l-blue-400">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-blue-100">
+                        <DollarSign size={20} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Need Expenses</p>
+                        <p className="text-xl font-bold">{stats.waitingForExpenses}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
                 <Card className="border-l-4 border-l-green-400">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -293,23 +350,9 @@ export default function EmployeeDashboard() {
                         <Plane size={20} className="text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground font-medium">Travel</p>
-                        <p className="text-xl font-bold">{stats.travelCount}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="border-l-4 border-l-blue-400">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-full bg-blue-100">
-                        <DollarSign size={20} className="text-blue-600" />
-                      </div>
-                      <div>
                         <p className="text-sm text-muted-foreground font-medium">Total Amount</p>
                         <p className="text-xl font-bold">
-                          Nrs.{stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          Nrs.{stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </p>
                       </div>
                     </div>
@@ -367,10 +410,11 @@ export default function EmployeeDashboard() {
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
                           >
-                            <option value="all">All Statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
+                            {statusOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                           
                           <select
@@ -378,11 +422,11 @@ export default function EmployeeDashboard() {
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
                           >
-                            <option value="all">All Types</option>
-                            <option value="normal">Travel</option>
-                            <option value="in-valley">In-Valley</option>
-                            <option value="advance">Advance</option>
-                            <option value="emergency">Emergency</option>
+                            {typeOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                           
                           <Button 
@@ -413,7 +457,7 @@ export default function EmployeeDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="past" className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          <span>Past Requests</span>
+                          <span>Completed Requests</span>
                         </TabsTrigger>
                       </TabsList>
                       
@@ -517,7 +561,16 @@ export default function EmployeeDashboard() {
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">
-                                      Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                      {request.status === 'travel_approved' ? (
+                                        <span className="text-muted-foreground italic">Pending</span>
+                                      ) : (
+                                        <>
+                                          Nrs.{request.totalAmount.toLocaleString(undefined, {
+                                            minimumFractionDigits: 0, 
+                                            maximumFractionDigits: 0
+                                          })}
+                                        </>
+                                      )}
                                     </TableCell>
                                     <TableCell>
                                       <Badge className={getStatusBadgeClass(request.status)}>
@@ -531,7 +584,7 @@ export default function EmployeeDashboard() {
                                         onClick={() => handleRequestClick(request)}
                                         className="flex items-center gap-1"
                                       >
-                                        View
+                                        {request.status === 'travel_approved' ? 'Add Expenses' : 'View'}
                                         <ArrowRight className="h-4 w-4" />
                                       </Button>
                                     </TableCell>
@@ -547,7 +600,7 @@ export default function EmployeeDashboard() {
                         {pastRequests.length === 0 ? (
                           <div className="text-center py-10 bg-muted/20 rounded-md">
                             <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-muted-foreground">No past requests found</p>
+                            <p className="text-muted-foreground">No completed requests found</p>
                           </div>
                         ) : (
                           <div className="rounded-md border">
@@ -644,7 +697,10 @@ export default function EmployeeDashboard() {
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">
-                                      Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                      Nrs.{request.totalAmount.toLocaleString(undefined, {
+                                        minimumFractionDigits: 0, 
+                                        maximumFractionDigits: 0
+                                      })}
                                     </TableCell>
                                     <TableCell>
                                       <Badge className={getStatusBadgeClass(request.status)}>
@@ -680,122 +736,12 @@ export default function EmployeeDashboard() {
                   </CardContent>
                 </Card>
               )}
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <BookOpen size={18} className="text-primary" />
-                    Travel Policy Highlights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">1</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Submit all invoices and supporting documents within three days of returning from the field.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">2</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Local travel and food allowances are covered through per-diem (NPR 1,500), and no invoices are needed for these expenses.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">3</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Accommodation and other costs will be reimbursed based on actual expenses, with invoices in the company's name required.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">4</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Maximum lodging allowance for each official trip will be determined by the Board and Finance Department based on the nature of travel.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">5</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Any additional expenses for which reimbursement is requested must be supported by invoices or bills.</p>
-                      </div>
-                      
-                      <Button variant="link" className="text-sm text-primary mt-2 pl-7">
-                        View Full Policy Document
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
             
             <div className="md:col-span-1 space-y-6">
               <NotificationsPanel userId={employeeId} />
               
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <ExternalLink size={18} />
-                    Quick Links
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y">
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <BookOpen size={18} className="text-primary" />
-                      <span>Travel Policy Documents</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <FileText size={18} className="text-primary" />
-                      <span>Expense Categories Guide</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <Mail size={18} className="text-primary" />
-                      <span>Contact Finance Department</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <HelpCircle size={18} className="text-primary" />
-                      <span>Frequently Asked Questions</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-blue-50 border border-blue-200">
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-blue-800 mb-2">Need Help?</h3>
-                  <p className="text-blue-700 text-sm mb-3">
-                    If you have any questions about your expense reimbursements or need assistance with your requests, contact the finance team.
-                  </p>
-                  <Button variant="link" asChild className="p-0 h-auto text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    <a href="mailto:finance@company.com">
-                      <Mail size={14} />
-                      finance@company.com
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
+              {/* If you want to bring back quick links and policy highlights later, they would go here */}
             </div>
           </div>
         </div>

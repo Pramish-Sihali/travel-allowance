@@ -221,7 +221,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                     </Badge>
                   </div>
                   
-                  {request.previousOutstandingAdvance > 0 && (
+                  {/* {request.previousOutstandingAdvance > 0 && (
                     <>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-amber-700">Previous Outstanding:</span>
@@ -237,7 +237,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                         </Badge>
                       </div>
                     </>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>

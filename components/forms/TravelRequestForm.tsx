@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Select,
@@ -37,28 +36,24 @@ import { cn } from "@/lib/utils";
 import { 
   FileText, 
   Loader2, 
-  PaperclipIcon, 
   UserIcon, 
   CreditCard, 
   MapPin, 
-  Receipt, 
   AlertTriangle, 
   Clock,
   CheckCircle2,
   Calendar,
-  Plane,
-  Bus,
-  Car,
-  Bike,
-  Trash2,
-  Plus,
   Building,
   BriefcaseBusiness,
   BadgeInfo,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 
-// =============== CONSTANTS & OPTIONS ===============
+// Import shared expense section component
+import SharedExpenseSection, { ExpenseItemFormData } from '@/components/forms/SharedExpenseSection';
+
+// Import constants
 import { 
   purposeOptions, 
   locationOptions, 
@@ -73,9 +68,16 @@ interface ProjectOption {
   label: string;
 }
 
+// Define approver type
+interface ApproverOption {
+  value: string;
+  label: string;
+  email?: string;
+}
+
 // =============== SCHEMA & TYPES ===============
-// Define Zod schema for form validation
-const travelRequestSchema = z.object({
+// Define Zod schema for travel details (Phase 1)
+const travelDetailsSchema = z.object({
   // Employee Information
   employeeId: z.string(),
   employeeName: z.string().min(1, "Name is required"),
@@ -104,8 +106,8 @@ const travelRequestSchema = z.object({
   rideShareUsed: z.boolean().default(false),
   ownVehicleReimbursement: z.boolean().default(false),
   
-  // Expenses
-  previousOutstandingAdvance: z.coerce.number().default(0),
+  // Approver selection
+  approverId: z.string().min(1, "Please select an approver"),
 })
 .refine(
   (data) => {
@@ -155,15 +157,14 @@ const travelRequestSchema = z.object({
   }
 );
 
-// Expense item type
-interface ExpenseItemFormData {
-  category: ExpenseCategory;
-  amount: number;
-  description?: string;
-}
+// Define Zod schema for expenses (Phase 2)
+const expensesSchema = z.object({
+  previousOutstandingAdvance: z.coerce.number().default(0),
+});
 
-// Infer the type from the schema
-type FormValues = z.infer<typeof travelRequestSchema>;
+// Infer the types from the schemas
+type TravelDetailsFormValues = z.infer<typeof travelDetailsSchema>;
+type ExpensesFormValues = z.infer<typeof expensesSchema>;
 
 // =============== COMPONENTS ===============
 
@@ -306,7 +307,17 @@ const EmployeeInfoSection = ({ form }: { form: any }) => (
 );
 
 // 3. TravelDetailsSection Component
-const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form: any, projectOptions: ProjectOption[], loadingProjects: boolean }) => (
+const TravelDetailsSection = ({ 
+  form, 
+  projectOptions, 
+  loadingProjects,
+  readOnly = false
+}: { 
+  form: any, 
+  projectOptions: ProjectOption[], 
+  loadingProjects: boolean,
+  readOnly?: boolean
+}) => (
   <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
     <div className="flex items-center mb-4">
       <MapPin className="h-5 w-5 text-primary mr-2" />
@@ -326,30 +337,36 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Project</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={loadingProjects}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select project"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {projectOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input {...field} readOnly className="bg-muted/30" value={
+                      projectOptions.find(p => p.value === field.value)?.label || field.value
+                    } />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={loadingProjects || readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select project"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projectOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('project') === 'other' && (
+            {!readOnly && form.watch('project') === 'other' && (
               <FormField
                 control={form.control}
                 name="projectOther"
@@ -357,7 +374,7 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                   <FormItem>
                     <FormLabel>Specify Project</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter project name" />
+                      <Input {...field} placeholder="Enter project name" readOnly={readOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -372,29 +389,36 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Purpose of Travel</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select purpose" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {purposeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input {...field} readOnly className="bg-muted/30" value={
+                      purposeOptions.find(p => p.value === field.value)?.label || field.value
+                    } />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select purpose" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {purposeOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('purposeType') === 'other' && (
+            {!readOnly && form.watch('purposeType') === 'other' && (
               <FormField
                 control={form.control}
                 name="purposeOther"
@@ -402,7 +426,7 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                   <FormItem>
                     <FormLabel>Specify Purpose</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter purpose" />
+                      <Input {...field} placeholder="Enter purpose" readOnly={readOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -417,29 +441,36 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Location</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {locationOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input {...field} readOnly className="bg-muted/30" value={
+                      locationOptions.find(l => l.value === field.value)?.label || field.value
+                    } />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select location" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {locationOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {form.watch('location') === 'other' && (
+            {!readOnly && form.watch('location') === 'other' && (
               <FormField
                 control={form.control}
                 name="locationOther"
@@ -447,7 +478,7 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                   <FormItem>
                     <FormLabel>Specify Location</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter location" />
+                      <Input {...field} placeholder="Enter location" readOnly={readOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -477,7 +508,12 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                       </div>
                     </FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        readOnly={readOnly}
+                        className={readOnly ? "bg-muted/30" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -496,7 +532,12 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                       </div>
                     </FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        readOnly={readOnly}
+                        className={readOnly ? "bg-muted/30" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -511,26 +552,33 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Mode of Transport</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select transport mode" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {transportModeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex items-center gap-2">
-                            {option.icon}
-                            {option.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {readOnly ? (
+                    <Input {...field} readOnly className="bg-muted/30" value={
+                      transportModeOptions.find(t => t.value === field.value)?.label || field.value
+                    } />
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transport mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {transportModeOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <div className="flex items-center gap-2">
+                              {option.icon}
+                              {option.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -545,23 +593,30 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Station/Pick/Drop</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select option" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {yesNoOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {readOnly ? (
+                      <Input {...field} readOnly className="bg-muted/30" value={
+                        yesNoOptions.find(o => o.value === field.value)?.label || field.value
+                      } />
+                    ) : (
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={readOnly}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select option" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {yesNoOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -574,23 +629,30 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Local Conveyance</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select option" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {yesNoOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {readOnly ? (
+                      <Input {...field} readOnly className="bg-muted/30" value={
+                        yesNoOptions.find(o => o.value === field.value)?.label || field.value
+                      } />
+                    ) : (
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={readOnly}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select option" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {yesNoOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -608,6 +670,7 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        disabled={readOnly}
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
@@ -629,6 +692,7 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        disabled={readOnly}
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
@@ -648,180 +712,64 @@ const TravelDetailsSection = ({ form, projectOptions, loadingProjects }: { form:
   </div>
 );
 
-// 4. ExpensesSection Component
-const ExpensesSection = ({ 
-  form,
-  expenseItems,
-  addExpenseItem,
-  removeExpenseItem,
-  handleExpenseChange,
-  handleFileChange,
-  selectedFiles,
-  calculateTotalAmount 
+// 4. ApproverSelectionSection Component
+const ApproverSelectionSection = ({ 
+  form, 
+  approverOptions, 
+  loadingApprovers,
+  readOnly = false 
 }: { 
-  form: any,
-  expenseItems: ExpenseItemFormData[],
-  addExpenseItem: () => void,
-  removeExpenseItem: (index: number) => void,
-  handleExpenseChange: (index: number, field: keyof ExpenseItemFormData, value: any) => void,
-  handleFileChange: (category: string, e: React.ChangeEvent<HTMLInputElement>) => void,
-  selectedFiles: Record<string, File | null>,
-  calculateTotalAmount: () => number
+  form: any, 
+  approverOptions: ApproverOption[], 
+  loadingApprovers: boolean,
+  readOnly?: boolean
 }) => (
   <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center">
-        <Receipt className="h-5 w-5 text-primary mr-2" />
-        <h3 className="text-lg font-medium">Expenses</h3>
-      </div>
-      
-      <Button 
-        type="button" 
-        variant="outline" 
-        size="sm"
-        onClick={addExpenseItem}
-        className="flex items-center gap-1"
-      >
-        <Plus className="h-4 w-4" />
-        Add Expense
-      </Button>
+    <div className="flex items-center mb-4">
+      <Users className="h-5 w-5 text-primary mr-2" />
+      <h3 className="text-lg font-medium">Approver Selection</h3>
     </div>
     
-    <div className="p-4 border rounded-md bg-muted/10 mb-4">
-      <FormField
-        control={form.control}
-        name="previousOutstandingAdvance"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="flex items-center">
-              <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
-              Previous Outstanding Advance (if any)
-            </FormLabel>
-            <FormControl>
-              <div className="flex items-center max-w-xs">
-                <span className="px-3 py-2 bg-muted border-y border-l rounded-l-md text-muted-foreground">Nrs.</span>
-                <Input
-                  type="number"
-                  {...field}
-                  className="rounded-l-none"
-                  min="0"
-                />
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
-    
-    <div className="rounded-md border overflow-hidden shadow-sm">
-      <Table>
-        <TableHeader className="bg-muted/30">
-          <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Purpose</TableHead>
-            <TableHead>Receipts</TableHead>
-            <TableHead className="w-[80px] text-center">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {expenseItems.map((item, index) => (
-            <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-muted/10"}>
-              <TableCell>
-                <Select
-                  value={item.category}
-                  onValueChange={(value) => handleExpenseChange(index, 'category', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {expenseCategoryOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  <span className="px-2 py-2 bg-muted border-y border-l rounded-l-md text-muted-foreground text-xs">Nrs.</span>
-                  <Input
-                    type="number"
-                    value={item.amount}
-                    onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                    className="max-w-24 rounded-l-none"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="text"
-                  value={item.description || ''}
-                  onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                  placeholder="Brief description"
-                />
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor={`receipt-${index}`}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 px-2 py-1 border rounded-md hover:bg-accent text-sm">
-                      <PaperclipIcon className="h-4 w-4" />
-                      <span>Upload</span>
+    <FormField
+      control={form.control}
+      name="approverId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Select Approver</FormLabel>
+          {readOnly ? (
+            <Input {...field} readOnly className="bg-muted/30" value={
+              approverOptions.find(a => a.value === field.value)?.label || field.value
+            } />
+          ) : (
+            <Select
+              onValueChange={field.onChange}
+              defaultValue={field.value}
+              disabled={loadingApprovers || readOnly}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingApprovers ? "Loading approvers..." : "Select an approver"} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {approverOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex flex-col">
+                      <span>{option.label}</span>
+                      {option.email && <span className="text-xs text-muted-foreground">{option.email}</span>}
                     </div>
-                  </label>
-                  <input
-                    id={`receipt-${index}`}
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={(e) => handleFileChange(`${item.category}-${index}`, e)}
-                    className="hidden"
-                  />
-                  {selectedFiles[`${item.category}-${index}`] && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <CheckCircle2 className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="truncate max-w-[6rem] text-xs">
-                        {selectedFiles[`${item.category}-${index}`]?.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-center">
-                {expenseItems.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeExpenseItem(index)}
-                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="font-medium bg-muted/20">
-            <TableCell colSpan={1} className="text-right">Total Amount</TableCell>
-            <TableCell>
-              <div className="flex items-center font-bold">
-                <span className="mr-1">Nrs.</span>
-                <span>{calculateTotalAmount().toFixed(2)}</span>
-              </div>
-            </TableCell>
-            <TableCell colSpan={3}></TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <FormDescription>
+            This person will review and approve your travel request
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   </div>
 );
 
@@ -829,18 +777,28 @@ const ExpensesSection = ({
 export default function TravelRequestForm() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [employeeId, setEmployeeId] = useState<string>(uuidv4());
+  const searchParams = useSearchParams();
+  
+  const [employeeId, setEmployeeId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
+  const [approverOptions, setApproverOptions] = useState<ApproverOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingApprovers, setLoadingApprovers] = useState(true);
+  const [phase, setPhase] = useState<1 | 2>(1);  // Phase 1: Travel Details, Phase 2: Expenses
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [requestDetails, setRequestDetails] = useState<any>(null);
+  const [approverComments, setApproverComments] = useState<string>('');
+  
+  // Expense items for Phase 2
   const [expenseItems, setExpenseItems] = useState<ExpenseItemFormData[]>([
     { category: 'accommodation', amount: 0, description: '' },
   ]);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   
-  // Initialize form with react-hook-form and zod resolver
-  const form = useForm<FormValues>({
-    resolver: zodResolver(travelRequestSchema) as any,
+  // Initialize form with react-hook-form and zod resolver for Phase 1
+  const travelDetailsForm = useForm<TravelDetailsFormValues>({
+    resolver: zodResolver(travelDetailsSchema) as any,
     defaultValues: {
       employeeId: '',
       employeeName: '',
@@ -860,9 +818,51 @@ export default function TravelRequestForm() {
       localConveyance: 'na',
       rideShareUsed: false,
       ownVehicleReimbursement: false,
+      approverId: '',
+    },
+  });
+  
+  // Initialize form for Phase 2 (expenses)
+  const expensesForm = useForm<ExpensesFormValues>({
+    resolver: zodResolver(expensesSchema) as any,
+    defaultValues: {
       previousOutstandingAdvance: 0,
     },
   });
+  
+  // Check if we're in expense submission mode (Phase 2)
+  useEffect(() => {
+    const id = searchParams.get('id');
+    const expenseMode = searchParams.get('expenses');
+    
+    if (id && expenseMode === 'true') {
+      setPhase(2);
+      setRequestId(id);
+      
+      // Fetch request details to display in the expense form
+      const fetchRequestDetails = async () => {
+        try {
+          const response = await fetch(`/api/requests/${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setRequestDetails(data);
+            
+            if (data.approverComments) {
+              setApproverComments(data.approverComments);
+            }
+          } else {
+            console.error('Failed to fetch request details');
+            router.push('/employee/dashboard');
+          }
+        } catch (error) {
+          console.error('Error fetching request details:', error);
+          router.push('/employee/dashboard');
+        }
+      };
+      
+      fetchRequestDetails();
+    }
+  }, [searchParams, router]);
   
   // Fetch projects from the database
   useEffect(() => {
@@ -902,22 +902,49 @@ export default function TravelRequestForm() {
     fetchProjects();
   }, []);
   
+  // Fetch approvers from the database
+  useEffect(() => {
+    const fetchApprovers = async () => {
+      try {
+        setLoadingApprovers(true);
+        // Use the new API endpoint
+        const response = await fetch('/api/approvers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch approvers');
+        }
+        
+        const data = await response.json();
+        setApproverOptions(data);
+      } catch (error) {
+        console.error('Error fetching approvers:', error);
+        // Fallback to empty list if fetch fails
+        setApproverOptions([]);
+      } finally {
+        setLoadingApprovers(false);
+      }
+    };
+    
+    // Add this line to call the function:
+    fetchApprovers();
+    
+  }, []); // Add empty dependency array here
+  
   // Update employeeId and prefill form with session data when available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setEmployeeId(session.user.id);
-      form.setValue('employeeId', session.user.id);
+      travelDetailsForm.setValue('employeeId', session.user.id);
       
       if (session.user.name) {
-        form.setValue('employeeName', session.user.name);
+        travelDetailsForm.setValue('employeeName', session.user.name);
       }
       
       // You would typically fetch these from a user profile API
       // For now, we'll set some demo values
-      form.setValue('department', 'Engineering');
-      form.setValue('designation', 'Software Engineer');
+      travelDetailsForm.setValue('department', 'Engineering');
+      travelDetailsForm.setValue('designation', 'Software Engineer');
     }
-  }, [session, status, form]);
+  }, [session, status, travelDetailsForm]);
   
   // Function to add a new expense item
   const addExpenseItem = () => {
@@ -949,30 +976,26 @@ export default function TravelRequestForm() {
     }
   };
   
-  
   // Calculate total expense amount
   const calculateTotalAmount = () => {
     return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
   };
   
-  // Handle form submission
-  const onSubmit = async (data: FormValues) => {
+  // Handle Phase 1 form submission (Travel Details)
+  const onSubmitTravelDetails = async (data: TravelDetailsFormValues) => {
     setIsSubmitting(true);
     
     try {
       // Prepare the request data
-      const finalEmployeeId = employeeId || uuidv4();
-      
-      // Modify data to match the API expectations
       const requestData = {
         ...data,
-        employeeId: finalEmployeeId,
+        phase: 1,
         purpose: data.purposeType === 'other' ? data.purposeOther : data.purposeType,
-        totalAmount: calculateTotalAmount(),
+        totalAmount: 0, // No expenses yet in Phase 1
         status: 'pending' as const,
       };
       
-      console.log('Submitting request with data:', requestData);
+      console.log('Submitting travel details:', requestData);
       
       // Create the travel request
       const response = await fetch('/api/requests', {
@@ -989,7 +1012,57 @@ export default function TravelRequestForm() {
       }
       
       const createdRequest = await response.json();
+      console.log('Travel request created:', createdRequest);
       
+      // Navigate to dashboard on success
+      router.push('/employee/dashboard?success=travel_details_submitted');
+      
+    } catch (error) {
+      console.error('Error submitting travel details:', error);
+      alert('There was an error submitting your travel details. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle Phase 2 form submission (Expenses)
+  const onSubmitExpenses = async (data: ExpensesFormValues) => {
+    if (!requestId) {
+      alert('No request ID found. Please try again.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update the request with expense info
+      const updateData = {
+        phase: 2,
+        totalAmount: calculateTotalAmount(),
+        previousOutstandingAdvance: data.previousOutstandingAdvance,
+        status: 'pending_verification', // Move directly to financial verification
+        expenses_submitted_at: new Date().toISOString()
+      };
+      
+      console.log('Updating request with expenses:', updateData);
+      
+      // Update the travel request
+      const response = await fetch(`/api/requests/${requestId}/expenses`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Server error: ${errorData.error || response.statusText}`);
+      }
+      
+      const updatedRequest = await response.json();
+      
+      // Create expense items
       for (const expenseItem of expenseItems) {
         if (expenseItem.amount > 0) {
           console.log('Creating expense item:', expenseItem);
@@ -1001,7 +1074,7 @@ export default function TravelRequestForm() {
             },
             body: JSON.stringify({
               ...expenseItem,
-              requestId: createdRequest.id,
+              requestId: requestId,
             }),
           });
           
@@ -1049,88 +1122,233 @@ export default function TravelRequestForm() {
       }
       
       // Navigate to dashboard on success
-      router.push('/employee/dashboard');
+      router.push('/employee/dashboard?success=expenses_submitted');
       
     } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('There was an error submitting your request. Please try again.');
+      console.error('Error submitting expenses:', error);
+      alert('There was an error submitting your expenses. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
   
+  // Render either Phase 1 or Phase 2 form based on the current phase
   return (
     <Card className="max-w-5xl mx-auto bg-background shadow-md">
       <CardHeader className="bg-primary/5 border-b">
         <CardTitle className="text-2xl flex items-center gap-2">
           <FileText className="h-6 w-6 text-primary" />
-          Travel Request Form
+          {phase === 1 
+            ? "Travel Request Form" 
+            : "Travel Expense Submission"}
         </CardTitle>
         <CardDescription>
-          Submit your travel expense reimbursement request
+          {phase === 1 
+            ? "Submit your travel request for approval" 
+            : "Add your expenses and upload receipts for your approved travel"}
         </CardDescription>
       </CardHeader>
       
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit as any)}>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-6">
-              {/* Request Type Section */}
-              <RequestTypeSection form={form} />
-              
-              {/* Employee Information Section */}
-              <EmployeeInfoSection form={form} />
-              
-              {/* Travel Details Section */}
-              <TravelDetailsSection 
-                form={form} 
-                projectOptions={projectOptions}
-                loadingProjects={loadingProjects}
-              />
-              
-              {/* Expenses Section */}
-              <ExpensesSection 
-                form={form}
-                expenseItems={expenseItems}
-                addExpenseItem={addExpenseItem}
-                removeExpenseItem={removeExpenseItem}
-                handleExpenseChange={handleExpenseChange}
-                handleFileChange={handleFileChange}
-                selectedFiles={selectedFiles}
-                calculateTotalAmount={calculateTotalAmount}
-              />
-            </div>
-          </CardContent>
-          
-          <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => router.back()}
-              className="gap-2 px-4"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="gap-2 px-6"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Submit Request
-                </>
-              )}
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
+      {phase === 1 ? (
+        // Phase 1: Travel Details Form
+        <Form {...travelDetailsForm}>
+          <form onSubmit={travelDetailsForm.handleSubmit(onSubmitTravelDetails)}>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-6">
+                {/* Request Type Section */}
+                <RequestTypeSection form={travelDetailsForm} />
+                
+                {/* Employee Information Section */}
+                <EmployeeInfoSection form={travelDetailsForm} />
+                
+                {/* Travel Details Section */}
+                <TravelDetailsSection 
+                  form={travelDetailsForm} 
+                  projectOptions={projectOptions}
+                  loadingProjects={loadingProjects}
+                />
+                
+                {/* Approver Selection Section */}
+                <ApproverSelectionSection 
+                  form={travelDetailsForm}
+                  approverOptions={approverOptions}
+                  loadingApprovers={loadingApprovers}
+                />
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => router.back()}
+                className="gap-2 px-4"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="gap-2 px-6"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Submit Travel Request
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      ) : (
+        // Phase 2: Expenses Form
+        <Form {...expensesForm}>
+          <form onSubmit={expensesForm.handleSubmit(onSubmitExpenses)}>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-6">
+                {/* Display request details in read-only mode */}
+                {requestDetails && (
+                  <>
+                    {/* Show the approved travel details in read-only */}
+                    <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                      <div className="flex items-center text-green-700 mb-2">
+                        <CheckCircle2 className="h-5 w-5 mr-2" />
+                        <h3 className="font-medium">Approved Travel Details</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Your travel request has been approved by the manager. Please add your expenses below.
+                      </p>
+                    </div>
+                    
+                    {/* Show approver comments if available */}
+                    {approverComments && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                        <h4 className="font-medium text-blue-700 mb-1">Approver Comments</h4>
+                        <p className="text-sm">{approverComments}</p>
+                      </div>
+                    )}
+                    
+                    {/* Read-only request type */}
+                    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+                      <div className="flex items-center mb-4">
+                        <Clock className="h-5 w-5 text-primary mr-2" />
+                        <h3 className="text-lg font-medium">Request Type</h3>
+                      </div>
+                      <div className="flex items-center px-4 py-2 border rounded-md bg-muted/10">
+                        {requestDetails.requestType === 'normal' && <FileText className="h-5 w-5 text-blue-500 mr-2" />}
+                        {requestDetails.requestType === 'advance' && <CreditCard className="h-5 w-5 text-green-500 mr-2" />}
+                        {requestDetails.requestType === 'emergency' && <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />}
+                        <span className="font-medium capitalize">{requestDetails.requestType} Request</span>
+                      </div>
+                    </div>
+                    
+                    {/* Employee information */}
+                    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+                      <div className="flex items-center mb-4">
+                        <UserIcon className="h-5 w-5 text-primary mr-2" />
+                        <h3 className="text-lg font-medium">Employee Information</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                          <label className="text-sm font-medium flex items-center mb-1">
+                            <BadgeInfo className="h-4 w-4 mr-2 text-muted-foreground" />
+                            Full Name
+                          </label>
+                          <div className="py-2 px-3 border rounded-md bg-muted/10">
+                            {requestDetails.employeeName}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium flex items-center mb-1">
+                            <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                            Department
+                          </label>
+                          <div className="py-2 px-3 border rounded-md bg-muted/10">
+                            {requestDetails.department}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium flex items-center mb-1">
+                            <BriefcaseBusiness className="h-4 w-4 mr-2 text-muted-foreground" />
+                            Designation
+                          </label>
+                          <div className="py-2 px-3 border rounded-md bg-muted/10">
+                            {requestDetails.designation}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Travel details section with read-only values */}
+                    <TravelDetailsSection
+                      form={{
+                        control: {
+                          // Mock control for read-only
+                          register: () => ({}),
+                          watch: () => "",
+                        },
+                        setValue: () => {},
+                        formState: { errors: {} },
+                      }}
+                      projectOptions={projectOptions}
+                      loadingProjects={false}
+                      readOnly={true}
+                    />
+                  </>
+                )}
+                
+                {/* Expenses Section (phase 2) */}
+                <SharedExpenseSection
+                  form={expensesForm}
+                  expenseItems={expenseItems}
+                  addExpenseItem={addExpenseItem}
+                  removeExpenseItem={removeExpenseItem}
+                  handleExpenseChange={handleExpenseChange}
+                  handleFileChange={handleFileChange}
+                  selectedFiles={selectedFiles}
+                  calculateTotalAmount={calculateTotalAmount}
+                  categoryOptions={expenseCategoryOptions}
+                  showPreviousAdvance={true}
+                />
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => router.push('/employee/dashboard')}
+                className="gap-2 px-4"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="gap-2 px-6"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Submit Expenses
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      )}
     </Card>
   );
 }

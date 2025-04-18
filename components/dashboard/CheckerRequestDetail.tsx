@@ -602,7 +602,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                           <Badge className="mb-1 bg-primary/10 text-primary border-0 font-bold">
                             Request Total: Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </Badge>
-                          {request.previousOutstandingAdvance > 0 && (
+                          {/* {request.previousOutstandingAdvance > 0 && (
                             <Badge className="bg-amber-100 text-amber-800 border-0 font-bold text-xs">
                               <AlertTriangle size={10} className="mr-1" />
                               Previous Balance: Nrs.{request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -612,7 +612,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                             <Badge className="mt-1 bg-purple-100 text-purple-800 border-0 font-bold text-xs">
                               Combined Total: Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </Badge>
-                          )}
+                          )} */}
                         </div>
                       </div>
                       <CardDescription>

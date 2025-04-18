@@ -266,7 +266,7 @@ export default function RequestExpensesTab({
                                   <DialogHeader>
                                     <DialogTitle>Receipt: {receipt.originalFilename}</DialogTitle>
                                     <DialogDescription>
-                                      Uploaded on {new Date(receipt.uploadDate).toLocaleString()}
+                                      {/* Uploaded on {new Date(receipt.uploadDate).toLocaleString()} */}
                                     </DialogDescription>
                                   </DialogHeader>
                                   

@@ -58,7 +58,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
       setNotifications(prevNotifications =>
         prevNotifications.map(notification =>
           notification.id === notificationId
-            ? { ...notification, isRead: true }
+            ? { ...notification, read: true }
             : notification
         )
       );
@@ -68,7 +68,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
   };
   
   const markAllAsRead = async () => {
-    const unreadNotifications = notifications.filter(notification => !notification.isRead);
+    const unreadNotifications = notifications.filter(notification => !notification.read);
     
     if (unreadNotifications.length === 0) return;
     
@@ -82,7 +82,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
       
       // Update local state
       setNotifications(prevNotifications =>
-        prevNotifications.map(notification => ({ ...notification, isRead: true }))
+        prevNotifications.map(notification => ({ ...notification, read: true }))
       );
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -102,7 +102,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
     }
   };
   
-  const unreadCount = notifications.filter(notification => !notification.isRead).length;
+  const unreadCount = notifications.filter(notification => !notification.read).length;
   
   if (loading) {
     return (
@@ -186,7 +186,7 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
                 {notifications.map(notification => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-muted/50 transition-colors ${!notification.isRead ? 'border-l-4 border-primary' : ''}`}
+                    className={`p-4 hover:bg-muted/50 transition-colors ${!notification.read ? 'border-l-4 border-primary' : ''}`}
                   >
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 mt-1">
@@ -194,10 +194,10 @@ export default function NotificationsPanel({ userId }: NotificationsPanelProps) 
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-1">
-                          <p className={`${!notification.isRead ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                          <p className={`${!notification.read ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
                             {notification.message}
                           </p>
-                          {!notification.isRead && (
+                          {!notification.read && (
                             <Button
                               variant="ghost"
                               size="icon"
