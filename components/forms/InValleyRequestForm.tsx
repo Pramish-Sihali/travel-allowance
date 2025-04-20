@@ -209,6 +209,8 @@ const EmployeeInfoSection = ({ form }: { form: any }) => (
   </div>
 );
 
+
+
 // 2. RequestDetailsSection Component
 const RequestDetailsSection = ({ 
   form, 
@@ -759,22 +761,8 @@ export default function InValleyRequestForm() {
     
   }, []); // Add empty dependency array here
   
-  // Update employeeId and prefill form with session data when available
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      setEmployeeId(session.user.id);
-      valleyDetailsForm.setValue('employeeId', session.user.id);
-      
-      if (session.user.name) {
-        valleyDetailsForm.setValue('employeeName', session.user.name);
-      }
-      
-      // You would typically fetch these from a user profile API
-      // For now, we'll set some demo values
-      valleyDetailsForm.setValue('department', 'Engineering');
-      valleyDetailsForm.setValue('designation', 'Software Engineer');
-    }
-  }, [session, status, valleyDetailsForm]);
+
+  
   
   // Function to add a new expense item
   const addExpenseItem = () => {
