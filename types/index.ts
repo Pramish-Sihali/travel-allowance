@@ -81,6 +81,12 @@ export interface TravelRequest {
   purposeType?: string;
   purposeOther?: string;
   locationOther?: string;
+
+  isGroupTravel?: boolean;
+  isGroupCaptain?: boolean;
+  groupSize?: string;
+  groupMembers?: string[];
+  groupDescription?: string;
 }
 
 export interface ExpenseItem {

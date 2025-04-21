@@ -42,7 +42,13 @@ const mapDbToTravelRequest = (item: any) => ({
   phase: item.phase || 1,
   approverId: item.approver_id,
   travelDetailsApprovedAt: item.travel_details_approved_at,
-  expensesSubmittedAt: item.expenses_submitted_at
+  expensesSubmittedAt: item.expenses_submitted_at, 
+
+  isGroupTravel: item.is_group_travel || false,
+  isGroupCaptain: item.is_group_captain || false,
+  groupSize: item.group_size || '',
+  groupMembers: item.group_members ? JSON.parse(item.group_members) : [],
+  groupDescription: item.group_description || '',
 });
 
 const mapDbToValleyRequest = (item: any) => ({
@@ -277,7 +283,13 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
       own_vehicle_reimbursement: ownVehicleReimbursement,
       // New fields for two-phase workflow
       phase: data.phase || 1,
-      approver_id: data.approverId
+      approver_id: data.approverId,
+
+      is_group_travel: data.isGroupTravel || false,
+      is_group_captain: data.isGroupCaptain || false,
+      group_size: data.groupSize || null,
+      group_members: data.groupMembers ? JSON.stringify(data.groupMembers) : null,
+      group_description: data.groupDescription || null,
     };
 
     console.log('Inserting travel request with data:', insertData);
