@@ -84,7 +84,7 @@ export default function LoginForm() {
               required
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 mb-5 ">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
             </div>
