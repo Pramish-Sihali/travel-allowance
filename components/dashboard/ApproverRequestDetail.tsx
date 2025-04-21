@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 import RequestDetailsTab from './RequestDetailsTab';
 import RequestExpensesTab from './RequestExpensesTab';
 import ActionPanel from './common/ActionPanel';
-import ChecklistPanel from './common/ChecklistPanel';
+
 
 interface ApproverRequestDetailProps {
   requestId: string;
@@ -412,10 +412,12 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
                   <FileText size={16} />
                   <span className="hidden sm:inline">Request Details</span>
                 </TabsTrigger>
-                <TabsTrigger value="expenses" className="flex items-center gap-2">
+
+                {/* <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <DollarSign size={16} />
                   <span className="hidden sm:inline">Expenses</span>
-                </TabsTrigger>
+                </TabsTrigger> */}
+
                 <TabsTrigger value="approval" className="flex items-center gap-2">
                   <CheckCircle size={16} />
                   <span className="hidden sm:inline">Approval</span>
@@ -430,14 +432,14 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
               />
             </TabsContent>
             
-            <TabsContent value="expenses">
+            {/* <TabsContent value="expenses">
               <RequestExpensesTab 
                 expenseItems={expenseItems} 
                 receipts={receipts} 
                 totalAmount={request.totalAmount || 0}
                 previousOutstandingAdvance={request.previousOutstandingAdvance}
               />
-            </TabsContent>
+            </TabsContent> */}
             
             <TabsContent value="approval">
               <div className="p-6 space-y-6">
