@@ -97,33 +97,7 @@ export default function LoginForm() {
             />
           </div>
           
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Demo Accounts:
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div>
-                <p><strong>Employee:</strong></p>
-                <p>employee@example.com</p>
-                <p>password123</p>
-              </div>
-              <div>
-                <p><strong>Approver:</strong></p>
-                <p>approver@example.com</p>
-                <p>password123</p>
-              </div>
-              <div>
-                <p><strong>Checker:</strong></p>
-                <p>checker@example.com</p>
-                <p>password123</p>
-              </div>
-              <div>
-                <p><strong>Admin:</strong></p>
-                <p>admin@example.com</p>
-                <p>password123</p>
-              </div>
-            </div>
-          </div>
+      
         </CardContent>
         <CardFooter>
           <Button 
