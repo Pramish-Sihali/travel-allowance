@@ -1,5 +1,4 @@
-// This adds a settings button to the AdminDashboardContent component
-
+// components/admin/AdminDashboardContent.tsx
 'use client'; 
 
 import { useState, useEffect } from 'react';
@@ -19,7 +18,13 @@ import {
   AlertTriangle,
   UserCircle,
   Settings,
+  Building,
+  Calendar,
+  RefreshCw,
+  Map,
+  AlertCircle
 } from 'lucide-react';
+
 
 import AdminUsersTable from './AdminUsersTable';
 import AdminRequestsTable from './AdminRequestsTable';
@@ -54,12 +59,23 @@ interface AdminStats {
     requests: number;
     amount: number;
   }>;
+  // New stats fields
+  travelRequests?: number;
+  valleyRequests?: number;
+  pendingVerification?: number;
+  projectStats?: Array<{
+    name: string;
+    requests: number;
+    amount: number;
+  }>;
 }
 
 export default function AdminDashboardContent({ user }: AdminDashboardContentProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalRequests: 0,
@@ -74,30 +90,58 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
       admin: 0
     },
     requestsByMonth: [],
-    departmentData: []
+    departmentData: [],
+    travelRequests: 0,
+    valleyRequests: 0,
+    pendingVerification: 0
   });
   
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/admin/stats');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch admin statistics');
-        }
-        
-        const data = await response.json();
-        setStats(data);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setIsLoading(false);
+  const fetchDashboardData = async () => {
+    try {
+      setError(null);
+      if (!isLoading) {
+        setIsRefreshing(true);
       }
-    };
-    
+      
+      const response = await fetch('/api/admin/stats');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch admin statistics: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setStats(data);
+      
+      if (isRefreshing) {
+       
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      
+      if (isRefreshing) {
+       
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchDashboardData();
+    
+    // Set up refresh interval (every 5 minutes)
+    const refreshInterval = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
+  
+  const handleRefreshDashboard = () => {
+    fetchDashboardData();
+  };
   
   const handleNavigateToSettings = () => {
     router.push('/admin/settings');
@@ -118,20 +162,56 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
     return renderSkeleton();
   }
   
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold">Admin Dashboard</h2>
+          <Button onClick={fetchDashboardData}>Retry</Button>
+        </div>
+        
+        <Card className="border-l-4 border-l-red-500 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-red-100 p-3 rounded-full">
+                <AlertCircle className="h-6 w-6 text-red-500" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-red-600">Error Loading Dashboard</p>
+                <p className="text-sm text-gray-500 mt-1">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold">Admin Dashboard</h2>
         
-        {/* Added Settings Button */}
-        <Button 
-          variant="outline"
-          onClick={handleNavigateToSettings}
-          className="flex items-center gap-2"
-        >
-          <Settings className="h-4 w-4" />
-          System Settings
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRefreshDashboard}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={handleNavigateToSettings}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            System Settings
+          </Button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -147,6 +227,9 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.totalUsers}</p>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats.usersByRole.employee} employees, {stats.usersByRole.approver} approvers
+                </p>
               </div>
             </div>
           </CardContent>
@@ -163,6 +246,9 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.totalRequests}</p>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats.travelRequests || 0} travel, {stats.valleyRequests || 0} in-valley
+                </p>
               </div>
             </div>
           </CardContent>
@@ -177,6 +263,9 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
               <div>
                 <p className="text-sm text-gray-500">Total Budget</p>
                 <p className="text-2xl font-bold">Nrs.{stats.totalAmount.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats.approvedRequests} approved requests
+                </p>
               </div>
             </div>
           </CardContent>
@@ -186,18 +275,21 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="bg-amber-100 p-3 rounded-full">
-                <BarChart className="h-6 w-6 text-amber-500" />
+                <AlertTriangle className="h-6 w-6 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Pending Requests</p>
+                <p className="text-sm text-gray-500">Pending Action</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold">{stats.pendingRequests}</p>
                   {stats.pendingRequests > 0 && (
                     <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
-                      Needs action
+                      Needs approval
                     </Badge>
                   )}
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats.pendingVerification || 0} pending verification
+                </p>
               </div>
             </div>
           </CardContent>
@@ -245,35 +337,92 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         </CardContent>
       </Card>
       
-      {/* Settings Card with Quick Links */}
-      <Card className="shadow-md">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
-            Quick Settings
-          </CardTitle>
-          <CardDescription>
-            Configure system settings and manage projects
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Quick Links Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Projects Card */}
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building className="h-5 w-5 text-primary" />
+              Projects
+            </CardTitle>
+            <CardDescription>
+              Manage active projects and budgets
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
             <Button 
               variant="outline" 
-              className="h-auto py-6 flex flex-col items-center justify-center gap-3 border-dashed"
+              className="w-full h-auto py-6 flex flex-col items-center justify-center gap-3 border-dashed"
+              onClick={handleNavigateToSettings}
+            >
+              <Building className="h-8 w-8 text-primary" />
+              <div className="text-center">
+                <p className="font-medium">Manage Projects</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Configure projects and associated budgets
+                </p>
+              </div>
+            </Button>
+          </CardContent>
+        </Card>
+        
+        {/* Calendar Card */}
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calendar className="h-5 w-5 text-primary" />
+              Fiscal Calendar
+            </CardTitle>
+            <CardDescription>
+              Manage budget cycles and reports
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Button 
+              variant="outline" 
+              className="w-full h-auto py-6 flex flex-col items-center justify-center gap-3 border-dashed"
+              onClick={handleNavigateToSettings}
+            >
+              <Calendar className="h-8 w-8 text-primary" />
+              <div className="text-center">
+                <p className="font-medium">Budget Settings</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Configure fiscal years and budget allocation
+                </p>
+              </div>
+            </Button>
+          </CardContent>
+        </Card>
+        
+        {/* Settings Card */}
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Settings className="h-5 w-5 text-primary" />
+              System Settings
+            </CardTitle>
+            <CardDescription>
+              Configure application settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Button 
+              variant="outline" 
+              className="w-full h-auto py-6 flex flex-col items-center justify-center gap-3 border-dashed"
               onClick={handleNavigateToSettings}
             >
               <Settings className="h-8 w-8 text-primary" />
               <div className="text-center">
-                <p className="font-medium">System Settings</p>
+                <p className="font-medium">System Configuration</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Manage projects, budgets and configurations
+                  Manage projects, budgets and system settings
                 </p>
               </div>
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

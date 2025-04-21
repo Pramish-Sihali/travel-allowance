@@ -10,3 +10,5 @@ export const useToast = () => {
     warning: toast.warning,
   };
 };
+
+export { toast };

@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     // Get request body
     const body = await request.json();
     
+    // Log the incoming data to diagnose the issue
+    console.log("User creation request body:", body);
+    
     // Basic validation
     if (!body.email || !body.name || !body.role || !body.password) {
       return NextResponse.json(
@@ -37,14 +40,36 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Create new user with correctly named fields
+    // Make sure we're using 'designation' not 'position'
+    const userData = {
+      email: body.email,
+      name: body.name,
+      password: body.password,
+      role: body.role,
+      department: body.department,
+      designation: body.designation // Ensure we use the right field name
+    };
+    
+    console.log("Processed user data:", userData);
+    
     // Create new user
-    const newUser = await createUser(body);
+    const newUser = await createUser(userData);
     
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
+    
+    // More detailed error response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error && 'details' in error ? (error as any).details : null;
+    
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { 
+        error: 'Failed to create user',
+        message: errorMessage,
+        details: errorDetails
+      },
       { status: 500 }
     );
   }
