@@ -23,15 +23,26 @@ export default function EmployeeInfoSection({ form }: { form: any }) {
       // Fetch user profile data
       const fetchUserProfile = async () => {
         try {
-          const response = await fetch(`/api/users/${session.user.id}/profile`);
+          // Fixed API endpoint path: changed from /api/users/ to /api/user/
+          const response = await fetch(`/api/user/${session.user.id}/profile`);
           if (response.ok) {
             const userData = await response.json();
             
+            // Debug - log the data we're receiving
+            console.log('User profile data received:', userData);
+            
             // Update form with fetched data
-            form.setValue('department', userData.department || '');
-            form.setValue('designation', userData.designation || '');
+            if (userData) {
+              // Set department and designation if they exist in the response
+              if (userData.department) {
+                form.setValue('department', userData.department);
+              }
+              if (userData.designation) {
+                form.setValue('designation', userData.designation);
+              }
+            }
           } else {
-            console.error('Failed to fetch user profile data');
+            console.error('Failed to fetch user profile data:', await response.text());
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);

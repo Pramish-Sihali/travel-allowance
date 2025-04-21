@@ -52,6 +52,8 @@ import {
 
 // Import shared expense section component
 import SharedExpenseSection, { ExpenseItemFormData } from '@/components/forms/SharedExpenseSection';
+import EmployeeInfoSection from '@/components/forms/EmployeeInfoSection';
+
 
 // Import constants
 import { 
@@ -243,68 +245,7 @@ const RequestTypeSection = ({ form }: { form: any }) => (
   </div>
 );
 
-// 2. EmployeeInfoSection Component
-const EmployeeInfoSection = ({ form }: { form: any }) => (
-  <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-    <div className="flex items-center mb-4">
-      <UserIcon className="h-5 w-5 text-primary mr-2" />
-      <h3 className="text-lg font-medium">Employee Information</h3>
-    </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <FormField
-        control={form.control}
-        name="employeeName"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="flex items-center">
-              <BadgeInfo className="h-4 w-4 mr-2 text-muted-foreground" />
-              Full Name
-            </FormLabel>
-            <FormControl>
-              <Input {...field} readOnly className="bg-muted/30" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      
-      <FormField
-        control={form.control}
-        name="department"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="flex items-center">
-              <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-              Department
-            </FormLabel>
-            <FormControl>
-              <Input {...field} readOnly className="bg-muted/30" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      
-      <FormField
-        control={form.control}
-        name="designation"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="flex items-center">
-              <BriefcaseBusiness className="h-4 w-4 mr-2 text-muted-foreground" />
-              Designation
-            </FormLabel>
-            <FormControl>
-              <Input {...field} readOnly className="bg-muted/30" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
-  </div>
-);
+
 
 // 3. TravelDetailsSection Component
 const TravelDetailsSection = ({ 
@@ -929,7 +870,6 @@ export default function TravelRequestForm() {
     
   }, []); // Add empty dependency array here
   
-  // Update employeeId and prefill form with session data when available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setEmployeeId(session.user.id);
@@ -939,10 +879,32 @@ export default function TravelRequestForm() {
         travelDetailsForm.setValue('employeeName', session.user.name);
       }
       
-      // You would typically fetch these from a user profile API
-      // For now, we'll set some demo values
-      travelDetailsForm.setValue('department', 'Engineering');
-      travelDetailsForm.setValue('designation', 'Software Engineer');
+      // Fetch user profile data from the correct API endpoint
+      const fetchUserProfile = async () => {
+        try {
+          const response = await fetch(`/api/user/${session.user.id}/profile`);
+          if (response.ok) {
+            const userData = await response.json();
+            
+            // Debug - log the data we're receiving
+            console.log('User profile data received:', userData);
+            
+            // Update form with fetched data
+            if (userData.department) {
+              travelDetailsForm.setValue('department', userData.department);
+            }
+            if (userData.designation) {
+              travelDetailsForm.setValue('designation', userData.designation);
+            }
+          } else {
+            console.error('Failed to fetch user profile data:', await response.text());
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      };
+      
+      fetchUserProfile();
     }
   }, [session, status, travelDetailsForm]);
   
