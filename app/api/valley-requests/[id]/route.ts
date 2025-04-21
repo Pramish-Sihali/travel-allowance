@@ -93,6 +93,7 @@ export async function GET(
 }
 
 // PATCH (update) a specific in-valley request status
+// Update PATCH method in app/api/valley-requests/[id]/route.ts
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -138,13 +139,17 @@ export async function PATCH(
       );
     }
     
+    // Store the employee ID for notification
+    const employeeId = existingRequest.employee_id;
+    
     // Determine new status based on current role and requested status
     let newStatus = status;
     let notificationMessage = '';
     
     if (role === 'approver' && status === 'approved') {
-      newStatus = 'pending_verification';
-      notificationMessage = `Your in-valley reimbursement request has been approved by the approver and is pending financial verification`;
+      // Consistent status naming with travel requests
+      newStatus = 'travel_approved';
+      notificationMessage = `Your in-valley reimbursement request has been approved. You can now submit your expenses.`;
     } else if (
       role === 'checker' &&
       status === 'approved' &&
@@ -160,6 +165,8 @@ export async function PATCH(
       notificationMessage = `Your in-valley reimbursement request has been rejected`;
     }
     
+    console.log(`Updating valley request status from ${existingRequest.status} to ${newStatus}`);
+    
     // Prepare update data - using snake_case for database
     const updateData: Record<string, any> = {
       status: newStatus,
@@ -168,6 +175,11 @@ export async function PATCH(
     
     if (role === 'approver') {
       updateData.approver_comments = comments;
+      
+      // For consistency with travel requests, set the approval timestamp
+      if (newStatus === 'travel_approved') {
+        updateData.travel_details_approved_at = new Date().toISOString();
+      }
     } else if (role === 'checker') {
       updateData.checker_comments = comments;
     }
@@ -190,11 +202,13 @@ export async function PATCH(
     
     // Create notification using the existing notification system
     try {
-      // Insert notification into the database
+      console.log(`Creating notification for employee ${employeeId}`);
+      
+      // Create notification for the employee
       const notificationData = {
         id: uuidv4(),
-        user_id: data.employee_id,
-        request_id: data.id,
+        user_id: employeeId,
+        request_id: id,
         message: notificationMessage || `Your in-valley reimbursement request has been ${status}`,
         read: false,
         created_at: new Date().toISOString()
@@ -206,23 +220,26 @@ export async function PATCH(
       
       if (notificationError) {
         console.error('Error creating notification in database:', notificationError);
+      } else {
+        console.log('Employee notification created successfully');
       }
       
       // Notify checkers if the request was approved by an approver
-      if (newStatus === 'pending_verification') {
+      if (newStatus === 'travel_approved') {
         // Get all users with checker role
         const { data: checkers, error: checkersError } = await supabase
           .from('users')
           .select('id')
           .eq('role', 'checker');
         
-        if (!checkersError && checkers) {
-          // Create notifications for each checker
+        if (!checkersError && checkers && checkers.length > 0) {
+          console.log(`Notifying ${checkers.length} checkers`);
+          
           for (const checker of checkers) {
             const checkerNotification = {
               id: uuidv4(),
               user_id: checker.id,
-              request_id: data.id,
+              request_id: id,
               message: `A new in-valley reimbursement request is waiting for your financial verification`,
               read: false,
               created_at: new Date().toISOString()
@@ -232,11 +249,13 @@ export async function PATCH(
               .from('notifications')
               .insert([checkerNotification]);
           }
+        } else if (checkersError) {
+          console.error('Error fetching checkers:', checkersError);
         }
       }
     } catch (notificationError) {
       console.error('Error creating notification:', notificationError);
-      // Continue despite notification error
+      // Continue despite notification error - don't fail the request
     }
     
     // Convert snake_case back to camelCase for frontend consistency
@@ -265,6 +284,7 @@ export async function PATCH(
       updatedAt: data.updated_at
     };
     
+    console.log('Request successfully updated to:', newStatus);
     return NextResponse.json(formattedData);
   } catch (error) {
     console.error('Error updating in-valley request:', error);

@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
       travel_date_from: body.expenseDate, // For compatibility with existing dashboard
       travel_date_to: body.expenseDate,   // For compatibility with existing dashboard
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      approver_id: body.approverId
     };
     
     console.log('Creating in-valley request:', requestData);
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
       travelDateTo: data.travel_date_to,
       createdAt: data.created_at,
       updatedAt: data.updated_at
+     
     };
     
     // Create notifications for the appropriate approvers

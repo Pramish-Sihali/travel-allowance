@@ -36,7 +36,8 @@ import {
   ClipboardCheck,
   ScrollText,
   Info,
-  Calendar
+  Calendar,
+  UserIcon
 } from 'lucide-react';
 
 import { cn } from "@/lib/utils";
@@ -79,12 +80,51 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         ? `/api/valley-requests/${requestId}`
         : `/api/requests/${requestId}`;
       
+      console.log(`Fetching ${isInValley ? 'in-valley' : 'travel'} request details from: ${apiPath}`);
+      
       // Fetch request details
       const requestResponse = await fetch(apiPath);
       if (!requestResponse.ok) {
-        throw new Error('Failed to fetch request details');
+        throw new Error(`Failed to fetch request details: ${requestResponse.statusText}`);
       }
       const requestData = await requestResponse.json();
+      console.log('Fetched request data:', requestData);
+      
+      // Ensure employee name is properly set
+      if (!requestData.employeeName && requestData.employee_name) {
+        requestData.employeeName = requestData.employee_name;
+      }
+      
+      // Add a fallback name if neither exists
+      if (!requestData.employeeName && !requestData.employee_name) {
+        requestData.employeeName = "Unknown Employee";
+      }
+      
+      // Fetch employee details from user profile API if we have employeeId
+      if (requestData.employeeId || requestData.employee_id) {
+        const employeeId = requestData.employeeId || requestData.employee_id;
+        try {
+          console.log(`Fetching employee profile for ID: ${employeeId}`);
+          const employeeResponse = await fetch(`/api/user/${employeeId}/profile`);
+          
+          if (employeeResponse.ok) {
+            const employeeData = await employeeResponse.json();
+            console.log('Fetched employee profile data:', employeeData);
+            
+            // Update employee information with most recent data
+            requestData.employeeName = employeeData.name || requestData.employeeName;
+            requestData.department = employeeData.department || requestData.department;
+            requestData.designation = employeeData.designation || requestData.designation;
+          } else {
+            console.warn(`Failed to fetch employee profile: ${employeeResponse.statusText}`);
+          }
+        } catch (error) {
+          console.error('Error fetching employee details:', error);
+          // Continue with the data we have - don't fail the entire operation
+        }
+      }
+      
+      console.log('Final request data with employee info:', requestData);
       setRequest(requestData);
       
       // Set previous comments if they exist
@@ -92,32 +132,45 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         setComments(requestData.approverComments);
       }
       
-      // Only fetch expense items if this is not an in-valley request
-      // or if in-valley request has expenses to show
-      if (!isInValley || requestData.requestType === 'in-valley') {
+      // Fetch expense items if appropriate for this request
+      if ((isInValley && requestData.status !== 'pending') || 
+          (!isInValley && requestData.phase === 2)) {
+        
         // Fetch expense items
         const expensesPath = isInValley
           ? `/api/valley-expenses?requestId=${requestId}`
           : `/api/expenses?requestId=${requestId}`;
         
+        console.log(`Fetching expense items from: ${expensesPath}`);
         const expensesResponse = await fetch(expensesPath);
+        
         if (expensesResponse.ok) {
           const expensesData = await expensesResponse.json();
+          console.log('Fetched expense items:', expensesData);
           setExpenseItems(expensesData);
           
           // Fetch receipts for each expense item
           const receiptsMap: Record<string, Receipt[]> = {};
           
           for (const expense of expensesData) {
+            console.log(`Fetching receipts for expense item: ${expense.id}`);
             const receiptsResponse = await fetch(`/api/receipts?expenseItemId=${expense.id}`);
+            
             if (receiptsResponse.ok) {
               const receiptsData = await receiptsResponse.json();
+              console.log(`Found ${receiptsData.length} receipts for expense item ${expense.id}`);
               receiptsMap[expense.id] = receiptsData;
+            } else {
+              console.warn(`Failed to fetch receipts for expense ${expense.id}: ${receiptsResponse.statusText}`);
             }
           }
           
           setReceipts(receiptsMap);
+        } else {
+          console.warn(`Failed to fetch expense items: ${expensesResponse.statusText}`);
         }
+      } else {
+        console.log('Skipping expense items fetching for this request state');
       }
     } catch (error) {
       console.error('Error fetching request details:', error);
@@ -296,53 +349,8 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
     }
   ];
   
-  // Approval process checklist
-  const checklistSections = [
-    {
-      title: 'Approval Checklist',
-      icon: ClipboardCheck,
-      items: [
-        {
-          title: 'Verify Request Details',
-          description: 'Confirm that the travel purpose aligns with business needs and the employee\'s role.',
-          completed: false
-        },
-        {
-          title: 'Check Expense Amounts',
-          description: 'Ensure that all expenses are reasonable and adhere to company policy limits.',
-          completed: false
-        },
-        {
-          title: 'Review Supporting Documents',
-          description: 'Verify that all required receipts and supporting documents have been provided.',
-          completed: false
-        },
-        {
-          title: 'Check Outstanding Advances',
-          description: 'Review any previous outstanding advances and ensure they won\'t impact this request.',
-          completed: false
-        }
-      ]
-    },
-    {
-      title: 'Policy Reminders',
-      icon: ScrollText,
-      items: [
-        {
-          title: 'Travel Authorization',
-          description: 'All travel requests must be approved before travel dates. Emergency requests require additional justification.'
-        },
-        {
-          title: 'Expense Limits',
-          description: 'Per diem is limited to Nrs.1,500 per day. Accommodation costs must comply with city-specific limits.'
-        },
-        {
-          title: 'Receipt Requirements',
-          description: 'All expenses above Nrs.500 require original receipts. Receipts must be in company name.'
-        }
-      ]
-    }
-  ];
+
+ 
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -450,59 +458,37 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
                   commentsPlaceholder="Add your comments or notes regarding your decision. These will be visible to the requester and finance team..."
                 />
                 
-                <ChecklistPanel
-                  sections={[
-                    {
-                      title: 'Approval Checklist',
-                      icon: ClipboardCheck,
-                      items: [
-                        {
-                          title: 'Verify Request Details',
-                          description: 'Confirm that the travel purpose aligns with business needs and the employee\'s role.',
-                          completed: false
-                        },
-                        {
-                          title: 'Check Expense Amounts',
-                          description: 'Ensure that all expenses are reasonable and adhere to company policy limits.',
-                          completed: false
-                        },
-                        {
-                          title: 'Review Supporting Documents',
-                          description: 'Verify that all required receipts and supporting documents have been provided.',
-                          completed: false
-                        },
-                        {
-                          title: 'Check Outstanding Advances',
-                          description: 'Review any previous outstanding advances and ensure they won\'t impact this request.',
-                          completed: false
-                        }
-                      ]
-                    }
-                  ]}
-                  variant="outlined"
-                />
+              
               </div>
             </TabsContent>
           </Tabs>
         </CardContent>
         
         <CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
-          <div className="text-sm text-muted-foreground flex items-center gap-1">
-            {request.requestType === 'in-valley' ? (
-              <>
-                <Calendar className="h-4 w-4" />
-                {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
-              </>
-            ) : (
-              <>
-                <Calendar className="h-4 w-4" />
-                {travelDates.start.toLocaleDateString()} - {travelDates.end.toLocaleDateString()}
-                <span className="mx-2">•</span>
-                <span>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</span>
-              </>
-            )}
-          </div>
-        </CardFooter>
+  <div className="text-sm text-muted-foreground flex items-center gap-1">
+    {request.requestType === 'in-valley' ? (
+      <>
+        <Calendar className="h-4 w-4" />
+        {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
+      </>
+    ) : (
+      <>
+        <Calendar className="h-4 w-4" />
+        {travelDates.start.toLocaleDateString()} - {travelDates.end.toLocaleDateString()}
+        <span className="mx-2">•</span>
+        <span>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</span>
+      </>
+    )}
+    <span className="mx-2">•</span>
+    <div className="flex items-center gap-1">
+      <UserIcon className="h-4 w-4" />
+      <span className="font-medium">{request.employeeName || "Unknown Employee"}</span>
+      {request.department && (
+        <span className="text-xs text-muted-foreground">({request.department})</span>
+      )}
+    </div>
+  </div>
+</CardFooter>
       </Card>
     </div>
   );

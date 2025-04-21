@@ -1,5 +1,4 @@
-"use client";                     // ✏️ Marks this as a Client Component
-
+"use client";                    
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -113,41 +112,116 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error'; message: string} | null>(null);
   
   useEffect(() => {
+
     const fetchRequestDetails = async () => {
       try {
-        // Fetch request
-        const requestResponse = await fetch(`/api/valley-requests/${requestId}`);
+        setLoading(true);
+        
+        // Determine if this is a travel or in-valley request based on URL
+        const isInValley = window.location.pathname.includes('/in-valley/');
+        const apiPath = isInValley 
+          ? `/api/valley-requests/${requestId}`
+          : `/api/requests/${requestId}`;
+        
+        console.log(`Fetching ${isInValley ? 'in-valley' : 'travel'} request details from: ${apiPath}`);
+        
+        // Fetch request details
+        const requestResponse = await fetch(apiPath);
         if (!requestResponse.ok) {
-          throw new Error('Failed to fetch request details');
+          throw new Error(`Failed to fetch request details: ${requestResponse.statusText}`);
         }
         const requestData = await requestResponse.json();
+        console.log('Fetched request data:', requestData);
+        
+        // Ensure employee name is properly set
+        if (!requestData.employeeName && requestData.employee_name) {
+          requestData.employeeName = requestData.employee_name;
+        }
+        
+        // Add a fallback name if neither exists
+        if (!requestData.employeeName && !requestData.employee_name) {
+          requestData.employeeName = "Unknown Employee";
+        }
+        
+        // Fetch employee details from user profile API if we have employeeId
+        if (requestData.employeeId || requestData.employee_id) {
+          const employeeId = requestData.employeeId || requestData.employee_id;
+          try {
+            console.log(`Fetching employee profile for ID: ${employeeId}`);
+            const employeeResponse = await fetch(`/api/user/${employeeId}/profile`);
+            
+            if (employeeResponse.ok) {
+              const employeeData = await employeeResponse.json();
+              console.log('Fetched employee profile data:', employeeData);
+              
+              // Update employee information with most recent data
+              requestData.employeeName = employeeData.name || requestData.employeeName;
+              requestData.department = employeeData.department || requestData.department;
+              requestData.designation = employeeData.designation || requestData.designation;
+            } else {
+              console.warn(`Failed to fetch employee profile: ${employeeResponse.statusText}`);
+            }
+          } catch (error) {
+            console.error('Error fetching employee details:', error);
+            // Continue with the data we have - don't fail the entire operation
+          }
+        }
+        
+        console.log('Final request data with employee info:', requestData);
         setRequest(requestData);
         
-        // Load previous comments if they exist
+        // Set previous comments if they exist
         if (requestData.approverComments) {
           setComments(requestData.approverComments);
         }
         
-        // Fetch expense items
-        const expensesResponse = await fetch(`/api/valley-expenses?requestId=${requestId}`);
-        if (!expensesResponse.ok) {
-          throw new Error('Failed to fetch expense items');
-        }
-        const expensesData = await expensesResponse.json();
-        setExpenseItems(expensesData);
-        
-        // Fetch receipts for each expense item
-        const receiptsMap: Record<string, Receipt[]> = {};
-        for (const expense of expensesData) {
-          const receiptsResponse = await fetch(`/api/receipts?expenseItemId=${expense.id}`);
-          if (receiptsResponse.ok) {
-            const receiptsData = await receiptsResponse.json();
-            receiptsMap[expense.id] = receiptsData;
+        // Fetch expense items if appropriate for this request
+        if ((isInValley && requestData.status !== 'pending') || 
+            (!isInValley && requestData.phase === 2)) {
+          
+          // Fetch expense items
+          const expensesPath = isInValley
+            ? `/api/valley-expenses?requestId=${requestId}`
+            : `/api/expenses?requestId=${requestId}`;
+          
+          console.log(`Fetching expense items from: ${expensesPath}`);
+          const expensesResponse = await fetch(expensesPath);
+          
+          if (expensesResponse.ok) {
+            const expensesData = await expensesResponse.json();
+            console.log('Fetched expense items:', expensesData);
+            setExpenseItems(expensesData);
+            
+            // Fetch receipts for each expense item
+            const receiptsMap: Record<string, Receipt[]> = {};
+            
+            for (const expense of expensesData) {
+              console.log(`Fetching receipts for expense item: ${expense.id}`);
+              const receiptsResponse = await fetch(`/api/receipts?expenseItemId=${expense.id}`);
+              
+              if (receiptsResponse.ok) {
+                const receiptsData = await receiptsResponse.json();
+                console.log(`Found ${receiptsData.length} receipts for expense item ${expense.id}`);
+                receiptsMap[expense.id] = receiptsData;
+              } else {
+                console.warn(`Failed to fetch receipts for expense ${expense.id}: ${receiptsResponse.statusText}`);
+              }
+            }
+            
+            setReceipts(receiptsMap);
+          } else {
+            console.warn(`Failed to fetch expense items: ${expensesResponse.statusText}`);
           }
+        } else {
+          console.log('Skipping expense items fetching for this request state');
         }
-        setReceipts(receiptsMap);
       } catch (error) {
         console.error('Error fetching request details:', error);
+        setStatusMessage({
+          type: 'error',
+          
+          message: 'Failed to load request details. Please try again.'
+        });
       } finally {
         setLoading(false);
       }
@@ -681,31 +755,35 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
           </Tabs>
         </CardContent>
         
-        <CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
-          <div className="text-sm text-muted-foreground flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            {expenseDate.toLocaleDateString()}
-            <span className="mx-2">•</span>
-            <span className="flex items-center gap-1">
-              <User className="h-4 w-4" />
-              {request.employeeName}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1 h-8"
-              asChild
-            >
-              <Link href="#" target="_blank" rel="noopener noreferrer">
-                <Download size={14} />
-                Export PDF
-              </Link>
-            </Button>
-          </div>
-        </CardFooter>
+        
+<CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
+  <div className="text-sm text-muted-foreground flex items-center gap-1">
+    <Calendar className="h-4 w-4" />
+    {expenseDate.toLocaleDateString()}
+    <span className="mx-2">•</span>
+    <div className="flex items-center gap-1">
+      <User className="h-4 w-4" />
+      <span className="font-medium">{request.employeeName || "Unknown Employee"}</span>
+      {request.department && (
+        <span className="text-xs text-muted-foreground">({request.department})</span>
+      )}
+    </div>
+  </div>
+  
+  <div className="flex items-center gap-3">
+    <Button
+      variant="outline"
+      size="sm"
+      className="flex items-center gap-1 h-8"
+      asChild
+    >
+      <Link href="#" target="_blank" rel="noopener noreferrer">
+        <Download size={14} />
+        Export PDF
+      </Link>
+    </Button>
+  </div>
+</CardFooter>
       </Card>
     </div>
   );

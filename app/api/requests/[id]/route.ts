@@ -34,6 +34,7 @@ export async function GET(
 
 
 
+// Update PATCH method in app/api/requests/[id]/route.ts
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,6 +62,9 @@ export async function PATCH(
       );
     }
 
+    // Store the employee ID for notification
+    const employeeId = travelRequest.employeeId;
+    
     let newStatus = status;
     let notificationMessage = '';
 
@@ -85,6 +89,8 @@ export async function PATCH(
       notificationMessage = `Your travel request has been rejected`;
     }
 
+    console.log(`Updating request status from ${travelRequest.status} to ${newStatus}`);
+
     const updatedData: Record<string, any> = {
       status: newStatus
     };
@@ -102,9 +108,10 @@ export async function PATCH(
 
     const updatedRequest = await updateTravelRequestStatus(
       id,
-      newStatus,
+      newStatus as any, // Type coercion to satisfy the type system
       updatedData
     );
+    
     if (!updatedRequest) {
       console.error('Failed to update travel request');
       return NextResponse.json(
@@ -113,26 +120,46 @@ export async function PATCH(
       );
     }
 
-    // Notify employee
+    // Notify employee - ensure this doesn't fail
     try {
+      console.log(`Creating notification for employee ${employeeId}`);
+      
       await createNotification({
-        userId: updatedRequest.employeeId,
-        requestId: updatedRequest.id,
+        userId: employeeId,
+        requestId: id,
         message: notificationMessage || `Your travel request has been ${status}`,
       });
       
+      console.log('Employee notification created successfully');
+      
+      // Also notify checkers if this is moving to verification
       if (newStatus === 'pending_verification') {
-        // notify checkers (stubbed)
-        await createNotification({
-          userId: 'checker1',
-          requestId: updatedRequest.id,
-          message: `A new travel request is waiting for your financial verification`,
-        });
+        // Get all users with checker role from Supabase
+        const { data: checkers, error: checkersError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', 'checker');
+          
+        if (!checkersError && checkers && checkers.length > 0) {
+          console.log(`Notifying ${checkers.length} checkers`);
+          
+          for (const checker of checkers) {
+            await createNotification({
+              userId: checker.id,
+              requestId: id,
+              message: `A new travel request is waiting for your financial verification`,
+            });
+          }
+        } else if (checkersError) {
+          console.error('Error fetching checkers:', checkersError);
+        }
       }
     } catch (notificationError) {
       console.error('Error creating notification:', notificationError);
+      // Continue despite notification error - don't fail the request
     }
 
+    console.log('Request successfully updated to:', newStatus);
     return NextResponse.json(updatedRequest);
   } catch (error) {
     console.error('Error updating travel request:', error);

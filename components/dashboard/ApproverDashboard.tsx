@@ -52,49 +52,115 @@ export default function ApproverDashboard() {
     inValleyCount: 0,
     totalAmount: 0
   });
+
+
+  
   
   useEffect(() => {
     fetchRequests();
   }, []);
+
+
   
-  const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch requests assigned to this approver
-      const response = await fetch('/api/approver-requests');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch approver requests');
+// Add this function to ApproverDashboard.tsx
+const fetchEmployeeDetails = async (requests: any) => {
+  const enhancedRequests = [...requests];
+  
+  for (let i = 0; i < enhancedRequests.length; i++) {
+    const req = enhancedRequests[i];
+    if (req.employeeId) {
+      try {
+        const response = await fetch(`/api/user/${req.employeeId}/profile`);
+        if (response.ok) {
+          const userData = await response.json();
+          enhancedRequests[i] = {
+            ...req,
+            employeeName: userData.name || req.employeeName,
+            department: userData.department || req.department,
+            designation: userData.designation || req.designation
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching details for employee ${req.employeeId}:`, error);
       }
-      
-      const data = await response.json();
-      console.log('Fetched approver requests:', data);
-      setRequests(data);
-      
-      // Split requests by status
-      const pending = data.filter((req: TravelRequest) => 
-        req.status === 'pending' || req.status === 'travel_approved'
-      );
-      
-      const completed = data.filter((req: TravelRequest) => 
-        req.status === 'approved' || 
-        req.status === 'rejected' || 
-        req.status === 'pending_verification' ||
-        req.status === 'rejected_by_checker'
-      );
-      
-      setPendingRequests(pending);
-      setCompletedRequests(completed);
-      
-      // Calculate statistics
-      calculateStats(data);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }
+  
+  return enhancedRequests;
+};
+
+// Then update your fetchRequests function to use this:
+const fetchRequests = async () => {
+  try {
+    setLoading(true);
+    
+    // Fetch requests assigned to this approver
+    const response = await fetch('/api/approver-requests');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch approver requests');
+    }
+    
+    const data = await response.json();
+    console.log('Fetched approver requests:', data);
+    
+    // Ensure each request has an employeeName
+    const requestsWithNames = data.map((req: { employeeName: any; employee_name: any; department: any; designation: any; }) => {
+      if (!req.employeeName && req.employee_name) {
+        // Convert snake_case to camelCase if needed
+        return {
+          ...req,
+          employeeName: req.employee_name,
+          department: req.department || '',
+          designation: req.designation || ''
+        };
+      }
+      // If neither field exists, provide a fallback name
+      if (!req.employeeName && !req.employee_name) {
+        return {
+          ...req,
+          employeeName: "Unknown Employee"
+        };
+      }
+      return req;
+    });
+    
+    // Enhanced logging to debug categorization
+    console.log('Requests by status:', requestsWithNames.reduce((acc: { [x: string]: any; }, req: { status: string | number; }) => {
+      acc[req.status] = (acc[req.status] || 0) + 1;
+      return acc;
+    }, {}));
+    
+    setRequests(requestsWithNames);
+    
+    // IMPORTANT: Split requests by status correctly
+    // Pending requests - only those awaiting initial approval
+    const pending = requestsWithNames.filter((req: { status: string; }) => 
+      req.status === 'pending'
+    );
+    
+    // Completed requests - anything that has moved past the initial pending state
+    const completed = requestsWithNames.filter((req: { status: string; }) => 
+      req.status === 'travel_approved' || 
+      req.status === 'approved' || 
+      req.status === 'rejected' || 
+      req.status === 'pending_verification' ||
+      req.status === 'rejected_by_checker'
+    );
+    
+    console.log(`Categorized ${pending.length} pending and ${completed.length} completed requests`);
+    
+    setPendingRequests(pending);
+    setCompletedRequests(completed);
+    
+    // Calculate statistics
+    calculateStats(requestsWithNames);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+  } finally {
+    setLoading(false);
+  }
+};
   
   const calculateStats = (data: TravelRequest[]) => {
     const pendingCount = data.filter(req => 
