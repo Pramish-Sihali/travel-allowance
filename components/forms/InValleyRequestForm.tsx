@@ -9,7 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -43,11 +42,11 @@ import {
   Users
 } from "lucide-react";
 
-// Import shared expense section component
-import SharedExpenseSection, { ExpenseItemFormData } from '@/components/forms/SharedExpenseSection';
+// Import shared components
 import EmployeeInfoSection from '@/components/forms/EmployeeInfoSection';
+import ExpenseSubmissionForm from '@/components/forms/ExpenseSubmissionForm';
 
-// Purpose options for in-valley reimbursements
+// Import constants
 import { 
   valleyPurposeOptions, 
   valleyExpenseCategoryOptions,
@@ -144,13 +143,6 @@ const valleyDetailsSchema = z.object({
 
 // Infer the type from the schema
 type ValleyDetailsFormValues = z.infer<typeof valleyDetailsSchema>;
-
-// =============== COMPONENTS ===============
-
-// 1. EmployeeInfoSection Component
-
-
-
 
 // 2. RequestDetailsSection Component
 const RequestDetailsSection = ({ 
@@ -571,14 +563,6 @@ export default function InValleyRequestForm() {
   const [loadingApprovers, setLoadingApprovers] = useState(true);
   const [phase, setPhase] = useState<1 | 2>(1);  // Phase 1: Request Details, Phase 2: Expenses
   const [requestId, setRequestId] = useState<string | null>(null);
-  const [requestDetails, setRequestDetails] = useState<any>(null);
-  const [approverComments, setApproverComments] = useState<string>('');
-  
-  // Expense items for Phase 2
-  const [expenseItems, setExpenseItems] = useState<ExpenseItemFormData[]>([
-    { category: 'ride-share', amount: 0, description: '' },
-  ]);
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   
   // Initialize form for Phase 1
   const valleyDetailsForm = useForm<ValleyDetailsFormValues>({
@@ -611,31 +595,8 @@ export default function InValleyRequestForm() {
     if (id && expenseMode === 'true') {
       setPhase(2);
       setRequestId(id);
-      
-      // Fetch request details to display in the expense form
-      const fetchRequestDetails = async () => {
-        try {
-          const response = await fetch(`/api/valley-requests/${id}`);
-          if (response.ok) {
-            const data = await response.json();
-            setRequestDetails(data);
-            
-            if (data.approverComments) {
-              setApproverComments(data.approverComments);
-            }
-          } else {
-            console.error('Failed to fetch request details');
-            router.push('/employee/dashboard');
-          }
-        } catch (error) {
-          console.error('Error fetching request details:', error);
-          router.push('/employee/dashboard');
-        }
-      };
-      
-      fetchRequestDetails();
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
   
   // Fetch projects from the database
   useEffect(() => {
@@ -697,11 +658,10 @@ export default function InValleyRequestForm() {
       }
     };
     
-    // Add this line to call the function:
     fetchApprovers();
-    
-  }, []); // Add empty dependency array here
+  }, []);
   
+  // Update employeeId and prefill form with session data when available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setEmployeeId(session.user.id);
@@ -740,48 +700,13 @@ export default function InValleyRequestForm() {
     }
   }, [session, status, valleyDetailsForm]);
   
-  // Function to add a new expense item
-  const addExpenseItem = () => {
-    setExpenseItems([...expenseItems, { category: 'ride-share', amount: 0 }]);
-  };
-  
-  // Function to remove an expense item
-  const removeExpenseItem = (index: number) => {
-    const updatedItems = [...expenseItems];
-    updatedItems.splice(index, 1);
-    setExpenseItems(updatedItems);
-  };
-  
-  // Handle expense item change
-  const handleExpenseChange = (index: number, field: keyof ExpenseItemFormData, value: any) => {
-    const updatedExpenses = [...expenseItems];
-    updatedExpenses[index] = { ...updatedExpenses[index], [field]: value };
-    setExpenseItems(updatedExpenses);
-  };
-  
-  // Handle file selection for receipts
-  const handleFileChange = (category: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File selected:', category, e.target.files?.[0]?.name);
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFiles(prev => ({
-        ...prev,
-        [category]: e.target.files![0]
-      }));
-    }
-  };
-  
-  // Calculate total expense amount
-  const calculateTotalAmount = () => {
-    return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-  };
-  
-  // Handle Phase 1 form submission (Valley request details)
+  // Phase 1 form submission
   const onSubmitValleyDetails = async (data: ValleyDetailsFormValues) => {
     setIsSubmitting(true);
     
     try {
       // Prepare the request data
-      const finalEmployeeId = employeeId || uuidv4();
+      const finalEmployeeId = employeeId || data.employeeId || uuidv4();
       
       // Format the date
       const formattedExpenseDate = data.expenseDate;
@@ -825,112 +750,6 @@ export default function InValleyRequestForm() {
     } catch (error) {
       console.error('Error submitting in-valley details:', error);
       alert('There was an error submitting your request. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  // Handle Phase 2 form submission (Expenses)
-  const onSubmitExpenses = async () => {
-    if (!requestId) {
-      alert('No request ID found. Please try again.');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Update the request with expense info
-      const updateData = {
-        phase: 2,
-        totalAmount: calculateTotalAmount(),
-        status: 'pending_verification', // Move directly to financial verification
-        expenses_submitted_at: new Date().toISOString()
-      };
-      
-      console.log('Updating request with expenses:', updateData);
-      
-      // Update the in-valley request
-      const response = await fetch(`/api/valley-requests/${requestId}/expenses`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Server error: ${errorData.error || response.statusText}`);
-      }
-      
-      const updatedRequest = await response.json();
-      
-      // Create expense items
-      for (const expenseItem of expenseItems) {
-        if (expenseItem.amount > 0) {
-          console.log('Creating expense item:', expenseItem);
-          
-          const expenseResponse = await fetch('/api/valley-expenses', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...expenseItem,
-              requestId: requestId,
-            }),
-          });
-          
-          if (!expenseResponse.ok) {
-            throw new Error('Failed to create expense item');
-          }
-          
-          const createdExpense = await expenseResponse.json();
-          console.log('Expense item created:', createdExpense);
-          
-          // Upload receipt if available
-          const fileKey = `${expenseItem.category}-${expenseItems.indexOf(expenseItem)}`;
-          const file = selectedFiles[fileKey];
-          
-          if (file) {
-            console.log('Uploading receipt for expense:', { 
-              expenseId: createdExpense.id, 
-              fileName: file.name 
-            });
-            
-            const formDataFile = new FormData();
-            formDataFile.append('file', file);
-            formDataFile.append('expenseItemId', createdExpense.id);
-            
-            try {
-              const uploadResponse = await fetch('/api/receipts/upload', {
-                method: 'POST',
-                body: formDataFile,
-              });
-              
-              const uploadResult = await uploadResponse.json();
-              
-              if (!uploadResponse.ok) {
-                console.error('Receipt upload failed:', uploadResult);
-                // Continue with the next expense item instead of throwing
-              } else {
-                console.log('Receipt uploaded successfully:', uploadResult);
-              }
-            } catch (uploadError) {
-              console.error('Error during receipt upload:', uploadError);
-              // Continue with the next expense item instead of throwing
-            }
-          }
-        }
-      }
-      
-      // Navigate to dashboard on success
-      router.push('/employee/dashboard?success=expenses_submitted');
-      
-    } catch (error) {
-      console.error('Error submitting expenses:', error);
-      alert('There was an error submitting your expenses. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1007,129 +826,13 @@ export default function InValleyRequestForm() {
           </form>
         </Form>
       ) : (
-        // Phase 2: Expenses Form
-        <form onSubmit={(e) => { e.preventDefault(); onSubmitExpenses(); }}>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-6">
-              {/* Display request details in read-only mode */}
-              {requestDetails && (
-                <>
-                  {/* Show the approved request details in read-only */}
-                  <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                    <div className="flex items-center text-green-700 mb-2">
-                      <CheckCircle2 className="h-5 w-5 mr-2" />
-                      <h3 className="font-medium">Approved Expense Request</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Your expense request has been approved by the manager. Please add your expenses below.
-                    </p>
-                  </div>
-                  
-                  {/* Show approver comments if available */}
-                  {approverComments && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-                      <h4 className="font-medium text-blue-700 mb-1">Approver Comments</h4>
-                      <p className="text-sm">{approverComments}</p>
-                    </div>
-                  )}
-                  
-                  {/* Employee information */}
-                  <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-                    <div className="flex items-center mb-4">
-                      <UserIcon className="h-5 w-5 text-primary mr-2" />
-                      <h3 className="text-lg font-medium">Employee Information</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label className="text-sm font-medium flex items-center mb-1">
-                          <BadgeInfo className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Full Name
-                        </label>
-                        <div className="py-2 px-3 border rounded-md bg-muted/10">
-                          {requestDetails.employeeName}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium flex items-center mb-1">
-                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Department
-                        </label>
-                        <div className="py-2 px-3 border rounded-md bg-muted/10">
-                          {requestDetails.department}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium flex items-center mb-1">
-                          <BriefcaseBusiness className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Designation
-                        </label>
-                        <div className="py-2 px-3 border rounded-md bg-muted/10">
-                          {requestDetails.designation}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Request details section with read-only values */}
-                  <RequestDetailsSection
-                    form={{
-                      control: {
-                        // Mock control for read-only
-                        register: () => ({}),
-                        watch: () => requestDetails.purposeType || "",
-                      },
-                      setValue: () => {},
-                      formState: { errors: {} },
-                    }}
-                    projectOptions={projectOptions}
-                    loadingProjects={false}
-                    readOnly={true}
-                  />
-                </>
-              )}
-              
-              {/* Expenses Section (Phase 2) */}
-              <SharedExpenseSection
-                expenseItems={expenseItems}
-                addExpenseItem={addExpenseItem}
-                removeExpenseItem={removeExpenseItem}
-                handleExpenseChange={handleExpenseChange}
-                handleFileChange={handleFileChange}
-                selectedFiles={selectedFiles}
-                calculateTotalAmount={calculateTotalAmount}
-                categoryOptions={valleyExpenseCategoryOptions}
-              />
-            </div>
-          </CardContent>
-          
-          <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => router.push('/employee/dashboard')}
-              className="gap-2 px-4"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="gap-2 px-6"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Submit Expenses
-                </>
-              )}
-            </Button>
-          </CardFooter>
-        </form>
+        // Phase 2: Expenses Form - Use our shared ExpenseSubmissionForm component
+        <ExpenseSubmissionForm 
+          requestId={requestId!} 
+          requestType="in-valley"
+          categoryOptions={valleyExpenseCategoryOptions}
+          showPreviousAdvance={false}
+        />
       )}
     </Card>
   );

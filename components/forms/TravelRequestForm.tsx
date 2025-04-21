@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { 
   FileText, 
@@ -47,13 +48,16 @@ import {
   BriefcaseBusiness,
   BadgeInfo,
   DollarSign,
-  Users
+  Users,
+  UserPlus,
+  X,
+  UserCheck,
+  UsersRound
 } from "lucide-react";
 
-// Import shared expense section component
-import SharedExpenseSection, { ExpenseItemFormData } from '@/components/forms/SharedExpenseSection';
+// Import shared components
 import EmployeeInfoSection from '@/components/forms/EmployeeInfoSection';
-
+import ExpenseSubmissionForm from '@/components/forms/ExpenseSubmissionForm';
 
 // Import constants
 import { 
@@ -77,6 +81,15 @@ interface ApproverOption {
   email?: string;
 }
 
+// Define user type for group travel members
+interface UserOption {
+  id: string;
+  name: string;
+  department?: string;
+  designation?: string;
+  email?: string;
+}
+
 // =============== SCHEMA & TYPES ===============
 // Define Zod schema for travel details (Phase 1)
 const travelDetailsSchema = z.object({
@@ -87,7 +100,7 @@ const travelDetailsSchema = z.object({
   designation: z.string().min(1, "Designation is required"),
   
   // Request Type
-  requestType: z.enum(["normal", "advance", "emergency"]),
+  requestType: z.enum(["normal", "advance", "emergency", "group"]),
   
   // Travel Details
   project: z.string().min(1, "Project is required"),
@@ -107,6 +120,12 @@ const travelDetailsSchema = z.object({
   localConveyance: z.string().min(1, "This field is required"),
   rideShareUsed: z.boolean().default(false),
   ownVehicleReimbursement: z.boolean().default(false),
+  
+  // Group travel (optional)
+  isGroupCaptain: z.boolean().optional().default(false),
+  groupSize: z.string().optional(),
+  groupMembers: z.array(z.string()).optional().default([]),
+  groupDescription: z.string().optional(),
   
   // Approver selection
   approverId: z.string().min(1, "Please select an approver"),
@@ -157,6 +176,18 @@ const travelDetailsSchema = z.object({
     message: "End date cannot be before start date",
     path: ["travelDateTo"],
   }
+)
+.refine(
+  (data) => {
+    if (data.requestType === "group" && data.isGroupCaptain && (!data.groupSize || !data.groupDescription)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Group size and description are required for group travel",
+    path: ["groupDescription"],
+  }
 );
 
 // Define Zod schema for expenses (Phase 2)
@@ -187,7 +218,7 @@ const RequestTypeSection = ({ form }: { form: any }) => (
             <RadioGroup
               value={field.value}
               onValueChange={field.onChange}
-              className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2"
+              className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2"
             >
               <div>
                 <RadioGroupItem
@@ -236,16 +267,264 @@ const RequestTypeSection = ({ form }: { form: any }) => (
                   <span className="text-xs text-muted-foreground mt-1">Urgent processing</span>
                 </Label>
               </div>
+              
+              <div>
+                <RadioGroupItem
+                  value="group"
+                  id="requestType-group"
+                  className="peer sr-only"
+                />
+                <Label
+                  htmlFor="requestType-group"
+                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                >
+                  <UsersRound className="h-6 w-6 mb-3 text-purple-500" />
+                  <span className="font-medium">Group Travel</span>
+                  <span className="text-xs text-muted-foreground mt-1">For team travel</span>
+                </Label>
+              </div>
             </RadioGroup>
           </FormControl>
           <FormMessage />
         </FormItem>
       )}
     />
+    
+    {/* Group Travel Captain Checkbox - only show when group travel is selected */}
+    {form.watch('requestType') === 'group' && (
+      <div className="mt-4 p-4 border rounded-md bg-purple-50">
+        <FormField
+          control={form.control}
+          name="isGroupCaptain"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>I am the Group Captain</FormLabel>
+                <FormDescription>
+                  Check this box if you are organizing this group travel
+                </FormDescription>
+              </div>
+            </FormItem>
+          )}
+        />
+      </div>
+    )}
   </div>
 );
 
-
+// 2. GroupTravelSection Component - only shown for group travel
+const GroupTravelSection = ({ 
+  form, 
+  userOptions, 
+  loadingUsers,
+  selectedMembers,
+  setSelectedMembers
+}: { 
+  form: any, 
+  userOptions: UserOption[],
+  loadingUsers: boolean,
+  selectedMembers: UserOption[],
+  setSelectedMembers: React.Dispatch<React.SetStateAction<UserOption[]>>
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Filter users based on search term
+  const filteredUsers = userOptions.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  
+  // Add member to selected members
+  const addMember = (user: UserOption) => {
+    if (!selectedMembers.some(member => member.id === user.id)) {
+      const newMembers = [...selectedMembers, user];
+      setSelectedMembers(newMembers);
+      
+      // Update the form value with IDs
+      form.setValue('groupMembers', newMembers.map(member => member.id));
+    }
+    setSearchTerm('');
+    setShowDropdown(false);
+  };
+  
+  // Remove member from selected members
+  const removeMember = (userId: string) => {
+    const newMembers = selectedMembers.filter(member => member.id !== userId);
+    setSelectedMembers(newMembers);
+    
+    // Update the form value with IDs
+    form.setValue('groupMembers', newMembers.map(member => member.id));
+  };
+  
+  return (
+    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+      <div className="flex items-center mb-4">
+        <UsersRound className="h-5 w-5 text-primary mr-2" />
+        <h3 className="text-lg font-medium">Group Travel Details</h3>
+      </div>
+      
+      <div className="p-4 border rounded-md bg-muted/10">
+        <div className="mb-3">
+          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+            Only to be filled by Group Captain
+          </Badge>
+        </div>
+        
+        <div className="space-y-4">
+          {/* Group Size */}
+          <FormField
+            control={form.control}
+            name="groupSize"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>Number of People</span>
+                  </div>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="2"
+                    {...field}
+                    placeholder="Enter total number of people"
+                    disabled={!form.watch('isGroupCaptain')}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {/* Group Members Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              <UserPlus className="h-4 w-4" />
+              <span>Group Members</span>
+            </Label>
+            
+            <div className="relative">
+              <Input
+                placeholder="Search users by name or email..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (e.target.value) {
+                    setShowDropdown(true);
+                  }
+                }}
+                onFocus={() => setShowDropdown(true)}
+                disabled={!form.watch('isGroupCaptain') || loadingUsers}
+              />
+              
+              {/* User dropdown for selection */}
+              {showDropdown && searchTerm && (
+                <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border max-h-60 overflow-auto">
+                  {loadingUsers ? (
+                    <div className="p-2 text-center text-sm text-gray-500">
+                      Loading users...
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="p-2 text-center text-sm text-gray-500">
+                      No users found
+                    </div>
+                  ) : (
+                    filteredUsers.map(user => (
+                      <div
+                        key={user.id}
+                        className="p-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
+                        onClick={() => addMember(user)}
+                      >
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          {user.email && (
+                            <div className="text-xs text-gray-500">{user.email}</div>
+                          )}
+                        </div>
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addMember(user);
+                          }}
+                        >
+                          <UserPlus size={16} />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Selected members */}
+            <div className="mt-2 space-y-2">
+              {selectedMembers.length > 0 ? (
+                <div className="border rounded-md p-2">
+                  <p className="text-sm text-gray-500 mb-2">Selected members:</p>
+                  <div className="space-y-1">
+                    {selectedMembers.map(member => (
+                      <div key={member.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <div>
+                          <div className="font-medium">{member.name}</div>
+                          {member.department && (
+                            <div className="text-xs text-gray-500">{member.department}</div>
+                          )}
+                        </div>
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="ghost" 
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => removeMember(member.id)}
+                          disabled={!form.watch('isGroupCaptain')}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No members selected yet</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Group Description */}
+          <FormField
+            control={form.control}
+            name="groupDescription"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Group Travel Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    {...field} 
+                    placeholder="Describe the purpose and details of this group travel" 
+                    className="resize-none min-h-[100px]"
+                    disabled={!form.watch('isGroupCaptain')}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // 3. TravelDetailsSection Component
 const TravelDetailsSection = ({ 
@@ -724,18 +1003,14 @@ export default function TravelRequestForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
   const [approverOptions, setApproverOptions] = useState<ApproverOption[]>([]);
+  const [userOptions, setUserOptions] = useState<UserOption[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<UserOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingApprovers, setLoadingApprovers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [phase, setPhase] = useState<1 | 2>(1);  // Phase 1: Travel Details, Phase 2: Expenses
   const [requestId, setRequestId] = useState<string | null>(null);
   const [requestDetails, setRequestDetails] = useState<any>(null);
-  const [approverComments, setApproverComments] = useState<string>('');
-  
-  // Expense items for Phase 2
-  const [expenseItems, setExpenseItems] = useState<ExpenseItemFormData[]>([
-    { category: 'accommodation', amount: 0, description: '' },
-  ]);
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   
   // Initialize form with react-hook-form and zod resolver for Phase 1
   const travelDetailsForm = useForm<TravelDetailsFormValues>({
@@ -759,6 +1034,10 @@ export default function TravelRequestForm() {
       localConveyance: 'na',
       rideShareUsed: false,
       ownVehicleReimbursement: false,
+      isGroupCaptain: false,
+      groupSize: '',
+      groupMembers: [],
+      groupDescription: '',
       approverId: '',
     },
   });
@@ -787,10 +1066,6 @@ export default function TravelRequestForm() {
           if (response.ok) {
             const data = await response.json();
             setRequestDetails(data);
-            
-            if (data.approverComments) {
-              setApproverComments(data.approverComments);
-            }
           } else {
             console.error('Failed to fetch request details');
             router.push('/employee/dashboard');
@@ -848,7 +1123,6 @@ export default function TravelRequestForm() {
     const fetchApprovers = async () => {
       try {
         setLoadingApprovers(true);
-        // Use the new API endpoint
         const response = await fetch('/api/approvers');
         if (!response.ok) {
           throw new Error('Failed to fetch approvers');
@@ -865,11 +1139,49 @@ export default function TravelRequestForm() {
       }
     };
     
-    // Add this line to call the function:
     fetchApprovers();
-    
-  }, []); // Add empty dependency array here
+  }, []);
   
+  // Fetch all users for group travel member selection
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const response = await fetch('/api/admin/users');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        
+        const data = await response.json();
+        
+        // Transform users into options format
+        const options: UserOption[] = data
+          .filter((user: any) => user.role === 'employee') // Only include employees
+          .map((user: any) => ({
+            id: user.id,
+            name: user.name || 'Unnamed User',
+            email: user.email,
+            department: user.department,
+            designation: user.designation
+          }));
+        
+        setUserOptions(options);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        // Fallback to empty list if fetch fails
+        setUserOptions([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    
+    // Only fetch users if we need them for group travel
+    if (travelDetailsForm.watch('requestType') === 'group' && travelDetailsForm.watch('isGroupCaptain')) {
+      fetchUsers();
+    }
+  }, [travelDetailsForm.watch('requestType'), travelDetailsForm.watch('isGroupCaptain')]);
+  
+  // Update employeeId and prefill form with session data when available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setEmployeeId(session.user.id);
@@ -908,49 +1220,31 @@ export default function TravelRequestForm() {
     }
   }, [session, status, travelDetailsForm]);
   
-  // Function to add a new expense item
-  const addExpenseItem = () => {
-    setExpenseItems([...expenseItems, { category: 'accommodation', amount: 0 }]);
-  };
-  
-  // Function to remove an expense item
-  const removeExpenseItem = (index: number) => {
-    const updatedItems = [...expenseItems];
-    updatedItems.splice(index, 1);
-    setExpenseItems(updatedItems);
-  };
-  
-  // Handle expense item change
-  const handleExpenseChange = (index: number, field: keyof ExpenseItemFormData, value: any) => {
-    const updatedExpenses = [...expenseItems];
-    updatedExpenses[index] = { ...updatedExpenses[index], [field]: value };
-    setExpenseItems(updatedExpenses);
-  };
-  
-  // Handle file selection for receipts
-  const handleFileChange = (category: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File selected:', category, e.target.files?.[0]?.name);
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFiles(prev => ({
-        ...prev,
-        [category]: e.target.files![0]
-      }));
-    }
-  };
-  
-  // Calculate total expense amount
-  const calculateTotalAmount = () => {
-    return expenseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-  };
-  
   // Handle Phase 1 form submission (Travel Details)
   const onSubmitTravelDetails = async (data: TravelDetailsFormValues) => {
     setIsSubmitting(true);
     
     try {
+      // Handle Group Travel data
+      const groupTravelData = data.requestType === 'group' && data.isGroupCaptain 
+        ? {
+            isGroupTravel: true,
+            isGroupCaptain: true,
+            groupSize: data.groupSize,
+            groupMembers: data.groupMembers,
+            groupDescription: data.groupDescription
+          }
+        : data.requestType === 'group' && !data.isGroupCaptain
+        ? {
+            isGroupTravel: true,
+            isGroupCaptain: false
+          }
+        : {};
+      
       // Prepare the request data
       const requestData = {
         ...data,
+        ...groupTravelData,
         phase: 1,
         purpose: data.purposeType === 'other' ? data.purposeOther : data.purposeType,
         totalAmount: 0, // No expenses yet in Phase 1
@@ -987,113 +1281,6 @@ export default function TravelRequestForm() {
     }
   };
   
-  // Handle Phase 2 form submission (Expenses)
-  const onSubmitExpenses = async (data: ExpensesFormValues) => {
-    if (!requestId) {
-      alert('No request ID found. Please try again.');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Update the request with expense info
-      const updateData = {
-        phase: 2,
-        totalAmount: calculateTotalAmount(),
-        previousOutstandingAdvance: data.previousOutstandingAdvance,
-        status: 'pending_verification', // Move directly to financial verification
-        expenses_submitted_at: new Date().toISOString()
-      };
-      
-      console.log('Updating request with expenses:', updateData);
-      
-      // Update the travel request
-      const response = await fetch(`/api/requests/${requestId}/expenses`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Server error: ${errorData.error || response.statusText}`);
-      }
-      
-      const updatedRequest = await response.json();
-      
-      // Create expense items
-      for (const expenseItem of expenseItems) {
-        if (expenseItem.amount > 0) {
-          console.log('Creating expense item:', expenseItem);
-          
-          const expenseResponse = await fetch('/api/expenses', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...expenseItem,
-              requestId: requestId,
-            }),
-          });
-          
-          if (!expenseResponse.ok) {
-            throw new Error('Failed to create expense item');
-          }
-          
-          const createdExpense = await expenseResponse.json();
-          console.log('Expense item created:', createdExpense);
-          
-          // Upload receipt if available
-          const fileKey = `${expenseItem.category}-${expenseItems.indexOf(expenseItem)}`;
-          const file = selectedFiles[fileKey];
-          
-          if (file) {
-            console.log('Uploading receipt for expense:', { 
-              expenseId: createdExpense.id, 
-              fileName: file.name 
-            });
-            
-            const formDataFile = new FormData();
-            formDataFile.append('file', file);
-            formDataFile.append('expenseItemId', createdExpense.id);
-            
-            try {
-              const uploadResponse = await fetch('/api/receipts/upload', {
-                method: 'POST',
-                body: formDataFile,
-              });
-              
-              const uploadResult = await uploadResponse.json();
-              
-              if (!uploadResponse.ok) {
-                console.error('Receipt upload failed:', uploadResult);
-                // Continue with the next expense item instead of throwing
-              } else {
-                console.log('Receipt uploaded successfully:', uploadResult);
-              }
-            } catch (uploadError) {
-              console.error('Error during receipt upload:', uploadError);
-              // Continue with the next expense item instead of throwing
-            }
-          }
-        }
-      }
-      
-      // Navigate to dashboard on success
-      router.push('/employee/dashboard?success=expenses_submitted');
-      
-    } catch (error) {
-      console.error('Error submitting expenses:', error);
-      alert('There was an error submitting your expenses. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
   // Render either Phase 1 or Phase 2 form based on the current phase
   return (
     <Card className="max-w-5xl mx-auto bg-background shadow-md">
@@ -1119,6 +1306,17 @@ export default function TravelRequestForm() {
               <div className="space-y-6">
                 {/* Request Type Section */}
                 <RequestTypeSection form={travelDetailsForm} />
+                
+                {/* Group Travel Section - only show when group travel is selected and user is group captain */}
+                {travelDetailsForm.watch('requestType') === 'group' && travelDetailsForm.watch('isGroupCaptain') && (
+                  <GroupTravelSection 
+                    form={travelDetailsForm}
+                    userOptions={userOptions}
+                    loadingUsers={loadingUsers}
+                    selectedMembers={selectedMembers}
+                    setSelectedMembers={setSelectedMembers}
+                  />
+                )}
                 
                 {/* Employee Information Section */}
                 <EmployeeInfoSection form={travelDetailsForm} />
@@ -1169,147 +1367,13 @@ export default function TravelRequestForm() {
           </form>
         </Form>
       ) : (
-        // Phase 2: Expenses Form
-        <Form {...expensesForm}>
-          <form onSubmit={expensesForm.handleSubmit(onSubmitExpenses)}>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-6">
-                {/* Display request details in read-only mode */}
-                {requestDetails && (
-                  <>
-                    {/* Show the approved travel details in read-only */}
-                    <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                      <div className="flex items-center text-green-700 mb-2">
-                        <CheckCircle2 className="h-5 w-5 mr-2" />
-                        <h3 className="font-medium">Approved Travel Details</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Your travel request has been approved by the manager. Please add your expenses below.
-                      </p>
-                    </div>
-                    
-                    {/* Show approver comments if available */}
-                    {approverComments && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-                        <h4 className="font-medium text-blue-700 mb-1">Approver Comments</h4>
-                        <p className="text-sm">{approverComments}</p>
-                      </div>
-                    )}
-                    
-                    {/* Read-only request type */}
-                    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-                      <div className="flex items-center mb-4">
-                        <Clock className="h-5 w-5 text-primary mr-2" />
-                        <h3 className="text-lg font-medium">Request Type</h3>
-                      </div>
-                      <div className="flex items-center px-4 py-2 border rounded-md bg-muted/10">
-                        {requestDetails.requestType === 'normal' && <FileText className="h-5 w-5 text-blue-500 mr-2" />}
-                        {requestDetails.requestType === 'advance' && <CreditCard className="h-5 w-5 text-green-500 mr-2" />}
-                        {requestDetails.requestType === 'emergency' && <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />}
-                        <span className="font-medium capitalize">{requestDetails.requestType} Request</span>
-                      </div>
-                    </div>
-                    
-                    {/* Employee information */}
-                    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-                      <div className="flex items-center mb-4">
-                        <UserIcon className="h-5 w-5 text-primary mr-2" />
-                        <h3 className="text-lg font-medium">Employee Information</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                          <label className="text-sm font-medium flex items-center mb-1">
-                            <BadgeInfo className="h-4 w-4 mr-2 text-muted-foreground" />
-                            Full Name
-                          </label>
-                          <div className="py-2 px-3 border rounded-md bg-muted/10">
-                            {requestDetails.employeeName}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium flex items-center mb-1">
-                            <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                            Department
-                          </label>
-                          <div className="py-2 px-3 border rounded-md bg-muted/10">
-                            {requestDetails.department}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium flex items-center mb-1">
-                            <BriefcaseBusiness className="h-4 w-4 mr-2 text-muted-foreground" />
-                            Designation
-                          </label>
-                          <div className="py-2 px-3 border rounded-md bg-muted/10">
-                            {requestDetails.designation}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Travel details section with read-only values */}
-                    <TravelDetailsSection
-                      form={{
-                        control: {
-                          // Mock control for read-only
-                          register: () => ({}),
-                          watch: () => "",
-                        },
-                        setValue: () => {},
-                        formState: { errors: {} },
-                      }}
-                      projectOptions={projectOptions}
-                      loadingProjects={false}
-                      readOnly={true}
-                    />
-                  </>
-                )}
-                
-                {/* Expenses Section (phase 2) */}
-                <SharedExpenseSection
-                  form={expensesForm}
-                  expenseItems={expenseItems}
-                  addExpenseItem={addExpenseItem}
-                  removeExpenseItem={removeExpenseItem}
-                  handleExpenseChange={handleExpenseChange}
-                  handleFileChange={handleFileChange}
-                  selectedFiles={selectedFiles}
-                  calculateTotalAmount={calculateTotalAmount}
-                  categoryOptions={expenseCategoryOptions}
-                  showPreviousAdvance={true}
-                />
-              </div>
-            </CardContent>
-            
-            <CardFooter className="flex justify-between p-6 bg-muted/10 border-t">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => router.push('/employee/dashboard')}
-                className="gap-2 px-4"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="gap-2 px-6"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Submit Expenses
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
+        // Phase 2: Expenses Form - Use the shared ExpenseSubmissionForm component
+        <ExpenseSubmissionForm 
+          requestId={requestId!} 
+          requestType="travel"
+          categoryOptions={expenseCategoryOptions}
+          showPreviousAdvance={true}
+        />
       )}
     </Card>
   );
