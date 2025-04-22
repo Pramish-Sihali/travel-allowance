@@ -234,6 +234,9 @@ const ExpenseSubmissionForm: React.FC<ExpenseSubmissionFormProps> = ({
             formDataFile.append('file', file);
             formDataFile.append('expenseItemId', createdExpense.id);
             
+            // Add request type to the form data to handle different types appropriately
+            formDataFile.append('requestType', requestType);
+            
             try {
               const uploadResponse = await fetch('/api/receipts/upload', {
                 method: 'POST',

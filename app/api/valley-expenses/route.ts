@@ -85,9 +85,12 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Generate a unique ID for the expense item
+    const expenseId = uuidv4();
+    
     // Create the expense data - convert camelCase to snake_case for the database
     const expenseData = {
-      id: uuidv4(),
+      id: expenseId,
       request_id: body.requestId,
       category: body.category,
       amount: body.amount || 0,

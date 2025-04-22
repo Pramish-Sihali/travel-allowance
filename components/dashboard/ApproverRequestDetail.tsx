@@ -17,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 
 
 
@@ -432,14 +431,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
               />
             </TabsContent>
             
-            {/* <TabsContent value="expenses">
-              <RequestExpensesTab 
-                expenseItems={expenseItems} 
-                receipts={receipts} 
-                totalAmount={request.totalAmount || 0}
-                previousOutstandingAdvance={request.previousOutstandingAdvance}
-              />
-            </TabsContent> */}
+          
             
             <TabsContent value="approval">
               <div className="p-6 space-y-6">

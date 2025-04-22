@@ -84,6 +84,8 @@ const travelDetailsSchema = z.object({
   groupSize: z.string().optional(),
   groupMembers: z.array(z.string()).optional().default([]),
   groupDescription: z.string().optional(),
+  estimatedAmount: z.string().optional(),
+  advanceNotes: z.string().optional(),
   
   // Approver selection
   approverId: z.string().min(1, "Please select an approver"),
@@ -146,6 +148,19 @@ const travelDetailsSchema = z.object({
     message: "Group size and description are required for group travel",
     path: ["groupDescription"],
   }
+)
+.refine(
+  (data) => {
+    // If it's an advance request, estimated amount should be provided
+    if (data.requestType === "advance" && (!data.estimatedAmount || parseFloat(data.estimatedAmount) <= 0)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Please provide an estimated amount for your advance request",
+    path: ["estimatedAmount"],
+  }
 );
 
 // Define Zod schema for expenses (Phase 2)
@@ -203,6 +218,8 @@ export default function TravelRequestForm() {
       groupMembers: [],
       groupDescription: '',
       approverId: '',
+      estimatedAmount: '',
+      advanceNotes: '',
     },
   });
   
