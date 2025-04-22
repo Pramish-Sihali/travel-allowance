@@ -741,7 +741,6 @@ export default function EmployeeDashboard() {
             <div className="md:col-span-1 space-y-6">
               <NotificationsPanel userId={employeeId} />
               
-              {/* If you want to bring back quick links and policy highlights later, they would go here */}
             </div>
           </div>
         </div>

@@ -299,80 +299,99 @@ export default function AdminUsersTable() {
     }
   };
   
-  // Function to handle editing a user
-  const handleEditUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      setIsProcessing(true);
-      
-      if (!selectedUser.name || !selectedUser.email || !selectedUser.role) {
-        
-        return;
-      }
+// Modified handler functions for AdminUsersTable.tsx
 
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(selectedUser),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update user');
-      }
-      
-      const updatedUser = await response.json();
-      
-      // Update the user in the array
-      const updatedUsers = users.map(user => 
-        user.id === updatedUser.id ? updatedUser : user
-      );
-      
-      setUsers(updatedUsers);
-      setIsEditDialogOpen(false);
-      setSelectedUser(null);
-
-     
-    } catch (error) {
-      console.error('Error updating user:', error);
-     
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+// Function to handle editing a user
+const handleEditUser = async () => {
+  if (!selectedUser) return;
   
-  // Function to handle deleting a user
-  const handleDeleteUser = async () => {
-    if (!selectedUser) return;
+  try {
+    setIsProcessing(true);
     
-    try {
-      setIsProcessing(true);
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
-      }
-      
-      // Remove the user from the array
-      const updatedUsers = users.filter(user => user.id !== selectedUser.id);
-      setUsers(updatedUsers);
-      setIsDeleteDialogOpen(false);
-      setSelectedUser(null);
-
-      
-    } catch (error) {
-      console.error('Error deleting user:', error);
+    if (!selectedUser.name || !selectedUser.email || !selectedUser.role) {
      
-    } finally {
-      setIsProcessing(false);
+      return;
     }
-  };
+
+    // Create payload with correct field names
+    const userPayload = {
+      name: selectedUser.name,
+      email: selectedUser.email,
+      role: selectedUser.role,
+      department: selectedUser.department,
+      designation: selectedUser.designation // Make sure we're using consistent field naming
+    };
+
+    console.log("Sending update for user ID:", selectedUser.id);
+    console.log("Update payload:", userPayload);
+
+    const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userPayload),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Update error response:", errorData);
+      throw new Error(errorData.error || errorData.details || 'Failed to update user');
+    }
+    
+    const updatedUser = await response.json();
+    
+    // Update the user in the array
+    const updatedUsers = users.map(user => 
+      user.id === updatedUser.id ? updatedUser : user
+    );
+    
+    setUsers(updatedUsers);
+    setIsEditDialogOpen(false);
+    setSelectedUser(null);
+
+   
+  } catch (error) {
+    console.error('Error updating user:', error);
+    
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+// Function to handle deleting a user
+const handleDeleteUser = async () => {
+  if (!selectedUser) return;
+  
+  try {
+    setIsProcessing(true);
+
+    console.log("Deleting user with ID:", selectedUser.id);
+    
+    const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Delete error response:", errorData);
+      throw new Error(errorData.error || errorData.details || 'Failed to delete user');
+    }
+    
+    // Remove the user from the array
+    const updatedUsers = users.filter(user => user.id !== selectedUser.id);
+    setUsers(updatedUsers);
+    setIsDeleteDialogOpen(false);
+    setSelectedUser(null);
+
+    
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   // Function to view user details
   const handleViewUser = (user: any) => {

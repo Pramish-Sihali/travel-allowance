@@ -350,7 +350,7 @@ export default function AdminRequestsTable() {
     setIsViewDialogOpen(true);
   };
   
-  // Function to handle deleting a request
+ 
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return;
     
@@ -362,28 +362,39 @@ export default function AdminRequestsTable() {
         ? `/api/valley-requests/${selectedRequest.id}`
         : `/api/requests/${selectedRequest.id}`;
       
+      console.log(`Deleting request via endpoint: ${endpoint}`);
+      
       const response = await fetch(endpoint, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete request');
+        console.error("Delete error response:", errorData);
+        throw new Error(errorData.error || `Failed to delete ${selectedRequest.requestType} request`);
       }
       
-      // Remove the request from the appropriate array
+      // Remove the request from the array
       if (selectedRequest.requestType === 'in-valley') {
         setValleyRequests(valleyRequests.filter(req => req.id !== selectedRequest.id));
       } else {
         setRequests(requests.filter(req => req.id !== selectedRequest.id));
       }
       
+      // Update allRequests
+      setAllRequests(allRequests.filter(req => req.id !== selectedRequest.id));
+      
+      // Close dialog and reset selected request
       setIsDeleteDialogOpen(false);
       setSelectedRequest(null);
       
-    
+     
     } catch (error) {
       console.error('Error deleting request:', error);
+      
      
     } finally {
       setIsProcessing(false);
@@ -970,6 +981,7 @@ export default function AdminRequestsTable() {
                                   </>
                                 ) : 'Delete Request'}
                               </Button>
+                              
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -1186,19 +1198,12 @@ export default function AdminRequestsTable() {
                   >
                     Close
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex items-center gap-1"
-                    onClick={() => {
-                      setIsViewDialogOpen(false);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 size={14} />
-                    Delete Request
-                  </Button>
+
+        
+            
                 </div>
+
+
               </div>
             </div>
           )}

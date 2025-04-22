@@ -6,6 +6,8 @@ import {
   createNotification,
 } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -166,6 +168,99 @@ export async function PATCH(
     return NextResponse.json(
       { error: 'Failed to update travel request' },
       { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Ensure user is authenticated and is an admin
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized. Only admins can delete requests' },
+        { status: 401 }
+      );
+    }
+
+    const id = params.id;
+    console.log(`Attempting to delete travel request with ID: ${id}`);
+
+    // First check if the request exists
+    const { data: existingRequest, error: checkError } = await supabase
+      .from('travel_requests')
+      .select('id, employee_id, status')
+      .eq('id', id)
+      .single();
+
+    if (checkError) {
+      console.error('Error checking if request exists:', checkError);
+      
+      // Check if the error is a "not found" error
+      if (checkError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Travel request not found' },
+          { status: 404 }
+        );
+      }
+      
+      throw checkError;
+    }
+
+    if (!existingRequest) {
+      return NextResponse.json(
+        { error: 'Travel request not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete any related expense items first
+    const { error: expenseError } = await supabase
+      .from('expense_items')
+      .delete()
+      .eq('request_id', id);
+
+    if (expenseError) {
+      console.error('Error deleting expense items:', expenseError);
+      // Continue with deletion even if expense items deletion fails
+    }
+
+    // Delete any related notifications
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('request_id', id);
+
+    if (notificationError) {
+      console.error('Error deleting notifications:', notificationError);
+      // Continue with deletion even if notifications deletion fails
+    }
+
+    // Finally delete the travel request
+    const { error: deleteError } = await supabase
+      .from('travel_requests')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting travel request:', deleteError);
+      throw deleteError;
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Travel request and associated data deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Unexpected error deleting travel request:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: `Failed to delete travel request: ${errorMessage}` },
+      { status: 500 }
     );
   }
 }

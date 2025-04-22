@@ -99,7 +99,6 @@ export default function AdminBudgetsTable() {
     fetchData();
   }, []);
   
-  // Extract available fiscal years from budgets
   useEffect(() => {
     if (budgets.length > 0) {
       const years = budgets.map(b => b.fiscal_year)
@@ -109,6 +108,70 @@ export default function AdminBudgetsTable() {
       setAvailableYears(years);
     }
   }, [budgets]);
+
+  const fetchExistingBudget = async (projectId: string, fiscalYear: number) => {
+    try {
+      const response = await fetch(`/api/admin/budgets?project_id=${projectId}&fiscal_year=${fiscalYear}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch existing budgets');
+      }
+      
+      const data = await response.json();
+      
+      // If we have matching budgets for this project and fiscal year
+      if (data && data.length > 0) {
+        const existingBudget = data[0]; // Take the first one if multiple exist
+        
+        // Update the form with existing budget data
+        setBudgetFormData({
+          project_id: existingBudget.project_id,
+          amount: existingBudget.amount,
+          fiscal_year: existingBudget.fiscal_year,
+          description: existingBudget.description
+        });
+        
+        // Set the selected budget for editing
+        setSelectedBudget(existingBudget);
+        
+       
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error fetching existing budget:', error);
+     
+      return false;
+    }
+  };
+
+  const handleProjectChange = async (projectId: string) => {
+    // First update the project_id in the form
+    setBudgetFormData({
+      ...budgetFormData,
+      project_id: projectId
+    });
+    
+    // Then check if there's an existing budget for this project in the current fiscal year
+    await fetchExistingBudget(projectId, budgetFormData.fiscal_year);
+  };
+  
+  // Also handle fiscal year changes
+  const handleFiscalYearChange = async (year: number) => {
+    setBudgetFormData({
+      ...budgetFormData,
+      fiscal_year: year
+    });
+    
+    // Check for existing budget if we have a project selected
+    if (budgetFormData.project_id) {
+      await fetchExistingBudget(budgetFormData.project_id, year);
+    }
+  };
+
+
   
   const fetchData = async () => {
     try {
@@ -849,24 +912,27 @@ export default function AdminBudgetsTable() {
                 Project
               </Label>
               <div className="col-span-3">
-                <Select
-                  value={budgetFormData.project_id}
-                  onValueChange={(value) => setBudgetFormData({...budgetFormData, project_id: value})}
-                >
-                  <SelectTrigger id="budget-project">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects
-                      .filter(project => project.active || (selectedBudget?.project_id === project.id))
-                      .map(project => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
+
+              <Select
+  value={budgetFormData.project_id}
+  onValueChange={handleProjectChange}
+>
+  <SelectTrigger id="budget-project">
+    <SelectValue placeholder="Select project" />
+  </SelectTrigger>
+  <SelectContent>
+    {projects
+      .filter(project => project.active || (selectedBudget?.project_id === project.id))
+      .map(project => (
+        <SelectItem key={project.id} value={project.id}>
+          {project.name}
+        </SelectItem>
+      ))
+    }
+  </SelectContent>
+</Select>
+
+
               </div>
             </div>
             
@@ -894,15 +960,15 @@ export default function AdminBudgetsTable() {
                 Fiscal Year
               </Label>
               <Input
-                id="budget-fiscal-year"
-                type="number"
-                min={new Date().getFullYear() - 5}
-                max={new Date().getFullYear() + 5}
-                value={budgetFormData.fiscal_year}
-                onChange={(e) => setBudgetFormData({...budgetFormData, fiscal_year: parseInt(e.target.value) || new Date().getFullYear()})}
-                className="col-span-3"
-                required
-              />
+  id="budget-fiscal-year"
+  type="number"
+  min={new Date().getFullYear() - 5}
+  max={new Date().getFullYear() + 5}
+  value={budgetFormData.fiscal_year}
+  onChange={(e) => handleFiscalYearChange(parseInt(e.target.value) || new Date().getFullYear())}
+  className="col-span-3"
+  required
+/>
             </div>
             
             <div className="grid grid-cols-4 items-start gap-4">
