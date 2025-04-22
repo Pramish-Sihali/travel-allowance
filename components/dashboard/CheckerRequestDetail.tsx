@@ -37,7 +37,8 @@ import {
   Building,
   Calendar,
   CreditCard,
-  Briefcase
+  Briefcase,
+  Users
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,19 @@ interface Budget {
   updated_at: string;
 }
 
+interface ApproverInfo {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface GroupMember {
+  id: string;
+  name: string;
+  email?: string;
+  department?: string;
+}
+
 interface CheckerRequestDetailProps {
   requestId: string;
 }
@@ -80,12 +94,17 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('details');
   
-  // New state for projects and budgets
+  // State for projects and budgets
   const [projects, setProjects] = useState<Project[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [budgetsLoading, setBudgetsLoading] = useState(false);
+  const [includeOutstandingBalance, setIncludeOutstandingBalance] = useState(true);
+  
+  // State for approver and group members
+  const [approver, setApprover] = useState<ApproverInfo | null>(null);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -116,6 +135,39 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
           }
         }
         setReceipts(receiptsMap);
+        
+        // Fetch approver information if approverId exists
+        if (requestData.approverId) {
+          try {
+            const approverResponse = await fetch(`/api/user/${requestData.approverId}/profile`);
+            if (approverResponse.ok) {
+              const approverData = await approverResponse.json();
+              setApprover({
+                id: requestData.approverId,
+                name: approverData.name || 'Unknown Approver',
+                email: approverData.email || ''
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching approver details:', error);
+          }
+        }
+        
+        // Fetch group members if it's a group travel
+        if (requestData.isGroupTravel && requestData.groupMembers && requestData.groupMembers.length > 0) {
+          try {
+            // Convert array to comma-separated string for URL params
+            const memberIds = requestData.groupMembers.join(',');
+            const groupMembersResponse = await fetch(`/api/users/by-ids?ids=${memberIds}`);
+            
+            if (groupMembersResponse.ok) {
+              const membersData = await groupMembersResponse.json();
+              setGroupMembers(membersData);
+            }
+          } catch (error) {
+            console.error('Error fetching group members:', error);
+          }
+        }
       } catch (error) {
         console.error('Error fetching request details:', error);
       } finally {
@@ -217,8 +269,13 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
         return false;
       }
       
+      // Calculate total expense amount based on includeOutstandingBalance flag
+      const expenseAmount = includeOutstandingBalance 
+        ? amount + (request?.previousOutstandingAdvance || 0)
+        : amount;
+      
       // Calculate new amount (deduct the expense amount)
-      const newAmount = Math.max(0, currentBudget.amount - amount);
+      const newAmount = Math.max(0, currentBudget.amount - expenseAmount);
       
       console.log('Updating budget:', currentBudget.id, 'New amount:', newAmount);
       
@@ -356,23 +413,45 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
     if (!selectedProjectId) return null;
     
     const projectBudget = budgets.find(budget => budget.project_id === selectedProjectId);
-    console.log('Selected project budget:', projectBudget);
     return projectBudget;
   };
   
   const selectedBudget = getSelectedProjectBudget();
 
+  // Get selected project name
+  const getSelectedProjectName = () => {
+    if (!selectedProjectId) return "Select a project";
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project ? project.name : "Unknown Project";
+  };
+
   // Check if the project has enough budget for the request
   const hasEnoughBudget = () => {
     if (!selectedBudget || !request) return false;
-    return selectedBudget.amount >= request.totalAmount;
+    
+    const totalToCheck = includeOutstandingBalance 
+      ? request.totalAmount + (request.previousOutstandingAdvance || 0)
+      : request.totalAmount;
+      
+    return selectedBudget.amount >= totalToCheck;
+  };
+  // Check if project is active
+  const isProjectActive = () => {
+    if (!selectedProjectId) return false;
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project?.active || false;
   };
   
   // Calculate budget usage percentage
   const calculateBudgetUsagePercentage = () => {
     if (!selectedBudget || !request || selectedBudget.amount === 0) return 0;
-    const percentage = (request.totalAmount / selectedBudget.amount) * 100;
-    return Math.min(100, percentage); // Cap at 100%
+    
+    const totalToCheck = includeOutstandingBalance 
+      ? request.totalAmount + (request.previousOutstandingAdvance || 0)
+      : request.totalAmount;
+      
+    const percentage = (totalToCheck / selectedBudget.amount) * 100;
+    return Math.min(100, percentage);
   };
   
   if (loading) {
@@ -511,10 +590,12 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                 "flex items-center gap-1.5 h-7 px-3",
                 requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                 requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                 'bg-red-100 text-red-800 border-red-200'
               )}>
                 {requestType === 'normal' && <FileText className="h-3.5 w-3.5" />}
                 {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5" />}
+                {requestType === 'in-valley' && <MapPin className="h-3.5 w-3.5" />}
                 {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5" />}
                 {requestType.charAt(0).toUpperCase() + requestType.slice(1)} Request
               </Badge>
@@ -542,7 +623,48 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
             </div>
             
             <TabsContent value="details">
-              <RequestDetailsTab request={request} travelDates={travelDates} />
+              <div className="p-6 space-y-6">
+                <RequestDetailsTab request={request} travelDates={travelDates} />
+                
+                {/* Display approver information if available */}
+                {approver && (
+                  <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+                    <h3 className="text-md font-medium flex items-center gap-2 text-blue-800 mb-2">
+                      <User className="h-4 w-4" />
+                      Approved By
+                    </h3>
+                    <p className="text-blue-700">{approver.name}</p>
+                    {approver.email && <p className="text-sm text-blue-600">{approver.email}</p>}
+                  </div>
+                )}
+                
+                {/* Display group members if it's a group travel */}
+                {request.isGroupTravel && groupMembers.length > 0 && (
+                  <div className="bg-purple-50 p-4 rounded-md border border-purple-200">
+                    <h3 className="text-md font-medium flex items-center gap-2 text-purple-800 mb-2">
+                      <Users className="h-4 w-4" />
+                      Group Travel Members ({groupMembers.length})
+                    </h3>
+                    <ul className="space-y-2 mt-2">
+                      {groupMembers.map(member => (
+                        <li key={member.id} className="flex items-center gap-2">
+                          <User className="h-3 w-3 text-purple-600" />
+                          <span className="text-purple-700">{member.name}</span>
+                          {member.department && (
+                            <span className="text-xs text-purple-600">({member.department})</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    
+                    {request.groupDescription && (
+                      <div className="mt-3 pt-3 border-t border-purple-200">
+                        <p className="text-sm text-purple-700">{request.groupDescription}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </TabsContent>
             
             <TabsContent value="expenses">
@@ -602,17 +724,17 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                           <Badge className="mb-1 bg-primary/10 text-primary border-0 font-bold">
                             Request Total: Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </Badge>
-                          {/* {request.previousOutstandingAdvance > 0 && (
+                          {(request.previousOutstandingAdvance || 0) > 0 && (
                             <Badge className="bg-amber-100 text-amber-800 border-0 font-bold text-xs">
                               <AlertTriangle size={10} className="mr-1" />
-                              Previous Balance: Nrs.{request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                              Previous Balance: Nrs.{(request.previousOutstandingAdvance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </Badge>
                           )}
-                          {request.previousOutstandingAdvance > 0 && (
+                          {(request.previousOutstandingAdvance || 0) > 0  && includeOutstandingBalance && (
                             <Badge className="mt-1 bg-purple-100 text-purple-800 border-0 font-bold text-xs">
                               Combined Total: Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </Badge>
-                          )} */}
+                          )}
                         </div>
                       </div>
                       <CardDescription>
@@ -633,6 +755,21 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                               {request.approverComments}
                             </AlertDescription>
                           </Alert>
+                        )}
+                        
+                        {(request.previousOutstandingAdvance || 0) > 0 && (
+                          <div className="flex items-center space-x-2 mb-4 bg-amber-50 p-3 rounded-md border border-amber-200">
+                            <input
+                              type="checkbox"
+                              id="includeOutstandingBalance"
+                              checked={includeOutstandingBalance}
+                              onChange={(e) => setIncludeOutstandingBalance(e.target.checked)}
+                              className="h-4 w-4 rounded border-amber-300 text-primary focus:ring-primary"
+                            />
+                            <label htmlFor="includeOutstandingBalance" className="text-sm text-amber-800">
+                              Include previous outstanding balance of Nrs.{(request.previousOutstandingAdvance || 0).toLocaleString()} in budget calculation
+                            </label>
+                          </div>
                         )}
                         
                         {/* Project & Budget Selection - 2 column layout */}
@@ -667,7 +804,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                                   onValueChange={setSelectedProjectId}
                                 >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select a project" />
+                                    <SelectValue placeholder="Select a project">{getSelectedProjectName()}</SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {projects.map(project => (
@@ -678,18 +815,10 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                                   </SelectContent>
                                 </Select>
                                 
-                                {selectedProjectId && (
-                                  <div className="bg-blue-50 rounded-md p-3 border border-blue-200">
-                                    <h5 className="text-sm font-medium text-blue-800 mb-1">Project Details</h5>
-                                    <p className="text-xs text-blue-700 mb-2">
-                                      {projects.find(p => p.id === selectedProjectId)?.description || 'No description available'}
-                                    </p>
-                                    <Badge className={projects.find(p => p.id === selectedProjectId)?.active ? 
-                                      'bg-green-100 text-green-700 border-0' : 
-                                      'bg-gray-100 text-gray-700 border-0'
-                                    }>
-                                      {projects.find(p => p.id === selectedProjectId)?.active ? 'Active' : 'Inactive'}
-                                    </Badge>
+                                {selectedProjectId && !isProjectActive() && (
+                                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                                    <AlertTriangle className="h-3 w-3 inline mr-1" />
+                                    This project is inactive. Please select an active project.
                                   </div>
                                 )}
                               </div>
@@ -722,6 +851,15 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                                       </span>
                                     </div>
                                     
+                                    {(request.previousOutstandingAdvance || 0) > 0  && includeOutstandingBalance && (
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm font-medium">Including Balance:</span>
+                                        <span className="text-sm font-bold text-amber-700">
+                                          Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </span>
+                                      </div>
+                                    )}
+                                    
                                     <div className="mt-3 mb-2">
                                       <div className="flex justify-between text-xs mb-1">
                                         <span>Usage</span>
@@ -739,7 +877,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                                     <div className="flex justify-between items-center pt-2 border-t">
                                       <span className="text-sm font-medium">Remaining After Approval:</span>
                                       <span className={`text-sm font-bold ${hasEnoughBudget() ? 'text-green-700' : 'text-red-700'}`}>
-                                        Nrs.{Math.max(0, selectedBudget.amount - request.totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        Nrs.{Math.max(0, selectedBudget.amount - (includeOutstandingBalance ? calculateCombinedTotal() : request.totalAmount)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                       </span>
                                     </div>
                                     
@@ -847,6 +985,14 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                             <span className="text-sm">{request.purpose}</span>
                           </div>
                           
+                          {approver && (
+                            <div className="flex items-center gap-2">
+                              <User size={16} className="text-purple-500" />
+                              <span className="text-sm font-medium">Approved By:</span>
+                              <span className="text-sm">{approver.name}</span>
+                            </div>
+                          )}
+                          
                           <div className="space-y-2 mt-2 p-2 bg-amber-50 rounded-md border border-amber-200">
                             <div className="flex items-start gap-2">
                               <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
@@ -893,7 +1039,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                     </Button>
                     <Button
                       onClick={() => handleVerification('approved')}
-                      disabled={isSubmitting || !selectedProjectId || !hasEnoughBudget()}
+                      disabled={isSubmitting || !selectedProjectId || !hasEnoughBudget() || !isProjectActive()}
                       className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
                     >
                       {isSubmitting ? (
@@ -931,7 +1077,6 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
               className="flex items-center gap-1 h-8"
               onClick={() => setActiveTab('expenses')}
             >
-              
               <ReceiptIcon size={14} />
               View Receipts
             </Button>

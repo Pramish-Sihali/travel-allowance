@@ -45,15 +45,33 @@ import {
   ArrowRight,
   ChevronRight,
   Plane,
-  MapPin
+  MapPin,
+  CreditCard,
+  AlertTriangle,
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
+import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Badge } from '../ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { Input } from '../ui/input';
 
 export default function EmployeeDashboard() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    totalAmount: 0,
+    travelCount: 0,
+    inValleyCount: 0,
+    waitingForExpenses: 0
+  });
   const [activeTab, setActiveTab] = useState('current');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -91,6 +109,25 @@ export default function EmployeeDashboard() {
       const allRequests = [...travelData, ...valleyData];
       console.log('Fetched all employee requests:', allRequests);
       setRequests(allRequests);
+      
+      // Calculate statistics
+      const pendingCount = allRequests.filter((req: TravelRequest) => req.status === 'pending').length;
+      const approvedCount = allRequests.filter((req: TravelRequest) => req.status === 'approved').length;
+      const rejectedCount = allRequests.filter((req: TravelRequest) => req.status === 'rejected' || req.status === 'rejected_by_checker').length;
+      const waitingForExpensesCount = allRequests.filter((req: TravelRequest) => req.status === 'travel_approved').length;
+      const totalAmount = allRequests.reduce((sum: number, req: TravelRequest) => sum + req.totalAmount, 0);
+      const travelCount = travelData.length;
+      const inValleyCount = valleyData.length;
+      
+      setStats({
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        totalAmount: totalAmount,
+        travelCount: travelCount,
+        inValleyCount: inValleyCount,
+        waitingForExpenses: waitingForExpensesCount
+      });
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
@@ -113,38 +150,139 @@ export default function EmployeeDashboard() {
     setSortConfig(toggleSort(sortConfig, key));
   };
   
-  const handleRequestClick = (request: TravelRequest) => {
-    if (request.requestType === 'in-valley') {
-      router.push(`/employee/requests/in-valley/${request.id}`);
-    } else {
-      router.push(`/employee/requests/${request.id}`);
+  // Get CSS classes for status badges
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'travel_approved':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending_verification':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected':
+      case 'rejected_by_checker':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
   
-  // Get filtered and sorted requests
-  const getFilteredRequests = () => {
-    // Apply filters
-    const filteredRequests = filterRequests(
-      requests,
-      searchTerm,
-      filterStatus,
-      filterType
-    );
-    
-    // Split into current and past requests
-    const { currentRequests, pastRequests } = splitRequestsByDate(filteredRequests);
-    
-    // Get the active set of requests
-    const activeRequests = activeTab === 'current' ? currentRequests : pastRequests;
-    
-    // Apply sorting
-    return sortRequests(activeRequests, sortConfig);
+  const getFormattedStatus = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending Approval';
+      case 'travel_approved':
+        return 'Ready for Expenses';
+      case 'pending_verification':
+        return 'Under Verification';
+      case 'rejected_by_checker':
+        return 'Rejected by Finance';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    }
   };
-
-  const filteredRequests = getFilteredRequests();
   
-  // Get statistics
-  const stats = getRequestStatistics(requests);
+  const getRequestTypeLabel = (type: string) => {
+    switch (type) {
+      case 'in-valley':
+        return 'In-Valley';
+      case 'normal':
+        return 'Travel';
+      case 'advance':
+        return 'Advance';
+      case 'emergency':
+        return 'Emergency';
+      default:
+        return 'Travel';
+    }
+  };
+  
+  const handleRequestClick = (request: TravelRequest) => {
+    // For travel_approved requests, route to the expense submission form
+    if (request.status === 'travel_approved') {
+      if (request.requestType === 'in-valley') {
+        router.push(`/employee/requests/in-valley?id=${request.id}&expenses=true`);
+      } else {
+        router.push(`/employee/requests/new?id=${request.id}&expenses=true`);
+      }
+    } else {
+      // For other requests, route to the detail view
+      if (request.requestType === 'in-valley') {
+        router.push(`/employee/requests/in-valley/${request.id}`);
+      } else {
+        router.push(`/employee/requests/${request.id}`);
+      }
+    }
+  };
+  
+  // Apply all filters to requests
+  const filteredRequests = requests
+    .filter(request => {
+      // Filter by search term
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          request.purpose.toLowerCase().includes(searchLower) ||
+          new Date(request.travelDateFrom).toLocaleDateString().includes(searchLower) ||
+          new Date(request.travelDateTo).toLocaleDateString().includes(searchLower) ||
+          request.status.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    })
+    .filter(request => {
+      // Filter by status
+      if (filterStatus === 'all') return true;
+      if (filterStatus === 'pending') return request.status === 'pending';
+      if (filterStatus === 'approved') return request.status === 'approved';
+      if (filterStatus === 'rejected') return request.status === 'rejected' || request.status === 'rejected_by_checker';
+      if (filterStatus === 'awaiting_expenses') return request.status === 'travel_approved';
+      if (filterStatus === 'under_verification') return request.status === 'pending_verification';
+      return true;
+    })
+    .filter(request => {
+      // Filter by request type
+      if (filterType === 'all') return true;
+      return request.requestType === filterType;
+    });
+  
+  // Group requests
+  const pendingRequests = filteredRequests.filter(req => req.status === 'pending');
+  const awaitingExpensesRequests = filteredRequests.filter(req => req.status === 'travel_approved');
+  const pendingVerificationRequests = filteredRequests.filter(req => req.status === 'pending_verification');
+  const completedRequests = filteredRequests.filter(
+    req => ['approved', 'rejected', 'rejected_by_checker'].includes(req.status)
+  );
+  
+  const currentRequests = [...pendingRequests, ...awaitingExpensesRequests, ...pendingVerificationRequests];
+  const pastRequests = [...completedRequests];
+  
+  const activeRequests = activeTab === 'current' ? currentRequests : pastRequests;
+  
+  // Status options for filters
+  const statusOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending Approval' },
+    { value: 'awaiting_expenses', label: 'Ready for Expenses' },
+    { value: 'under_verification', label: 'Under Verification' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' }
+  ];
+  
+  // Request type options for filters
+  const typeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'normal', label: 'Travel' },
+    { value: 'in-valley', label: 'In-Valley' },
+    { value: 'advance', label: 'Advance' },
+    { value: 'emergency', label: 'Emergency' }
+  ];
   
   // Configure tabs
   const tabs = [
@@ -160,27 +298,9 @@ export default function EmployeeDashboard() {
     }
   ];
   
-  // Status options for filters
-  const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' }
-  ];
-  
-  // Request type options for filters
-  const typeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'normal', label: 'Travel' },
-    { value: 'in-valley', label: 'In-Valley' },
-    { value: 'advance', label: 'Advance' },
-    { value: 'emergency', label: 'Emergency' }
-  ];
-  
   if (loading && status === 'loading') {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header variant="employee" />
         <div className="flex justify-center items-center flex-grow">
           <div className="text-center">
             <div className="h-12 w-12 rounded-full mx-auto mb-4 bg-gray-200 animate-pulse" />
@@ -193,7 +313,6 @@ export default function EmployeeDashboard() {
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header variant="employee" />
       
       <main className="flex-grow p-6">
         <div className="max-w-7xl mx-auto">
@@ -225,42 +344,63 @@ export default function EmployeeDashboard() {
               
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard
-                  icon={Clock}
-                  title="Pending"
-                  value={stats.pendingCount}
-                  borderColor="border-l-amber-400"
-                  iconColor="text-amber-600"
-                  iconBgColor="bg-amber-100"
-                />
+                <Card className="border-l-4 border-l-amber-400">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-amber-100">
+                        <Clock size={20} className="text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Pending</p>
+                        <p className="text-xl font-bold">{stats.pending}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <StatsCard
-                  icon={FileText}
-                  title="Approved"
-                  value={stats.approvedCount}
-                  borderColor="border-l-green-400"
-                  iconColor="text-green-600"
-                  iconBgColor="bg-green-100"
-                />
+                <Card className="border-l-4 border-l-blue-400">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-blue-100">
+                        <DollarSign size={20} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Need Expenses</p>
+                        <p className="text-xl font-bold">{stats.waitingForExpenses}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <StatsCard
-                  icon={Plane}
-                  title="Travel"
-                  value={stats.travelCount}
-                  borderColor="border-l-purple-400"
-                  iconColor="text-purple-600"
-                  iconBgColor="bg-purple-100"
-                />
+                <Card className="border-l-4 border-l-green-400">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-green-100">
+                        <FileText size={20} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Approved</p>
+                        <p className="text-xl font-bold">{stats.approved}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <StatsCard
-                  icon={DollarSign}
-                  title="Total Amount"
-                  value={stats.totalAmount}
-                  valuePrefix="Nrs."
-                  borderColor="border-l-blue-400"
-                  iconColor="text-blue-600"
-                  iconBgColor="bg-blue-100"
-                />
+                <Card className="border-l-4 border-l-purple-400">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-purple-100">
+                        <Plane size={20} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Total Amount</p>
+                        <p className="text-xl font-bold">
+                          Nrs.{stats.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
               
               {requests.length === 0 ? (
@@ -296,17 +436,51 @@ export default function EmployeeDashboard() {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
                       <CardTitle className="text-lg">All Expense Requests</CardTitle>
                       
-                      <FilterControls
-                        searchTerm={searchTerm}
-                        onSearchChange={setSearchTerm}
-                        statusFilter={filterStatus}
-                        onStatusFilterChange={setFilterStatus}
-                        typeFilter={filterType}
-                        onTypeFilterChange={setFilterType}
-                        onRefresh={handleRefresh}
-                        statusOptions={statusOptions}
-                        searchPlaceholder="Search my requests..."
-                      />
+                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 text-muted-foreground h-4 w-4" />
+                          <Input
+                            placeholder="Search requests..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 w-full sm:w-[200px]"
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="w-[130px] border rounded-md p-2 text-sm bg-background"
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                          >
+                            {statusOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          
+                          <select
+                            className="w-[130px] border rounded-md p-2 text-sm bg-background"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                          >
+                            {typeOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          
+                          <Button 
+                            variant="outline"
+                            onClick={handleRefresh} 
+                            size="icon"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     <CardDescription>
                       View and manage all your submitted expense requests
@@ -314,54 +488,298 @@ export default function EmployeeDashboard() {
                   </CardHeader>
                   
                   <CardContent>
-                    <RequestTabs
-                      tabs={tabs}
-                      defaultTab="current"
-                      onTabChange={setActiveTab}
-                    >
+                    <Tabs defaultValue="current" onValueChange={setActiveTab}>
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="current" className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          <span>Current Requests</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="past" className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>Completed Requests</span>
+                        </TabsTrigger>
+                      </TabsList>
+                      
                       <TabsContent value="current">
-                        <RequestTable
-                          requests={filteredRequests}
-                          loading={loading}
-                          onViewDetails={handleRequestClick}
-                          sortConfig={sortConfig}
-                          onSort={handleSort}
-                          emptyStateProps={{
-                            icon: FileText,
-                            title: "No current requests found",
-                            description: "You don't have any current requests"
-                          }}
-                          variant="employee"
-                          mode="current"
-                          actionVariant="view"
-                          showDepartment={false}
-                          actionLabel="View"
-                          onRowClick={handleRequestClick}
-                        />
+                        {currentRequests.length === 0 ? (
+                          <div className="text-center py-10 bg-muted/20 rounded-md">
+                            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">No current requests found</p>
+                          </div>
+                        ) : (
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <FileText size={16} className="mr-2 text-muted-foreground" />
+                                      Purpose
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <Calendar size={16} className="mr-2 text-muted-foreground" />
+                                      Date
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <FileText size={16} className="mr-2 text-muted-foreground" />
+                                      Type
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <DollarSign size={16} className="mr-2 text-muted-foreground" />
+                                      Amount
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <Clock size={16} className="mr-2 text-muted-foreground" />
+                                      Status
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {currentRequests.map((request) => (
+                                  <TableRow 
+                                    key={request.id} 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleRequestClick(request)}
+                                  >
+                                    <TableCell>
+                                      <div className="max-w-[200px] truncate font-medium" title={request.purpose}>
+                                        {request.purpose.substring(0, 30)}
+                                        {request.purpose.length > 30 ? '...' : ''}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {request.requestType === 'in-valley' ? (
+                                        <div className="text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={cn(
+                                        "flex items-center gap-1.5 w-fit",
+                                        request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                        request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                        'bg-red-100 text-red-800 border-red-200'
+                                      )}>
+                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
+                                        {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
+                                        {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                                        {getRequestTypeLabel(request.requestType || 'normal')}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                      {request.status === 'travel_approved' ? (
+                                        <span className="text-muted-foreground italic">Pending</span>
+                                      ) : (
+                                        <>
+                                          Nrs.{request.totalAmount.toLocaleString(undefined, {
+                                            minimumFractionDigits: 0, 
+                                            maximumFractionDigits: 0
+                                          })}
+                                        </>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={getStatusBadgeClass(request.status)}>
+                                        {getFormattedStatus(request.status)}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRequestClick(request);
+                                        }}
+                                        className="flex items-center gap-1"
+                                      >
+                                        {request.status === 'travel_approved' ? 'Add Expenses' : 'View'}
+                                        <ArrowRight className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
                       </TabsContent>
                       
                       <TabsContent value="past">
-                        <RequestTable
-                          requests={filteredRequests}
-                          loading={loading}
-                          onViewDetails={handleRequestClick}
-                          sortConfig={sortConfig}
-                          onSort={handleSort}
-                          emptyStateProps={{
-                            icon: Calendar,
-                            title: "No past requests found",
-                            description: "You don't have any past requests"
-                          }}
-                          variant="employee"
-                          mode="past"
-                          actionVariant="view"
-                          showDepartment={false}
-                          showSubmittedDate={true}
-                          actionLabel="View"
-                          onRowClick={handleRequestClick}
-                        />
+                        {pastRequests.length === 0 ? (
+                          <div className="text-center py-10 bg-muted/20 rounded-md">
+                            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">No completed requests found</p>
+                          </div>
+                        ) : (
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <FileText size={16} className="mr-2 text-muted-foreground" />
+                                      Purpose
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <Calendar size={16} className="mr-2 text-muted-foreground" />
+                                      Date
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <FileText size={16} className="mr-2 text-muted-foreground" />
+                                      Type
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <DollarSign size={16} className="mr-2 text-muted-foreground" />
+                                      Amount
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>
+                                    <div className="flex items-center">
+                                      <Clock size={16} className="mr-2 text-muted-foreground" />
+                                      Status
+                                    </div>
+                                  </TableHead>
+                                  <TableHead>Submitted</TableHead>
+                                  <TableHead>Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pastRequests.map((request) => (
+                                  <TableRow 
+                                    key={request.id} 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleRequestClick(request)}
+                                  >
+                                    <TableCell>
+                                      <div className="max-w-[200px] truncate font-medium" title={request.purpose}>
+                                        {request.purpose.substring(0, 30)}
+                                        {request.purpose.length > 30 ? '...' : ''}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {request.requestType === 'in-valley' ? (
+                                        <div className="text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col text-sm">
+                                          <span className="font-medium">
+                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={cn(
+                                        "flex items-center gap-1.5 w-fit",
+                                        request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                        request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                        'bg-red-100 text-red-800 border-red-200'
+                                      )}>
+                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
+                                        {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
+                                        {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                                        {getRequestTypeLabel(request.requestType || 'normal')}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                      Nrs.{request.totalAmount.toLocaleString(undefined, {
+                                        minimumFractionDigits: 0, 
+                                        maximumFractionDigits: 0
+                                      })}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={getStatusBadgeClass(request.status)}>
+                                        {getFormattedStatus(request.status)}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                      {new Date(request.createdAt).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRequestClick(request);
+                                        }}
+                                        className="flex items-center gap-1"
+                                      >
+                                        View
+                                        <ArrowRight className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
                       </TabsContent>
-                    </RequestTabs>
+                    </Tabs>
                   </CardContent>
                 </Card>
               )}
@@ -488,9 +906,6 @@ export default function EmployeeDashboard() {
         </div>
       </main>
       
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} Company Name. All rights reserved.</p>
-      </footer>
     </div>
   );
 }

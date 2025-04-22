@@ -45,8 +45,9 @@ export async function PATCH(
     const isOwner = existingRequest.employee_id === session.user.id;
     const isAdmin = session.user.role === 'admin';
     const isChecker = session.user.role === 'checker';
+    const isApprover = session.user.role === 'approver';
 
-    if (!isOwner && !isAdmin && !isChecker) {
+    if (!isOwner && !isAdmin && !isChecker && !isApprover) {
       console.error('Permission denied: User does not have appropriate role', {
         requestEmployeeId: existingRequest.employee_id,
         userId: session.user.id,
@@ -57,7 +58,6 @@ export async function PATCH(
         { status: 403 }
       );
     }
-
     // Check if the request is in a valid state
     const validStates = ['pending', 'travel_approved'];
     if (!validStates.includes(existingRequest.status)) {

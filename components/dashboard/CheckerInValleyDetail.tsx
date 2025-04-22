@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/accordion";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -54,7 +56,8 @@ import {
   Users,
   ThumbsUp,
   ThumbsDown,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -94,6 +97,33 @@ interface ValleyRequest {
   checkerComments?: string;
   createdAt: string;
   updatedAt: string;
+  approverId?: string;
+  previousOutstandingAdvance?: number;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Budget {
+  id: string;
+  project_id: string;
+  amount: number;
+  fiscal_year: number;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApproverInfo {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface CheckerInValleyDetailProps {
@@ -109,6 +139,18 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
   const [activeTab, setActiveTab] = useState('details');
   const [comments, setComments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error'; message: string} | null>(null);
+  
+  // New state for projects and budgets
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
+  const [includeOutstandingBalance, setIncludeOutstandingBalance] = useState(true);
+  
+  // State for approver information
+  const [approver, setApprover] = useState<ApproverInfo | null>(null);
   
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -124,6 +166,23 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
         // Load previous comments if they exist
         if (requestData.checkerComments) {
           setComments(requestData.checkerComments);
+        }
+        
+        // Fetch approver information if approverId exists
+        if (requestData.approverId) {
+          try {
+            const approverResponse = await fetch(`/api/user/${requestData.approverId}/profile`);
+            if (approverResponse.ok) {
+              const approverData = await approverResponse.json();
+              setApprover({
+                id: requestData.approverId,
+                name: approverData.name || 'Unknown Approver',
+                email: approverData.email || ''
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching approver details:', error);
+          }
         }
         
         // Fetch expense items
@@ -152,7 +211,174 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
     };
     
     fetchRequestDetails();
+    fetchProjects();
   }, [requestId]);
+  
+  // Fetch projects
+  const fetchProjects = async () => {
+    try {
+      setProjectsLoading(true);
+      
+      // Fetch projects
+      const projectsResponse = await fetch('/api/projects?includeInactive=true', {
+        cache: 'no-store',
+      });
+      
+      if (!projectsResponse.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const projectsData = await projectsResponse.json();
+      console.log(`Fetched ${projectsData.length} projects`);
+      setProjects(projectsData);
+      
+      if (projectsData.length > 0) {
+        setSelectedProjectId(projectsData[0].id);
+        
+        // Fetch budgets for this project 
+        await fetchBudgets(projectsData[0].id);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+  
+  // Fetch budgets
+  const fetchBudgets = async (projectId?: string) => {
+    try {
+      setBudgetsLoading(true);
+      
+      // Construct the URL with optional project_id filter and cache-busting timestamp
+      const timestamp = new Date().getTime();
+      let url = `/api/budgets?t=${timestamp}`;
+      if (projectId) {
+        url += `&project_id=${projectId}`;
+      }
+      
+      console.log('Fetching budgets from:', url);
+      const budgetsResponse = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!budgetsResponse.ok) {
+        console.error('Budget fetch error status:', budgetsResponse.status);
+        const errorText = await budgetsResponse.text();
+        console.error('Budget fetch error response:', errorText);
+        throw new Error(`Failed to fetch budgets: ${budgetsResponse.status} ${errorText}`);
+      }
+      
+      const budgetsData = await budgetsResponse.json();
+      console.log(`Fetched ${budgetsData.length} budgets`);
+      setBudgets(budgetsData);
+      
+    } catch (error) {
+      console.error('Error fetching budgets:', error);
+    } finally {
+      setBudgetsLoading(false);
+    }
+  };
+  
+  // When selected project changes, fetch its budget
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchBudgets(selectedProjectId);
+    }
+  }, [selectedProjectId]);
+  
+  const updateProjectBudget = async (projectId: string, amount: number) => {
+    try {
+      // Find the current budget for the project
+      const currentBudget = budgets.find(budget => budget.project_id === projectId);
+      
+      if (!currentBudget) {
+        console.error('No budget found for project:', projectId);
+        return false;
+      }
+      
+      // Calculate total expense amount based on includeOutstandingBalance flag
+      const expenseAmount = includeOutstandingBalance 
+        ? amount + (request?.previousOutstandingAdvance || 0)
+        : amount;
+      
+      // Calculate new amount (deduct the expense amount)
+      const newAmount = Math.max(0, currentBudget.amount - expenseAmount);
+      
+      console.log('Updating budget:', currentBudget.id, 'New amount:', newAmount);
+      
+      // Update the budget using the public API
+      const response = await fetch('/api/budgets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: currentBudget.id,
+          amount: newAmount,
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Budget update error status:', response.status);
+        const errorData = await response.json();
+        console.error('Budget update error:', errorData);
+        throw new Error('Failed to update budget');
+      }
+      
+      console.log(`Successfully updated budget for project ${projectId}. New amount: ${newAmount}`);
+      return true;
+    } catch (error) {
+      console.error('Error updating project budget:', error);
+      return false;
+    }
+  };
+  
+  // Helper functions for project, budget, and status
+  const getSelectedProjectBudget = () => {
+    if (!selectedProjectId) return null;
+    return budgets.find(budget => budget.project_id === selectedProjectId);
+  };
+  
+  const getSelectedProjectName = () => {
+    if (!selectedProjectId) return "Select a project";
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project ? project.name : "Unknown Project";
+  };
+  
+  const isProjectActive = () => {
+    if (!selectedProjectId) return false;
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project?.active || false;
+  };
+  
+  const hasEnoughBudget = () => {
+    const selectedBudget = getSelectedProjectBudget();
+    if (!selectedBudget || !request) return false;
+    
+    const totalToCheck = includeOutstandingBalance 
+      ? request.totalAmount + (request.previousOutstandingAdvance || 0)
+      : request.totalAmount;
+      
+    return selectedBudget.amount >= totalToCheck;
+  };
+  
+  const calculateBudgetUsagePercentage = () => {
+    const selectedBudget = getSelectedProjectBudget();
+    if (!selectedBudget || !request || selectedBudget.amount === 0) return 0;
+    
+    const totalToCheck = includeOutstandingBalance 
+      ? request.totalAmount + (request.previousOutstandingAdvance || 0)
+      : request.totalAmount;
+      
+    const percentage = (totalToCheck / selectedBudget.amount) * 100;
+    return Math.min(100, percentage); // Cap at 100%
+  };
   
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -232,6 +458,28 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
       const updatedRequest = await response.json();
       setRequest(updatedRequest);
       
+      // If approved, update the project budget
+      if (newStatus === 'approved' && selectedProjectId) {
+        const budgetUpdated = await updateProjectBudget(
+          selectedProjectId, 
+          updatedRequest.totalAmount || 0
+        );
+        
+        if (!budgetUpdated) {
+          setStatusMessage({
+            type: 'error',
+            message: 'The request was approved but there was an issue updating the project budget. Please check the budget manually.'
+          });
+          return;
+        }
+      }
+      
+      // Show success message
+      setStatusMessage({
+        type: 'success',
+        message: `Request has been ${newStatus === 'approved' ? 'approved' : 'rejected'} successfully. Redirecting...`
+      });
+      
       // Redirect to dashboard after short delay
       setTimeout(() => {
         router.push('/checker/dashboard');
@@ -239,6 +487,10 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
       
     } catch (error) {
       console.error('Error updating status:', error);
+      setStatusMessage({
+        type: 'error',
+        message: 'Failed to update request status. Please try again.'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -395,6 +647,18 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
               </div>
             )}
           </div>
+          
+          {/* Approver information if available */}
+          {approver && (
+            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+              <h3 className="text-md font-medium flex items-center gap-2 text-blue-800 mb-2">
+                <User className="h-4 w-4" />
+                Approved By
+              </h3>
+              <p className="text-blue-700">{approver.name}</p>
+              {approver.email && <p className="text-sm text-blue-600">{approver.email}</p>}
+            </div>
+          )}
         </div>
         
         <div className="space-y-4">
@@ -441,6 +705,15 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
                 <span className="text-muted-foreground">Number of Items:</span>
                 <span className="font-medium text-right">{expenseItems.length}</span>
               </div>
+              
+              {(request.previousOutstandingAdvance || 0) > 0 && (
+                <div className="py-2 grid grid-cols-2">
+                  <span className="text-muted-foreground">Previous Outstanding:</span>
+                  <span className="font-medium text-right text-amber-600">
+                    Nrs. {(request.previousOutstandingAdvance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           
@@ -458,9 +731,9 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
           
           <div className="flex justify-end space-x-3 mt-4">
             <Button variant="outline" size="sm" asChild>
-              <Link href="#" className="flex items-center gap-1">
-                <Download size={16} />
-                Download Details
+              <Link href="#expenses" onClick={() => setActiveTab('expenses')} className="flex items-center gap-1">
+                <FileText size={16} />
+                View Expenses
               </Link>
             </Button>
           </div>
@@ -496,25 +769,25 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
                     <TableCell>{item.description || '-'}</TableCell>
                     <TableCell className="text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                     <TableCell>
-                      {receipts[item.id] && receipts[item.id].length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {receipts[item.id].map((receipt, idx) => (
-                            <a
-                              key={receipt.id}
-                              href={receipt.publicUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs py-1 px-2 bg-primary/10 text-primary rounded-md hover:bg-primary/20"
-                            >
-                              <Paperclip size={12} />
-                              Receipt {idx + 1}
-                            </a>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">No receipts</span>
-                      )}
-                    </TableCell>
+  {receipts[item.id] && receipts[item.id].length > 0 ? (
+    <div className="flex flex-wrap gap-2">
+      {receipts[item.id].map((receipt, idx) => (
+        <a  // This opening <a> tag was missing
+          key={receipt.id}
+          href={receipt.publicUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs py-1 px-2 bg-primary/10 text-primary rounded-md hover:bg-primary/20"
+        >
+          <Paperclip size={12} />
+          Receipt {idx + 1}
+        </a>
+      ))}
+    </div>
+  ) : (
+    <span className="text-muted-foreground text-sm">No receipts</span>
+  )}
+</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/10 font-medium">
@@ -535,6 +808,21 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
   // Render the verification tab content
   const renderActionTab = () => (
     <div className="p-6 space-y-6">
+      {statusMessage && (
+        <Alert className={cn(
+          statusMessage.type === 'success' ? "bg-green-50 text-green-800 border-green-200" :
+          "bg-red-50 text-red-800 border-red-200"
+        )}>
+          {statusMessage.type === 'success' ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+          )}
+          <AlertTitle>{statusMessage.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
+          <AlertDescription>{statusMessage.message}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
         <h3 className="text-lg font-medium flex items-center gap-2 text-yellow-800">
           <Info className="h-5 w-5 text-yellow-600" />
@@ -544,6 +832,137 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
           Please verify the expenses in this in-valley reimbursement request. 
           Check all receipts and ensure they comply with company policy.
         </p>
+      </div>
+      
+      {request.approverComments && (
+        <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+          <FileText className="h-4 w-4 text-blue-600" />
+          <AlertTitle>Approver Comments</AlertTitle>
+          <AlertDescription>
+            {request.approverComments}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {(request.previousOutstandingAdvance || 0) > 0 && (
+        <div className="flex items-center space-x-2 mb-4 bg-amber-50 p-3 rounded-md border border-amber-200">
+          <input
+            type="checkbox"
+            id="includeOutstandingBalance"
+            checked={includeOutstandingBalance}
+            onChange={(e) => setIncludeOutstandingBalance(e.target.checked)}
+            className="h-4 w-4 rounded border-amber-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="includeOutstandingBalance" className="text-sm text-amber-800">
+            Include previous outstanding balance of Nrs.{(request.previousOutstandingAdvance || 0).toLocaleString()} in budget calculation
+          </label>
+        </div>
+      )}
+      
+      <div className="bg-muted/10 p-4 rounded-md border mb-4">
+        <h3 className="text-lg font-medium mb-4">Project Budget Allocation</h3>
+        
+        {projectsLoading ? (
+          <div className="h-10 w-full bg-gray-200 animate-pulse rounded"></div>
+        ) : projects.length === 0 ? (
+          <div className="bg-amber-50 p-3 rounded-md border border-amber-200 text-amber-800">
+            <AlertTriangle className="h-4 w-4 inline mr-2" />
+            No projects found. Please add projects in the admin settings.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2 text-sm font-medium">Select Project</label>
+                <Select
+                  value={selectedProjectId}
+                  onValueChange={setSelectedProjectId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project">{getSelectedProjectName()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name} {!project.active && '(Inactive)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {selectedProjectId && !isProjectActive() && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                    <AlertTriangle className="h-3 w-3 inline mr-1" />
+                    This project is inactive. Please select an active project.
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block mb-2 text-sm font-medium">Project Budget</label>
+                {budgetsLoading ? (
+                  <div className="h-24 w-full bg-gray-200 animate-pulse rounded"></div>
+                ) : getSelectedProjectBudget() ? (
+                  <div className="border rounded-md p-3 bg-white">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium">Current Budget:</span>
+                      <span className="text-sm font-bold">
+                        Nrs.{getSelectedProjectBudget()?.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium">Request Amount:</span>
+                      <span className="text-sm font-bold text-purple-700">
+                        Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </span>
+                    </div>
+                    
+                    {(request.previousOutstandingAdvance || 0) > 0 && includeOutstandingBalance && (
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium">Including Balance:</span>
+                        <span className="text-sm font-bold text-amber-700">
+                          Nrs.{(request.totalAmount + (request.previousOutstandingAdvance || 0)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="mt-3 mb-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Usage</span>
+                        <span className={hasEnoughBudget() ? 'text-green-700' : 'text-red-700'}>
+                          {calculateBudgetUsagePercentage().toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={calculateBudgetUsagePercentage()} 
+                        className={hasEnoughBudget() ? 'bg-green-100' : 'bg-red-100'}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <span className="text-sm font-medium">Remaining After Approval:</span>
+                      <span className={`text-sm font-bold ${hasEnoughBudget() ? 'text-green-700' : 'text-red-700'}`}>
+                        Nrs.{Math.max(0, getSelectedProjectBudget()!.amount - (includeOutstandingBalance ? (request.totalAmount + (request.previousOutstandingAdvance || 0)) : request.totalAmount)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </span>
+                    </div>
+                    
+                    {!hasEnoughBudget() && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                        <AlertTriangle className="h-3 w-3 inline mr-1" />
+                        Insufficient budget! Select a different project or update budget in settings.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-2 border rounded-md bg-gray-50 text-muted-foreground">
+                    No budget found for selected project
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="bg-muted/10 p-4 rounded-md border">
@@ -564,8 +983,17 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
           onClick={() => handleStatusUpdate('rejected')}
           disabled={isSubmitting || !canTakeAction}
         >
-          <ThumbsDown className="h-5 w-5" />
-          Reject Request
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <ThumbsDown className="h-5 w-5" />
+              Reject Request
+            </>
+          )}
         </Button>
         
         <Button
@@ -573,10 +1001,19 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
           size="lg"
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
           onClick={() => handleStatusUpdate('approved')}
-          disabled={isSubmitting || !canTakeAction}
+          disabled={isSubmitting || !canTakeAction || !selectedProjectId || !hasEnoughBudget() || !isProjectActive()}
         >
-          <CheckCircle2 className="h-5 w-5" />
-          Approve Request
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-5 w-5" />
+              Approve Request
+            </>
+          )}
         </Button>
       </div>
       

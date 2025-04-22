@@ -371,7 +371,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         </div>
       </div>
       
-      {statusMessage && (
+      {/* {statusMessage && (
         <Alert className={cn(
           "mb-6",
           statusMessage.type === 'success' ? "bg-green-50 text-green-800 border-green-200" :
@@ -387,7 +387,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
           {statusMessage.title && <AlertTitle>{statusMessage.title}</AlertTitle>}
           <AlertDescription>{statusMessage.message}</AlertDescription>
         </Alert>
-      )}
+      )} */}
       
       <Card className="border shadow-sm mb-6">
         <CardHeader className="border-b bg-muted/10">
