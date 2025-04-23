@@ -18,6 +18,7 @@ export async function GET(
     }
 
     const { id } = await params;
+    console.log(`Fetching valley request details for ID: ${id}`);
 
     const { data, error } = await supabase
       .from('valley_requests')
@@ -30,8 +31,11 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch in-valley request' }, { status: 500 });
     }
     if (!data) {
+      console.error(`Valley request with ID ${id} not found`);
       return NextResponse.json({ error: 'In-valley request not found' }, { status: 404 });
     }
+
+    console.log(`Found valley request with status: ${data.status}`);
 
     if (
       session.user.role !== 'admin' &&
@@ -106,16 +110,21 @@ export async function PATCH(
       .single();
 
     if (fetchError || !existingRequest) {
+      console.error('Failed to fetch valley request:', fetchError);
       return NextResponse.json({ error: 'In-valley request not found' }, { status: 404 });
     }
+
+    console.log(`Current valley request status: ${existingRequest.status}`);
 
     const employeeId = existingRequest.employee_id;
     let newStatus = status;
     let notificationMessage = '';
 
     if (role === 'approver' && status === 'approved') {
+      // Set new status to travel_approved when approver approves
       newStatus = 'travel_approved';
       notificationMessage = `Your in-valley reimbursement request has been approved. You can now submit your expenses.`;
+      console.log(`Approver approved request - setting status to 'travel_approved'`);
     } else if (
       role === 'checker' &&
       status === 'approved' &&
@@ -123,12 +132,17 @@ export async function PATCH(
     ) {
       newStatus = 'approved';
       notificationMessage = `Your in-valley reimbursement request has been fully approved and processed`;
+      console.log(`Checker approved request - setting status to 'approved'`);
     } else if (role === 'checker' && status === 'rejected') {
       newStatus = 'rejected_by_checker';
       notificationMessage = `Your in-valley reimbursement request has been rejected during financial verification`;
+      console.log(`Checker rejected request - setting status to 'rejected_by_checker'`);
     } else if (role === 'approver' && status === 'rejected') {
       newStatus = 'rejected';
       notificationMessage = `Your in-valley reimbursement request has been rejected`;
+      console.log(`Approver rejected request - setting status to 'rejected'`);
+    } else {
+      console.log(`No special status mapping for role=${role}, status=${status} - using status as-is`);
     }
 
     console.log(`Updating valley request status from ${existingRequest.status} to ${newStatus}`);
@@ -147,6 +161,8 @@ export async function PATCH(
       updateData.checker_comments = comments;
     }
 
+    console.log('Updating request with data:', updateData);
+
     const { data, error } = await supabase
       .from('valley_requests')
       .update(updateData)
@@ -158,6 +174,8 @@ export async function PATCH(
       console.error('Error updating in-valley request:', error);
       return NextResponse.json({ error: 'Failed to update in-valley request' }, { status: 500 });
     }
+
+    console.log(`Valley request updated successfully: previous status '${existingRequest.status}' → new status '${data.status}'`);
 
     try {
       console.log(`Creating notification for employee ${employeeId}`);
@@ -171,6 +189,7 @@ export async function PATCH(
         created_at: new Date().toISOString()
       };
       await supabase.from('notifications').insert([notificationData]);
+      console.log('Employee notification created');
 
       if (newStatus === 'travel_approved') {
         const { data: checkers, error: checkersError } = await supabase
@@ -178,6 +197,7 @@ export async function PATCH(
           .select('id')
           .eq('role', 'checker');
         if (!checkersError && checkers?.length) {
+          console.log(`Notifying ${checkers.length} checkers about approved request`);
           for (const checker of checkers) {
             await supabase.from('notifications').insert([{
               id: uuidv4(),

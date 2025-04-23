@@ -232,19 +232,47 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
       console.log(`Fetched ${projectsData.length} projects`);
       setProjects(projectsData);
       
-      if (projectsData.length > 0) {
-        setSelectedProjectId(projectsData[0].id);
-        
-        // Fetch budgets for this project 
-        await fetchBudgets(projectsData[0].id);
-      }
-      
+      // Initialize selected project based on just-fetched data
+      // We'll handle actually setting it in a separate useEffect
+      // when request data is available
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
       setProjectsLoading(false);
     }
   };
+  
+  // Effect to set selected project when both request and projects are loaded
+  useEffect(() => {
+    if (request && projects.length > 0) {
+      // Try to find a project that matches the request's project name
+      const projectName = request.project;
+      if (projectName) {
+        // Look for a matching project by name (case-insensitive)
+        const matchingProject = projects.find(p => 
+          p.name.toLowerCase() === projectName.toLowerCase() ||
+          p.id === projectName // In case project is stored as ID
+        );
+        
+        if (matchingProject) {
+          console.log('Found matching project:', matchingProject.name);
+          setSelectedProjectId(matchingProject.id);
+          
+          // Fetch the budget for this project
+          fetchBudgets(matchingProject.id);
+        } else if (projects.length > 0) {
+          // If no match found, default to first project
+          console.log('No matching project found, defaulting to first project');
+          setSelectedProjectId(projects[0].id);
+          fetchBudgets(projects[0].id);
+        }
+      } else if (projects.length > 0) {
+        // If no project specified in request, default to first
+        setSelectedProjectId(projects[0].id);
+        fetchBudgets(projects[0].id);
+      }
+    }
+  }, [request, projects]);
   
   // Fetch budgets
   const fetchBudgets = async (projectId?: string) => {
@@ -769,25 +797,24 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
                     <TableCell>{item.description || '-'}</TableCell>
                     <TableCell className="text-right">{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                     <TableCell>
-  {receipts[item.id] && receipts[item.id].length > 0 ? (
-    <div className="flex flex-wrap gap-2">
-      {receipts[item.id].map((receipt, idx) => (
-        <a  // This opening <a> tag was missing
-          key={receipt.id}
-          href={receipt.publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs py-1 px-2 bg-primary/10 text-primary rounded-md hover:bg-primary/20"
-        >
-          <Paperclip size={12} />
-          Receipt {idx + 1}
-        </a>
-      ))}
-    </div>
-  ) : (
-    <span className="text-muted-foreground text-sm">No receipts</span>
-  )}
-</TableCell>
+                      {receipts[item.id] && receipts[item.id].length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {receipts[item.id].map((receipt, idx) => (
+                            <a
+                              key={receipt.id}
+                              href={receipt.publicUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs py-1 px-2 bg-primary/10 text-primary rounded-md hover:bg-primary/20">
+                              <Paperclip size={12} />
+                              Receipt {idx + 1}
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No receipts</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/10 font-medium">

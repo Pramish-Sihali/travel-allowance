@@ -117,6 +117,11 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
         const requestData = await requestResponse.json();
         setRequest(requestData);
         
+        // Load previous comments if they exist
+        if (requestData.checkerComments) {
+          setVerificationComment(requestData.checkerComments);
+        }
+        
         // Fetch expense items
         const expensesResponse = await fetch(`/api/expenses?requestId=${requestId}`);
         if (!expensesResponse.ok) {
@@ -197,12 +202,31 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
       console.log('Projects data:', projectsData);
       setProjects(projectsData);
       
-      if (projectsData.length > 0) {
-        const firstProjectId = projectsData[0].id;
-        setSelectedProjectId(firstProjectId);
-        
-        // Fetch budgets for this project 
-        await fetchBudgets(firstProjectId);
+      // Get request data to find matching project
+      if (request) {
+        // Try to find project by name from the request
+        const projectName = request.project === 'other' ? request.projectOther : request.project;
+        if (projectName) {
+          // Look for a matching project in the projects list
+          const matchingProject = projectsData.find((p: { name: string; id: string; }) => 
+            p.name.toLowerCase() === projectName.toLowerCase() ||
+            p.id === projectName // In case project is stored as ID
+          );
+          
+          if (matchingProject) {
+            console.log('Found matching project:', matchingProject.name);
+            setSelectedProjectId(matchingProject.id);
+          } else if (projectsData.length > 0) {
+            // Fallback to first project if no match found
+            setSelectedProjectId(projectsData[0].id);
+          }
+        } else if (projectsData.length > 0) {
+          // If no project in request, default to first
+          setSelectedProjectId(projectsData[0].id);
+        }
+      } else if (projectsData.length > 0) {
+        // If request not yet loaded, just select first project
+        setSelectedProjectId(projectsData[0].id);
       }
       
     } catch (error) {
@@ -211,6 +235,24 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
       setProjectsLoading(false);
     }
   };
+  
+  // Re-run project matching when request data is loaded
+  useEffect(() => {
+    if (request && projects.length > 0) {
+      const projectName = request.project === 'other' ? request.projectOther : request.project;
+      if (projectName) {
+        const matchingProject = projects.find(p => 
+          p.name.toLowerCase() === projectName.toLowerCase() ||
+          p.id === projectName
+        );
+        
+        if (matchingProject) {
+          console.log('Setting project to match request:', matchingProject.name);
+          setSelectedProjectId(matchingProject.id);
+        }
+      }
+    }
+  }, [request, projects]);
   
   // Fetch budgets, optionally for a specific project
   const fetchBudgets = async (projectId?: string) => {

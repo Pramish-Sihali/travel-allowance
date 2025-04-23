@@ -58,14 +58,18 @@ export async function PATCH(
         { status: 403 }
       );
     }
-    // Check if the request is in a valid state
-    const validStates = ['pending', 'travel_approved'];
+    
+    // Check if the request is in a valid state - ONLY ALLOW TRAVEL_APPROVED
+    const validStates = ['travel_approved']; // Removed 'pending' to fix the issue
     if (!validStates.includes(existingRequest.status)) {
+      console.error(`Invalid request state for expense submission: ${existingRequest.status}`);
       return NextResponse.json(
-        { error: `This valley request is not in a valid state for expense submission (current state: ${existingRequest.status})` },
+        { error: `This valley request is not ready for expense submission (current state: ${existingRequest.status}). It must be approved first.` },
         { status: 400 }
       );
     }
+
+    console.log(`Valley request with ID ${id} is in valid state '${existingRequest.status}' for expense submission`);
 
     // Prepare update data
     const updateData = {
@@ -75,6 +79,8 @@ export async function PATCH(
       phase: 2,
       updated_at: new Date().toISOString()
     };
+
+    console.log('Updating valley request with data:', updateData);
 
     // Update the request
     const { data, error } = await supabase
@@ -92,6 +98,8 @@ export async function PATCH(
       );
     }
 
+    console.log(`Valley request updated successfully: previous status '${existingRequest.status}' → new status '${data.status}'`);
+
     // Create notification for finance department (checkers)
     try {
       const { data: checkers, error: checkersError } = await supabase
@@ -107,6 +115,7 @@ export async function PATCH(
             message: `A valley expense submission is waiting for your financial verification`,
           });
         }
+        console.log(`Sent notifications to ${checkers.length} checkers`);
       }
 
       // Notify the employee
@@ -115,6 +124,7 @@ export async function PATCH(
         requestId: id,
         message: `Your valley expense submission has been received and is pending financial verification`,
       });
+      console.log(`Sent confirmation notification to employee ${existingRequest.employee_id}`);
     } catch (notificationError) {
       console.error('Error creating notifications:', notificationError);
       // Continue despite notification error

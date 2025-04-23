@@ -563,6 +563,7 @@ export default function InValleyRequestForm() {
   const [loadingApprovers, setLoadingApprovers] = useState(true);
   const [phase, setPhase] = useState<1 | 2>(1);  // Phase 1: Request Details, Phase 2: Expenses
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [requestDetails, setRequestDetails] = useState<any>(null);
   
   // Initialize form for Phase 1
   const valleyDetailsForm = useForm<ValleyDetailsFormValues>({
@@ -595,8 +596,28 @@ export default function InValleyRequestForm() {
     if (id && expenseMode === 'true') {
       setPhase(2);
       setRequestId(id);
+      
+      // Fetch request details to display in the expense form
+      const fetchRequestDetails = async () => {
+        try {
+          const response = await fetch(`/api/valley-requests/${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setRequestDetails(data);
+            console.log("Fetched valley request details:", data);
+          } else {
+            console.error('Failed to fetch valley request details');
+            router.push('/employee/dashboard');
+          }
+        } catch (error) {
+          console.error('Error fetching valley request details:', error);
+          router.push('/employee/dashboard');
+        }
+      };
+      
+      fetchRequestDetails();
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
   
   // Fetch projects from the database
   useEffect(() => {

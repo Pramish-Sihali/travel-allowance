@@ -192,7 +192,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
     try {
       const status = action === 'approve' ? 'approved' : 'rejected';
       const apiPath = request.requestType === 'in-valley'
-        ? `/api/valley-requests/${requestId}/expenses`
+        ? `/api/valley-requests/${requestId}`
         : `/api/requests/${requestId}`;
       
       const response = await fetch(apiPath, {
