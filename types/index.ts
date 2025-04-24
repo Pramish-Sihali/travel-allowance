@@ -44,49 +44,72 @@ export interface TravelRequest {
   employeeName: string;
   department: string;
   designation: string;
-  requestType: RequestType;
+  requestType: 'normal' | 'advance' | 'emergency' | 'group' | 'in-valley';
+  
+  // Travel details
   project: string;
+  projectOther?: string;
   purpose: string;
+  purposeType?: string;
+  purposeOther?: string;
   location: string;
-  travelDateFrom: string | Date;
-  travelDateTo: string | Date;
+  locationOther?: string;
+  travelDateFrom: string;
+  travelDateTo: string;
+  
+  // Transportation details
   transportMode: string;
   stationPickDrop: string;
   localConveyance: string;
   rideShareUsed: boolean;
   ownVehicleReimbursement: boolean;
+  
+  // Financial details
   totalAmount: number;
   previousOutstandingAdvance?: number;
-  status: RequestStatus;
-  approverComments?: string;
-  checkerComments?: string;
-  createdAt: string | Date;
-  updatedAt?: string | Date;
   
-  // Fields for in-valley requests
-  expenseDate?: string | Date;
-  paymentMethod?: string;
-  meetingType?: string;
-  meetingParticipants?: string;
-  description?: string;
-  
-  // New fields for two-phase workflow
-  phase?: number; // 1 or 2
-  approverId?: string;
-  travelDetailsApprovedAt?: string | Date;
-  expensesSubmittedAt?: string | Date;
-  
-  // Optional fields from form submission
-  projectOther?: string;
-  purposeType?: string;
-  purposeOther?: string;
-  locationOther?: string;
-
+  // Group travel details
   isGroupTravel?: boolean;
   isGroupCaptain?: boolean;
   groupSize?: string;
   groupMembers?: string[];
   groupDescription?: string;
+  
+  // Advance request details
+  estimatedAmount?: string;
+  advanceNotes?: string;
+  
+  // Emergency request details
+  emergencyReason?: string;
+  emergencyReasonOther?: string;
+  emergencyJustification?: string;
+  emergencyAmount?: string;
+  
+  // Processing flags
+  needs_financial_attention?: boolean;
+  is_urgent?: boolean;
+  
+  // Status and phase
+  status: 'pending' | 'approved' | 'rejected' | 'travel_approved' | 'pending_verification' | 'rejected_by_checker';
+  phase: number;
+  
+  // Approver information
+  approverId: string;
+  approverComments?: string;
+  checkerComments?: string;
+  
+  // Valley-specific fields
+  expenseDate?: string;
+  description?: string;
+  paymentMethod?: string;
+  meetingType?: string;
+  meetingParticipants?: string;
+  
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+  travel_details_approved_at?: string;
+  expenses_submitted_at?: string;
 }
 
 export interface ExpenseItem {

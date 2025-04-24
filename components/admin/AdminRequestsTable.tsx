@@ -1134,17 +1134,17 @@ export default function AdminRequestsTable() {
                       )}
                       
                       {/* Show timestamps for various status changes */}
-                      {selectedRequest.travelDetailsApprovedAt && (
+                      {selectedRequest.travel_details_approved_at && (
                         <div className="flex items-center gap-2 text-sm">
                           <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                          <span>Travel approved on {new Date(selectedRequest.travelDetailsApprovedAt).toLocaleDateString()}</span>
+                          <span>Travel approved on {new Date(selectedRequest.travel_details_approved_at).toLocaleDateString()}</span>
                         </div>
                       )}
                       
-                      {selectedRequest.expensesSubmittedAt && (
+                      {selectedRequest.expenses_submitted_at && (
                         <div className="flex items-center gap-2 text-sm">
                           <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                          <span>Expenses submitted on {new Date(selectedRequest.expensesSubmittedAt).toLocaleDateString()}</span>
+                          <span>Expenses submitted on {new Date(selectedRequest.expenses_submitted_at).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>

@@ -13,12 +13,9 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-
 
 // Import icons
 import { 
@@ -30,10 +27,6 @@ import {
   AlertTriangle,
   ThumbsUp,
   ThumbsDown,
-  MessageCircle,
-  FileCheck, 
-  ClipboardCheck,
-  ScrollText,
   Info,
   Calendar,
   UserIcon
@@ -42,8 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import RequestDetailsTab from './RequestDetailsTab';
 import RequestExpensesTab from './RequestExpensesTab';
-import ActionPanel from './common/ActionPanel';
-
+import RequestApprovalTab from './RequestApprovalTab';
 
 interface ApproverRequestDetailProps {
   requestId: string;
@@ -57,7 +49,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
   const [receipts, setReceipts] = useState<Record<string, Receipt[]>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
-  const [comments, setComments] = useState('');
+  const [approvalComment, setApprovalComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: 'success' | 'error' | 'info' | 'warning';
@@ -128,7 +120,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
       
       // Set previous comments if they exist
       if (requestData.approverComments) {
-        setComments(requestData.approverComments);
+        setApprovalComment(requestData.approverComments);
       }
       
       // Fetch expense items if appropriate for this request
@@ -183,14 +175,13 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
     }
   };
   
-  const handleAction = async (action: string) => {
+  const handleApproveReject = async (status: 'approved' | 'rejected') => {
     if (!request) return;
     
     setIsSubmitting(true);
     setStatusMessage(null);
     
     try {
-      const status = action === 'approve' ? 'approved' : 'rejected';
       const apiPath = request.requestType === 'in-valley'
         ? `/api/valley-requests/${requestId}`
         : `/api/requests/${requestId}`;
@@ -202,7 +193,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         },
         body: JSON.stringify({
           status,
-          comments,
+          comments: approvalComment,
           role: 'approver'
         }),
       });
@@ -217,8 +208,8 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
       // Show success message
       setStatusMessage({
         type: 'success',
-        title: action === 'approve' ? 'Request Approved' : 'Request Rejected',
-        message: action === 'approve' 
+        title: status === 'approved' ? 'Request Approved' : 'Request Rejected',
+        message: status === 'approved' 
           ? 'Request has been approved and sent for financial verification.' 
           : 'Request has been rejected.'
       });
@@ -233,7 +224,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
       setStatusMessage({
         type: 'error',
         title: 'Error',
-        message: `Failed to ${action} request. Please try again.`
+        message: `Failed to ${status} request. Please try again.`
       });
     } finally {
       setIsSubmitting(false);
@@ -325,31 +316,6 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
     end: new Date(request.travelDateTo),
     duration: Math.ceil((new Date(request.travelDateTo).getTime() - new Date(request.travelDateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
   };
-  
-  // Determine if actions can be taken (only if status is pending)
-  const canTakeAction = request.status === 'pending';
-  const disableReason = !canTakeAction ? 
-    `This request is in the "${getFormattedStatus(request.status)}" state and cannot be modified.` : 
-    undefined;
-  
-  // Action panel configuration
-  const actions = [
-    {
-      key: 'reject',
-      label: 'Reject Request',
-      icon: ThumbsDown,
-      variant: 'custom' as 'custom'
-    },
-    {
-      key: 'approve',
-      label: 'Approve Request',
-      icon: ThumbsUp,
-      variant: 'custom' as 'custom'
-    }
-  ];
-  
-
- 
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -371,7 +337,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         </div>
       </div>
       
-      {/* {statusMessage && (
+      {statusMessage && (
         <Alert className={cn(
           "mb-6",
           statusMessage.type === 'success' ? "bg-green-50 text-green-800 border-green-200" :
@@ -387,7 +353,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
           {statusMessage.title && <AlertTitle>{statusMessage.title}</AlertTitle>}
           <AlertDescription>{statusMessage.message}</AlertDescription>
         </Alert>
-      )} */}
+      )}
       
       <Card className="border shadow-sm mb-6">
         <CardHeader className="border-b bg-muted/10">
@@ -412,10 +378,10 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
                   <span className="hidden sm:inline">Request Details</span>
                 </TabsTrigger>
 
-                {/* <TabsTrigger value="expenses" className="flex items-center gap-2">
+                <TabsTrigger value="expenses" className="flex items-center gap-2">
                   <DollarSign size={16} />
                   <span className="hidden sm:inline">Expenses</span>
-                </TabsTrigger> */}
+                </TabsTrigger>
 
                 <TabsTrigger value="approval" className="flex items-center gap-2">
                   <CheckCircle size={16} />
@@ -431,58 +397,53 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
               />
             </TabsContent>
             
-          
+            <TabsContent value="expenses">
+              <RequestExpensesTab 
+                expenseItems={expenseItems} 
+                receipts={receipts} 
+                totalAmount={request.totalAmount || 0}
+                previousOutstandingAdvance={request.previousOutstandingAdvance}
+              />
+            </TabsContent>
             
             <TabsContent value="approval">
-              <div className="p-6 space-y-6">
-                <ActionPanel
-                  request={request}
-                  comments={comments}
-                  setComments={setComments}
-                  onAction={handleAction}
-                  isSubmitting={isSubmitting}
-                  onBack={() => router.push('/approver/dashboard')}
-                  title="Approval Action"
-                  description="Review the request details and approve or reject based on company policy."
-                  statusMessage={statusMessage}
-                  actions={actions}
-                  disableActions={!canTakeAction}
-                  disableReason={disableReason}
-                  commentsLabel="Approval Comments"
-                  commentsPlaceholder="Add your comments or notes regarding your decision. These will be visible to the requester and finance team..."
-                />
-                
-              
-              </div>
+              <RequestApprovalTab 
+                request={request}
+                approvalComment={approvalComment}
+                setApprovalComment={setApprovalComment}
+                handleApproveReject={handleApproveReject}
+                isSubmitting={isSubmitting}
+                router={router}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>
         
         <CardFooter className="border-t p-4 bg-muted/5 flex justify-between">
-  <div className="text-sm text-muted-foreground flex items-center gap-1">
-    {request.requestType === 'in-valley' ? (
-      <>
-        <Calendar className="h-4 w-4" />
-        {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
-      </>
-    ) : (
-      <>
-        <Calendar className="h-4 w-4" />
-        {travelDates.start.toLocaleDateString()} - {travelDates.end.toLocaleDateString()}
-        <span className="mx-2">•</span>
-        <span>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</span>
-      </>
-    )}
-    <span className="mx-2">•</span>
-    <div className="flex items-center gap-1">
-      <UserIcon className="h-4 w-4" />
-      <span className="font-medium">{request.employeeName || "Unknown Employee"}</span>
-      {request.department && (
-        <span className="text-xs text-muted-foreground">({request.department})</span>
-      )}
-    </div>
-  </div>
-</CardFooter>
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
+            {request.requestType === 'in-valley' ? (
+              <>
+                <Calendar className="h-4 w-4" />
+                {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString()}
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4" />
+                {travelDates.start.toLocaleDateString()} - {travelDates.end.toLocaleDateString()}
+                <span className="mx-2">•</span>
+                <span>{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</span>
+              </>
+            )}
+            <span className="mx-2">•</span>
+            <div className="flex items-center gap-1">
+              <UserIcon className="h-4 w-4" />
+              <span className="font-medium">{request.employeeName || "Unknown Employee"}</span>
+              {request.department && (
+                <span className="text-xs text-muted-foreground">({request.department})</span>
+              )}
+            </div>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

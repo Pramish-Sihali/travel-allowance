@@ -84,8 +84,16 @@ const travelDetailsSchema = z.object({
   groupSize: z.string().optional(),
   groupMembers: z.array(z.string()).optional().default([]),
   groupDescription: z.string().optional(),
+  
+  // Advance request fields
   estimatedAmount: z.string().optional(),
   advanceNotes: z.string().optional(),
+  
+  // Emergency request fields
+  emergencyReason: z.string().optional(),
+  emergencyReasonOther: z.string().optional(),
+  emergencyJustification: z.string().optional(),
+  emergencyAmount: z.string().optional(),
   
   // Approver selection
   approverId: z.string().min(1, "Please select an approver"),
@@ -161,6 +169,45 @@ const travelDetailsSchema = z.object({
     message: "Please provide an estimated amount for your advance request",
     path: ["estimatedAmount"],
   }
+)
+.refine(
+  (data) => {
+    // If it's an emergency request, reason and justification should be provided
+    if (data.requestType === "emergency" && (!data.emergencyReason || !data.emergencyJustification)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Please provide reason and justification for your emergency request",
+    path: ["emergencyJustification"],
+  }
+)
+.refine(
+  (data) => {
+    // If emergency reason is 'other', then other reason should be provided
+    if (data.requestType === "emergency" && data.emergencyReason === "other" && !data.emergencyReasonOther) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Please specify the other emergency reason",
+    path: ["emergencyReasonOther"],
+  }
+)
+.refine(
+  (data) => {
+    // If it's an emergency request, amount should be provided
+    if (data.requestType === "emergency" && (!data.emergencyAmount || parseFloat(data.emergencyAmount) <= 0)) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Please provide an estimated amount for your emergency request",
+    path: ["emergencyAmount"],
+  }
 );
 
 // Define Zod schema for expenses (Phase 2)
@@ -220,6 +267,11 @@ export default function TravelRequestForm() {
       approverId: '',
       estimatedAmount: '',
       advanceNotes: '',
+
+      emergencyReason: '',
+      emergencyReasonOther: '',
+      emergencyJustification: '',
+      emergencyAmount: '',
     },
   });
   

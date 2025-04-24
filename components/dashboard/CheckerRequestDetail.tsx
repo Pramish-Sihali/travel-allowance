@@ -629,18 +629,21 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
               </Badge>
               
               <Badge className={cn(
-                "flex items-center gap-1.5 h-7 px-3",
-                requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
-                requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                'bg-red-100 text-red-800 border-red-200'
-              )}>
-                {requestType === 'normal' && <FileText className="h-3.5 w-3.5" />}
-                {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5" />}
-                {requestType === 'in-valley' && <MapPin className="h-3.5 w-3.5" />}
-                {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5" />}
-                {requestType.charAt(0).toUpperCase() + requestType.slice(1)} Request
-              </Badge>
+  "flex items-center gap-1.5 h-7 px-3",
+  requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+  requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
+  requestType === 'emergency' ? 'bg-red-100 text-red-800 border-red-200' :
+  requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+  requestType === 'group' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+  'bg-gray-100 text-gray-800 border-gray-200'
+)}>
+  {requestType === 'normal' && <FileText className="h-3.5 w-3.5" />}
+  {requestType === 'advance' && <CreditCard className="h-3.5 w-3.5" />}
+  {requestType === 'emergency' && <AlertTriangle className="h-3.5 w-3.5" />}
+  {requestType === 'in-valley' && <MapPin className="h-3.5 w-3.5" />} 
+  {requestType === 'group' && <Users className="h-3.5 w-3.5" />}
+  {requestType.charAt(0).toUpperCase() + requestType.slice(1)} Request
+</Badge>
             </div>
           </div>
         </CardHeader>
@@ -719,6 +722,71 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
             </TabsContent>
             
             <TabsContent value="verification" className="p-6 space-y-6">
+
+            {request.requestType === 'emergency' && (
+  <Alert className="mb-4 bg-red-50 text-red-800 border-red-200">
+    <AlertTriangle className="h-4 w-4 text-red-600" />
+    <AlertTitle>
+      <span className="flex items-center gap-2">
+        <Clock className="h-4 w-4" />
+        Emergency Request
+      </span>
+    </AlertTitle>
+    <AlertDescription>
+      <div className="mt-2">
+        <p className="font-medium text-sm">Emergency Reason:</p>
+        <p className="mb-2">
+          {request.emergencyReason === 'urgent-meeting' ? 'Urgent Meeting' :
+           request.emergencyReason === 'crisis-response' ? 'Crisis Response' :
+           request.emergencyReason === 'time-sensitive' ? 'Time-Sensitive Opportunity' :
+           request.emergencyReason === 'medical' ? 'Medical Emergency' :
+           request.emergencyReason === 'other' ? (request.emergencyReasonOther || 'Other') :
+           request.emergencyReason || 'Not specified'}
+        </p>
+        
+        <p className="font-medium text-sm">Emergency Justification:</p>
+        <p className="text-sm whitespace-pre-line">{request.emergencyJustification}</p>
+      </div>
+      <div className="mt-3 p-2 bg-red-100 rounded text-sm">
+        <p className="font-medium flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Urgent Action Required
+        </p>
+        <p>This request has been flagged as urgent and requires expedited processing.</p>
+      </div>
+    </AlertDescription>
+  </Alert>
+)}
+
+{/* Special Alert for Advance Requests */}
+{request.requestType === 'advance' && (
+  <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+    <DollarSign className="h-4 w-4 text-amber-600" />
+    <AlertTitle>
+      <span className="flex items-center gap-2">
+        <CreditCard className="h-4 w-4" />
+        Advance Payment Request
+      </span>
+    </AlertTitle>
+    <AlertDescription>
+      <div className="mt-2">
+        <p className="font-medium text-sm">Estimated Amount:</p>
+        <p className="mb-2">Nrs. {parseFloat(request.estimatedAmount || '0').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+        
+        <p className="font-medium text-sm">Advance Notes:</p>
+        <p className="text-sm whitespace-pre-line">{request.advanceNotes}</p>
+      </div>
+      <div className="mt-3 p-2 bg-amber-100 rounded text-sm">
+        <p className="font-medium flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Advance Payment
+        </p>
+        <p>This employee requires advance payment before travel. Please prioritize processing.</p>
+      </div>
+    </AlertDescription>
+  </Alert>
+)}
+
               {request.status !== 'pending_verification' ? (
                 <>
                   <Alert className={request.status === 'approved' 

@@ -34,7 +34,8 @@ import {
   User,
   MapPin,
   Building,
-  Briefcase
+  Briefcase,
+  Clock
 } from 'lucide-react';
 
 interface RequestApprovalTabProps {
@@ -57,6 +58,18 @@ export default function RequestApprovalTab({
   // Calculate combined total (including previous outstanding advance)
   const calculateCombinedTotal = () => {
     return request.totalAmount + (request.previousOutstandingAdvance || 0);
+  };
+
+  // Get the formatted emergency reason
+  const getFormattedEmergencyReason = (reason: string) => {
+    switch(reason) {
+      case 'urgent-meeting': return 'Urgent Meeting';
+      case 'crisis-response': return 'Crisis Response';
+      case 'time-sensitive': return 'Time-Sensitive Opportunity';
+      case 'medical': return 'Medical Emergency';
+      case 'other': return request.emergencyReasonOther || 'Other';
+      default: return reason;
+    }
   };
 
   return (
@@ -104,6 +117,48 @@ export default function RequestApprovalTab({
           <p className="text-muted-foreground mb-4">
             Review the request carefully before making a decision. After your approval, the request will be sent to Finance for verification.
           </p>
+          
+          {/* Display advance request information */}
+          {request.requestType === 'advance' && (
+            <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+              <DollarSign className="h-4 w-4 text-amber-600" />
+              <AlertTitle>Advance Request</AlertTitle>
+              <AlertDescription>
+                <div className="mt-2">
+                  <p className="font-medium text-sm">Estimated Amount:</p>
+                  <p className="mb-2">Nrs. {parseFloat(request.estimatedAmount || '0').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  
+                  <p className="font-medium text-sm">Advance Notes:</p>
+                  <p className="text-sm whitespace-pre-line">{request.advanceNotes}</p>
+                </div>
+                <div className="mt-3 text-sm bg-amber-100/50 p-2 rounded border border-amber-300">
+                  <p className="font-medium">Note:</p>
+                  <p>If approved, this advance request will be immediately forwarded to Finance for processing.</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Display emergency request information */}
+          {request.requestType === 'emergency' && (
+            <Alert className="mb-4 bg-red-50 text-red-800 border-red-200">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTitle>Emergency Request</AlertTitle>
+              <AlertDescription>
+                <div className="mt-2">
+                  <p className="font-medium text-sm">Emergency Reason:</p>
+                  <p className="mb-2">{getFormattedEmergencyReason(request.emergencyReason || '')}</p>
+                  
+                  <p className="font-medium text-sm">Emergency Justification:</p>
+                  <p className="text-sm whitespace-pre-line">{request.emergencyJustification}</p>
+                </div>
+                <div className="mt-3 text-sm bg-red-100/50 p-2 rounded border border-red-300">
+                  <p className="font-medium">Important Note:</p>
+                  <p>This is an emergency request that requires immediate attention. If approved, it will be immediately forwarded to Finance for expedited processing.</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="mb-6 bg-muted/10 p-4 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -155,26 +210,6 @@ export default function RequestApprovalTab({
                     Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </Badge>
                 </div>
-{/*                 
-                {request.previousOutstandingAdvance > 0 && (
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={16} className="text-amber-500" />
-                    <span className="text-sm font-medium text-amber-700">Previous Outstanding:</span>
-                    <Badge className="bg-amber-100 text-amber-800 border-0 font-medium">
-                      Nrs.{request.previousOutstandingAdvance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </Badge>
-                  </div>
-                )}
-                
-                {request.previousOutstandingAdvance > 0 && (
-                  <div className="flex items-center gap-2">
-                    <DollarSign size={16} className="text-primary font-bold" />
-                    <span className="text-sm font-bold">Combined Total:</span>
-                    <Badge className="bg-primary/20 text-primary border-0 font-bold">
-                      Nrs.{calculateCombinedTotal().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </Badge>
-                  </div>
-                )} */}
               </div>
             </div>
           </div>
@@ -343,6 +378,78 @@ export default function RequestApprovalTab({
           </CardContent>
         </Card>
       </div>
+      
+      {/* Special considerations for emergency requests */}
+      {request.requestType === 'emergency' && (
+        <Card className="shadow-sm border-red-200">
+          <CardHeader className="pb-3 bg-red-50">
+            <CardTitle className="text-base flex items-center gap-2 text-red-800">
+              <Clock size={16} className="text-red-600" />
+              Emergency Request Guidelines
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="p-3 bg-red-50 rounded-md">
+                <p className="font-medium text-sm text-red-800 mb-1">Special Considerations</p>
+                <p className="text-xs text-red-700">
+                  Emergency requests should only be approved when there is a genuine urgency that couldn't have been planned in advance. Verify that the justification provided is legitimate and meets company policy for emergency travel.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-red-50 rounded-md">
+                <p className="font-medium text-sm text-red-800 mb-1">Expedited Processing</p>
+                <p className="text-xs text-red-700">
+                  If approved, this request will be immediately forwarded to Finance for expedited processing, potentially bypassing normal processing times. Please ensure this level of priority is warranted.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-red-50 rounded-md">
+                <p className="font-medium text-sm text-red-800 mb-1">Documentation Requirements</p>
+                <p className="text-xs text-red-700">
+                  Even though this is an emergency request, ensure the employee understands they will still need to provide all standard documentation and receipts for later verification.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Special considerations for advance requests */}
+      {request.requestType === 'advance' && (
+        <Card className="shadow-sm border-amber-200">
+          <CardHeader className="pb-3 bg-amber-50">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-800">
+              <DollarSign size={16} className="text-amber-600" />
+              Advance Request Guidelines
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="p-3 bg-amber-50 rounded-md">
+                <p className="font-medium text-sm text-amber-800 mb-1">Amount Verification</p>
+                <p className="text-xs text-amber-700">
+                  Verify that the requested advance amount is reasonable and in line with estimated expenses for the travel duration and location.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-amber-50 rounded-md">
+                <p className="font-medium text-sm text-amber-800 mb-1">Settlement Timeline</p>
+                <p className="text-xs text-amber-700">
+                  Employees must settle advances within 7 days of returning from travel. Ensure the employee is aware of this requirement.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-amber-50 rounded-md">
+                <p className="font-medium text-sm text-amber-800 mb-1">Outstanding Advances</p>
+                <p className="text-xs text-amber-700">
+                  Check if the employee has any outstanding unsettled advances before approving a new one. Company policy may restrict multiple outstanding advances.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       <Card className="shadow-sm">
         <CardHeader className="pb-3 bg-muted/30">

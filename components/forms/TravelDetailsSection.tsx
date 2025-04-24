@@ -52,8 +52,9 @@ const TravelDetailsSection = ({
   loadingProjects: boolean,
   readOnly?: boolean
 }) => {
-  // Check if the request type is 'advance' to conditionally show the estimate field
+  // Check if the request type is 'advance' or 'emergency' to conditionally show the specialized fields
   const isAdvanceRequest = form.watch('requestType') === 'advance';
+  const isEmergencyRequest = form.watch('requestType') === 'emergency';
   
   return (
     <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
@@ -279,6 +280,121 @@ const TravelDetailsSection = ({
                     </FormControl>
                     <FormDescription className="text-amber-700">
                       The approver will review this information when considering your advance request.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+          
+          {/* Emergency Request Information Section */}
+          {isEmergencyRequest && (
+            <div className="p-4 border border-red-200 rounded-md bg-red-50">
+              <div className="flex items-center mb-3">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                <h4 className="text-sm font-medium text-red-700">Emergency Request Information</h4>
+              </div>
+              
+              {/* Emergency Amount Field */}
+              <FormField
+                control={form.control}
+                name="emergencyAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <DollarSign className="h-4 w-4 mr-1 text-red-600" />
+                      <span>Estimated Amount</span>
+                    </FormLabel>
+                    <FormControl>
+                      <div className="flex items-center">
+                        <span className="px-3 py-2 bg-red-100 border-y border-l border-red-200 rounded-l-md text-red-700">Nrs.</span>
+                        <Input
+                          type="number"
+                          {...field}
+                          className="rounded-l-none border-red-200"
+                          placeholder="Enter estimated amount for emergency"
+                          readOnly={readOnly}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription className="text-red-700">
+                      This is the estimated amount needed for your emergency request.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="emergencyReason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Emergency Reason</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="border-red-200">
+                          <SelectValue placeholder="Select emergency reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="urgent-meeting">Urgent Meeting</SelectItem>
+                          <SelectItem value="crisis-response">Crisis Response</SelectItem>
+                          <SelectItem value="time-sensitive">Time-Sensitive Opportunity</SelectItem>
+                          <SelectItem value="medical">Medical Emergency</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormDescription className="text-red-700">
+                      Select the reason why this travel request is an emergency.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch('emergencyReason') === 'other' && (
+                <FormField
+                  control={form.control}
+                  name="emergencyReasonOther"
+                  render={({ field }) => (
+                    <FormItem className="mt-2">
+                      <FormLabel>Specify Emergency Reason</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Specify the emergency reason"
+                          className="border-red-200"
+                          readOnly={readOnly}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              <FormField
+                control={form.control}
+                name="emergencyJustification"
+                render={({ field }) => (
+                  <FormItem className="mt-4">
+                    <FormLabel>Emergency Justification</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Please provide a detailed explanation of why this travel requires emergency processing. Include any relevant deadlines or consequences of delay."
+                        className="resize-none min-h-[80px] border-red-200"
+                        readOnly={readOnly}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-red-700">
+                      The approver will review this justification when considering your emergency request.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

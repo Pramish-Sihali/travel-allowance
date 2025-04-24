@@ -64,10 +64,24 @@ export async function PATCH(
     const employeeId = travelRequest.employeeId
     let newStatus = status
     let notificationMessage = ''
+    let notifyCheckers = false
 
     if (role === 'approver' && status === 'approved') {
+      // For regular requests, set to travel_approved
       newStatus = 'travel_approved'
       notificationMessage = `Your travel request has been approved. You can now submit your expenses after your travel is complete.`
+      
+      // For advance or emergency requests, also notify checkers immediately
+      if (travelRequest.requestType === 'advance' || travelRequest.requestType === 'emergency') {
+        notifyCheckers = true
+        
+        // For emergency requests, add more specific messaging
+        if (travelRequest.requestType === 'emergency') {
+          notificationMessage = `Your emergency travel request has been approved. Finance will be notified for expedited processing.`
+        } else if (travelRequest.requestType === 'advance') {
+          notificationMessage = `Your advance travel request has been approved. Finance will be notified to process your advance payment.`
+        }
+      }
     } else if (
       role === 'checker' &&
       status === 'approved' &&
@@ -90,6 +104,17 @@ export async function PATCH(
       updatedData.approverComments = comments
       if (newStatus === 'travel_approved') {
         updatedData.travel_details_approved_at = new Date().toISOString()
+        
+        // For advance requests, add a flag to indicate it needs financial attention
+        if (travelRequest.requestType === 'advance') {
+          updatedData.needs_financial_attention = true
+        }
+        
+        // For emergency requests, add a flag to indicate it's urgent
+        if (travelRequest.requestType === 'emergency') {
+          updatedData.needs_financial_attention = true
+          updatedData.is_urgent = true
+        }
       }
     } else if (role === 'checker') {
       updatedData.checkerComments = comments
@@ -120,7 +145,8 @@ export async function PATCH(
       })
       console.log('Employee notification created successfully')
 
-      if (newStatus === 'pending_verification') {
+      // Notify checkers if it's a new verification request or an approved advance/emergency request
+      if (newStatus === 'pending_verification' || notifyCheckers) {
         const { data: checkers, error: checkersError } = await supabase
           .from('users')
           .select('id')
@@ -129,11 +155,19 @@ export async function PATCH(
         if (!checkersError && checkers?.length) {
           console.log(`Notifying ${checkers.length} checkers`)
           for (const checker of checkers) {
+            // Customize the notification message based on request type
+            let checkerMessage = 'A new travel request is waiting for your financial verification';
+            
+            if (travelRequest.requestType === 'advance' && notifyCheckers) {
+              checkerMessage = 'An approved advance request requires your immediate attention for fund disbursement';
+            } else if (travelRequest.requestType === 'emergency' && notifyCheckers) {
+              checkerMessage = 'URGENT: An emergency travel request has been approved and requires your immediate attention';
+            }
+            
             await createNotification({
               userId: checker.id,
               requestId: id,
-              message:
-                'A new travel request is waiting for your financial verification',
+              message: checkerMessage,
             })
           }
         } else if (checkersError) {
