@@ -1,5 +1,3 @@
-// components/dashboard/RequestApprovalTab.tsx
-
 import { Dispatch, SetStateAction } from 'react';
 import { TravelRequest } from '@/types';
 import { 
@@ -57,11 +55,13 @@ export default function RequestApprovalTab({
 }: RequestApprovalTabProps) {
   // Calculate combined total (including previous outstanding advance)
   const calculateCombinedTotal = () => {
-    return request.totalAmount + (request.previousOutstandingAdvance || 0);
+    return (request.totalAmount || 0) + (request.previousOutstandingAdvance || 0);
   };
 
   // Get the formatted emergency reason
-  const getFormattedEmergencyReason = (reason: string) => {
+  const getFormattedEmergencyReason = (reason: string | undefined) => {
+    if (!reason) return 'Not specified';
+    
     switch(reason) {
       case 'urgent-meeting': return 'Urgent Meeting';
       case 'crisis-response': return 'Crisis Response';
@@ -129,7 +129,7 @@ export default function RequestApprovalTab({
                   <p className="mb-2">Nrs. {parseFloat(request.estimatedAmount || '0').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                   
                   <p className="font-medium text-sm">Advance Notes:</p>
-                  <p className="text-sm whitespace-pre-line">{request.advanceNotes}</p>
+                  <p className="text-sm whitespace-pre-line">{request.advanceNotes || 'Not provided'}</p>
                 </div>
                 <div className="mt-3 text-sm bg-amber-100/50 p-2 rounded border border-amber-300">
                   <p className="font-medium">Note:</p>
@@ -147,10 +147,10 @@ export default function RequestApprovalTab({
               <AlertDescription>
                 <div className="mt-2">
                   <p className="font-medium text-sm">Emergency Reason:</p>
-                  <p className="mb-2">{getFormattedEmergencyReason(request.emergencyReason || '')}</p>
+                  <p className="mb-2">{getFormattedEmergencyReason(request.emergencyReason)}</p>
                   
                   <p className="font-medium text-sm">Emergency Justification:</p>
-                  <p className="text-sm whitespace-pre-line">{request.emergencyJustification}</p>
+                  <p className="text-sm whitespace-pre-line">{request.emergencyJustification || 'Not provided'}</p>
                 </div>
                 <div className="mt-3 text-sm bg-red-100/50 p-2 rounded border border-red-300">
                   <p className="font-medium">Important Note:</p>
@@ -178,13 +178,21 @@ export default function RequestApprovalTab({
                 <div className="flex items-center gap-2">
                   <Briefcase size={16} className="text-primary" />
                   <span className="text-sm font-medium">Project:</span>
-                  <span>{request.project === 'other' ? request.projectOther : request.project?.replace('-', ' ')}</span>
+                  <span>
+                    {request.project === 'other' ? 
+                      (request.projectOther || 'Other') : 
+                      (request.project || 'Not specified')?.replace(/-/g, ' ')}
+                  </span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <MapPin size={16} className="text-primary" />
                   <span className="text-sm font-medium">Location:</span>
-                  <span>{request.location === 'other' ? request.locationOther : request.location}</span>
+                  <span>
+                    {request.location === 'other' ? 
+                      (request.locationOther || 'Other') : 
+                      (request.location || 'Not specified')}
+                  </span>
                 </div>
               </div>
               
@@ -207,7 +215,7 @@ export default function RequestApprovalTab({
                   <DollarSign size={16} className="text-primary" />
                   <span className="text-sm font-medium">Request Amount:</span>
                   <Badge className="bg-primary/10 text-primary border-0 font-medium">
-                    Nrs.{request.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </Badge>
                 </div>
               </div>

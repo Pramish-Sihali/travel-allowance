@@ -1,23 +1,25 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { TravelRequest, ExpenseItem, Receipt } from '@/types';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { TravelRequest } from '@/types';
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Clock, CheckCircle, AlertTriangle, FileText, DollarSign } from 'lucide-react';
+import { 
+  MapPin, 
+  Calendar, 
+  Building, 
+  User,
+  Briefcase,
+  CreditCard,
+  FileText,
+  CalendarClock,
+  Info,
+  Car,
+  DollarSign,
+  AlertTriangle,
+  Clock
+} from 'lucide-react';
+import { cn } from "@/lib/utils";
 
-// Define the interfaces for the tab components
 interface RequestDetailsTabProps {
   request: TravelRequest;
   travelDates: {
@@ -27,322 +29,373 @@ interface RequestDetailsTabProps {
   };
 }
 
-interface RequestExpensesTabProps {
-  expenseItems: ExpenseItem[];
-  receipts: Record<string, Receipt[]>;
-  totalAmount: number;
-}
+export default function RequestDetailsTab({ request, travelDates }: RequestDetailsTabProps) {
+  const [projectName, setProjectName] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(false);
 
-interface RequestApprovalTabProps {
-  request: TravelRequest;
-  approvalComment: string;
-  setApprovalComment: React.Dispatch<React.SetStateAction<string>>;
-  handleApproveReject: (status: 'approved' | 'rejected') => Promise<void>;
-  isSubmitting: boolean;
-  router: ReturnType<typeof useRouter>;
-}
-
-// Import the tab content components
-import RequestDetailsTab from './RequestDetailsTab';
-import RequestExpensesTab from './RequestExpensesTab';
-import RequestApprovalTab from './RequestApprovalTab';
-
-interface RequestDetailProps {
-  requestId: string;
-}
-
-export default function RequestDetail({ requestId }: RequestDetailProps) {
-  const router = useRouter();
-  const [request, setRequest] = useState<TravelRequest | null>(null);
-  const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
-  const [receipts, setReceipts] = useState<Record<string, Receipt[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [approvalComment, setApprovalComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
+  // Fetch project name if we have a project ID
   useEffect(() => {
-    const fetchRequestDetails = async () => {
+    const fetchProjectName = async () => {
+      if (!request.project) {
+        setProjectName(null);
+        return;
+      }
+      
+      // Check if the project field looks like a UUID
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidPattern.test(request.project)) {
+        // It's not a UUID, likely a name already
+        setProjectName(request.project === 'other' ? 
+          (request.projectOther || request.project) : 
+          request.project);
+        return;
+      }
+      
+      // It's a UUID, fetch the project details
+      setProjectLoading(true);
       try {
-        // Fetch request
-        const requestResponse = await fetch(`/api/requests/${requestId}`);
-        if (!requestResponse.ok) {
-          throw new Error('Failed to fetch request details');
-        }
-        const requestData = await requestResponse.json();
-        setRequest(requestData);
-        
-        // Fetch expense items
-        const expensesResponse = await fetch(`/api/expenses?requestId=${requestId}`);
-        if (!expensesResponse.ok) {
-          throw new Error('Failed to fetch expense items');
-        }
-        const expensesData = await expensesResponse.json();
-        setExpenseItems(expensesData);
-        
-        // Fetch receipts for each expense item
-        const receiptsMap: Record<string, Receipt[]> = {};
-        for (const expense of expensesData) {
-          const receiptsResponse = await fetch(`/api/receipts?expenseItemId=${expense.id}`);
-          if (receiptsResponse.ok) {
-            const receiptsData = await receiptsResponse.json();
-            receiptsMap[expense.id] = receiptsData;
+        const response = await fetch(`/api/projects/${request.project}`);
+        if (response.ok) {
+          const projectData = await response.json();
+          if (projectData && projectData.name) {
+            setProjectName(projectData.name);
+            console.log(`Resolved project ID ${request.project} to name: ${projectData.name}`);
+          } else {
+            // Fallback if project not found
+            setProjectName(request.project === 'other' ? 
+              (request.projectOther || request.project) : 
+              request.project);
           }
+        } else {
+          console.error('Failed to fetch project details:', response.statusText);
+          // Fallback to the original value
+          setProjectName(request.project === 'other' ? 
+            (request.projectOther || request.project) : 
+            request.project);
         }
-        setReceipts(receiptsMap);
       } catch (error) {
-        console.error('Error fetching request details:', error);
+        console.error('Error fetching project details:', error);
+        setProjectName(request.project === 'other' ? 
+          (request.projectOther || request.project) : 
+          request.project);
       } finally {
-        setLoading(false);
+        setProjectLoading(false);
       }
     };
     
-    fetchRequestDetails();
-  }, [requestId]);
-  
-  const handleApproveReject = async (status: 'approved' | 'rejected') => {
-    setIsSubmitting(true);
-    setSuccessMessage(null);
-    setErrorMessage(null);
+    fetchProjectName();
+  }, [request.project, request.projectOther]);
+
+  const getInitials = (name: string) => {
+    if (!name) return 'NA';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Get the formatted emergency reason
+  const getFormattedEmergencyReason = (reason: string | undefined) => {
+    if (!reason) return 'Not specified';
     
-    try {
-      console.log('Approving/rejecting request:', requestId, 'with status:', status);
-      
-      const response = await fetch(`/api/requests/${requestId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status,
-          comments: approvalComment,
-          role: 'approver'  // Identify that this update is from approver
-        }),
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        console.error('API error response:', responseData);
-        throw new Error(`Failed to ${status} request: ${responseData.error || response.statusText}`);
-      }
-      
-      console.log('Request updated successfully:', responseData);
-      setRequest(responseData);
-      
-      // Show appropriate success message based on status
-      if (status === 'approved') {
-        setSuccessMessage(`Request has been approved and sent to Finance for verification. Redirecting...`);
-      } else {
-        setSuccessMessage(`Request has been rejected. Redirecting...`);
-      }
-      
-      // Display success state for 2 seconds before navigating
-      setTimeout(() => {
-        router.push('/approver/dashboard');
-      }, 2000);
-      
-    } catch (error) {
-      console.error(`Error ${status} request:`, error);
-      setErrorMessage(`There was an error ${status === 'approved' ? 'approving' : 'rejecting'} the request. Please try again.`);
-    } finally {
-      setIsSubmitting(false);
+    switch(reason) {
+      case 'urgent-meeting': return 'Urgent Meeting';
+      case 'crisis-response': return 'Crisis Response';
+      case 'time-sensitive': return 'Time-Sensitive Opportunity';
+      case 'medical': return 'Medical Emergency';
+      case 'other': return request.emergencyReasonOther || 'Other';
+      default: return reason;
     }
   };
-  
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-  
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock size={18} className="text-amber-500" />;
-      case 'approved':
-        return <CheckCircle size={18} className="text-green-500" />;
-      case 'rejected':
-        return <AlertTriangle size={18} className="text-red-500" />;
-      default:
-        return null;
-    }
-  };
-  
-  if (loading) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <Skeleton className="h-9 w-32" />
-          <Skeleton className="h-8 w-24" />
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Emergency Request Alert */}
+      {request.requestType === 'emergency' && (
+        <Alert className="bg-red-50 text-red-800 border-red-200 mb-6">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle>
+            <span className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Emergency Request
+            </span>
+          </AlertTitle>
+          <AlertDescription>
+            <div className="mt-2">
+              <p className="font-medium text-sm">Emergency Reason:</p>
+              <p className="mb-2">
+                {getFormattedEmergencyReason(request.emergencyReason)}
+              </p>
+              
+              <p className="font-medium text-sm">Emergency Justification:</p>
+              <p className="text-sm whitespace-pre-line">{request.emergencyJustification || 'Not provided'}</p>
+            </div>
+            <div className="mt-3 p-2 bg-red-100 rounded text-sm">
+              <p className="font-medium flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Urgent Action Required
+              </p>
+              <p>This request has been flagged as urgent and requires expedited processing.</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Advance Request Alert */}
+      {request.requestType === 'advance' && (
+        <Alert className="mb-6 bg-amber-50 text-amber-800 border-amber-200">
+          <DollarSign className="h-4 w-4 text-amber-600" />
+          <AlertTitle>
+            <span className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Advance Payment Request
+            </span>
+          </AlertTitle>
+          <AlertDescription>
+            <div className="mt-2">
+              <p className="font-medium text-sm">Estimated Amount:</p>
+              <p className="mb-2">Nrs. {parseFloat(request.estimatedAmount || '0').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+              
+              <p className="font-medium text-sm">Advance Notes:</p>
+              <p className="text-sm whitespace-pre-line">{request.advanceNotes || 'Not provided'}</p>
+            </div>
+            <div className="mt-3 p-2 bg-amber-100 rounded text-sm">
+              <p className="font-medium flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Advance Payment
+              </p>
+              <p>This employee requires advance payment before travel. Please prioritize processing.</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Employee Information */}
+        <div className="md:w-1/4 flex flex-col items-center">
+          <Avatar className="h-24 w-24 mb-4 border-2 border-primary/20">
+            <AvatarFallback className="bg-primary/10 text-primary text-xl">
+              {getInitials(request.employeeName)}
+            </AvatarFallback>
+          </Avatar>
+          <h3 className="text-lg font-semibold text-center">{request.employeeName}</h3>
+          <p className="text-muted-foreground flex items-center justify-center gap-1 text-sm">
+            <Building size={14} />
+            {request.department}
+          </p>
+          <p className="text-muted-foreground text-sm mt-1">{request.designation}</p>
         </div>
         
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-3/4 mb-2" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {Array(3).fill(0).map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
-  if (!request) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <Button
-          variant="ghost"
-          className="flex items-center gap-2 mb-6"
-          onClick={() => router.push('/approver/dashboard')}
-        >
-          <ArrowLeft size={16} />
-          Back to Dashboard
-        </Button>
-        
-        <Card className="border-red-200">
-          <CardHeader className="pb-4">
-            <div className="flex justify-center mb-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <AlertTriangle className="h-10 w-10 text-red-500" />
+        {/* Request Details */}
+        <div className="md:w-3/4 space-y-4">
+          {/* Purpose & Details */}
+          <div className="bg-muted/10 p-4 rounded-md border">
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <Info size={16} className="text-primary" />
+              Purpose & Details
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Purpose</p>
+                <p className="font-medium">{request.purpose}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Project</p>
+                <p className="font-medium capitalize">
+                  {projectLoading ? "Loading..." : 
+                   projectName || (request.project === 'other' ? 
+                                  (request.projectOther || "Other") : 
+                                  (request.project || "Not specified"))?.replace(/-/g, ' ')}
+                </p>
               </div>
             </div>
-            <CardTitle className="text-center">Request Not Found</CardTitle>
-            <CardDescription className="text-center text-red-500">
-              Request not found or you don't have permission to view it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Button
-              onClick={() => router.push('/approver/dashboard')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft size={16} />
-              Back to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
-  const travelDates = {
-    start: new Date(request.travelDateFrom),
-    end: new Date(request.travelDateTo),
-    duration: Math.ceil((new Date(request.travelDateTo).getTime() - new Date(request.travelDateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
-  };
-  
-  // Safe display of request ID
-  const displayRequestId = typeof requestId === 'string' && requestId ? 
-    requestId.substring(0, 8) + '...' : 
-    'N/A';
-
-  // Safe access to status with fallback
-  const status = request.status || 'pending';
-      
-  return (
-    <div className="max-w-6xl mx-auto p-6">
-      {successMessage && (
-        <Alert className="mb-6 bg-green-50 text-green-800 border-green-200">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertTitle>Success</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
-      )}
-      
-      {errorMessage && (
-        <Alert className="mb-6 bg-red-50 text-red-800 border-red-200">
-          <AlertTriangle className="h-4 w-4 text-red-500" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      )}
-      
-      <div className="flex justify-between items-center mb-6">
-        <Button
-          variant="ghost"
-          className="flex items-center gap-2"
-          onClick={() => router.push('/approver/dashboard')}
-        >
-          <ArrowLeft size={16} />
-          Back to Dashboard
-        </Button>
-        
-        <div className="flex items-center gap-2">
-          {getStatusIcon(status)}
-          <Badge className={getStatusBadgeClass(status)}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Badge>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Location</p>
+                <p className="font-medium capitalize">
+                  {request.location === 'other' ? 
+                    (request.locationOther || "Other") : 
+                    (request.location || "Not specified")}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Request Type</p>
+                <Badge className={cn(
+                  "flex items-center gap-1.5 w-fit",
+                  !request.requestType || request.requestType === 'normal' 
+                    ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                    : request.requestType === 'advance' 
+                      ? 'bg-green-100 text-green-800 border-green-200' 
+                      : request.requestType === 'in-valley'
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : 'bg-red-100 text-red-800 border-red-200'
+                )}>
+                  <span className="flex items-center gap-1.5">
+                    {request.requestType === 'normal' && <FileText className="h-3 w-3" />}
+                    {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
+                    {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
+                    {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
+                    {request.requestType === 'in-valley' ? 'In-Valley' : 
+                      request.requestType ? (request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1)) : 'Normal'}
+                  </span>
+                </Badge>
+              </div>
+            </div>
+          </div>
+          
+          {/* Travel Period */}
+          {request.requestType !== 'in-valley' ? (
+            <div className="bg-muted/10 p-4 rounded-md border">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <Calendar size={16} className="text-primary" />
+                Travel Period
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">From Date</p>
+                  <p className="font-medium">{formatDate(travelDates.start)}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">To Date</p>
+                  <p className="font-medium">{formatDate(travelDates.end)}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Duration</p>
+                  <p className="font-medium">{travelDates.duration} day{travelDates.duration !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-muted/10 p-4 rounded-md border">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <Calendar size={16} className="text-primary" />
+                Expense Date
+              </h3>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Date</p>
+                <p className="font-medium">
+                  {formatDate(new Date(request.expenseDate || request.travelDateFrom))}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Transportation Details (for travel requests) */}
+          {request.requestType !== 'in-valley' && (
+            <div className="bg-muted/10 p-4 rounded-md border">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <Car size={16} className="text-primary" />
+                Transportation Details
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Transport Mode</p>
+                  <p className="font-medium capitalize">{request.transportMode || 'Not specified'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Station Pick/Drop</p>
+                  <p className="font-medium capitalize">{request.stationPickDrop || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Local Conveyance</p>
+                  <p className="font-medium capitalize">{request.localConveyance || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Payment Details (for in-valley requests) */}
+          {request.requestType === 'in-valley' && (
+            <div className="bg-muted/10 p-4 rounded-md border">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <CreditCard size={16} className="text-primary" />
+                Payment Details
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
+                  <p className="font-medium capitalize">{request.paymentMethod || 'Not specified'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+                  <p className="font-medium text-primary">
+                    Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </p>
+                </div>
+              </div>
+              
+              {request.description && (
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-1">Description</p>
+                  <p className="font-medium">{request.description}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Additional Information */}
+          <div className="bg-muted/10 p-4 rounded-md border">
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <FileText size={16} className="text-primary" />
+              Additional Information
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+                <p className="font-bold text-primary">
+                  Nrs.{(request.totalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </p>
+              </div>
+              
+              {request.previousOutstandingAdvance !== undefined && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Previous Outstanding Advance</p>
+                  <p className={request.previousOutstandingAdvance > 0 ? "font-bold text-amber-600" : "font-medium"}>
+                    Nrs.{(request.previousOutstandingAdvance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Submitted On</p>
+                <p className="font-medium">
+                  {new Date(request.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Request ID</p>
+                <p className="font-mono text-sm bg-muted/20 p-1 rounded">{request.id}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      
-      <Card>
-        <CardHeader >
-          <CardTitle className="text-xl ">Travel Request Review</CardTitle>
-          <CardDescription >
-            Request #{displayRequestId}
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="p-0">
-          <Tabs defaultValue="details" className="w-full">
-            <div className="px-6 p-4 border-b">
-              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
-                <TabsTrigger value="details" className="flex items-center gap-2">
-                  <FileText size={16} />
-                  <span className="hidden sm:inline">Request Details</span>
-                </TabsTrigger>
-                <TabsTrigger value="expenses" className="flex items-center gap-2">
-                  <DollarSign size={16} />
-                  <span className="hidden sm:inline">Expenses</span>
-                </TabsTrigger>
-                <TabsTrigger value="approval" className="flex items-center gap-2">
-                  <CheckCircle size={16} />
-                  <span className="hidden sm:inline">Approval</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <TabsContent value="details" className="m-0">
-              <RequestDetailsTab 
-                request={request} 
-                travelDates={travelDates} 
-              />
-            </TabsContent>
-            
-            <TabsContent value="expenses" className="m-0">
-              <RequestExpensesTab 
-                expenseItems={expenseItems} 
-                receipts={receipts} 
-                totalAmount={request.totalAmount || 0} 
-              />
-            </TabsContent>
-            
-            <TabsContent value="approval" className="m-0">
-              <RequestApprovalTab 
-                request={request}
-                approvalComment={approvalComment}
-                setApprovalComment={setApprovalComment}
-                handleApproveReject={handleApproveReject}
-                isSubmitting={isSubmitting}
-                router={router}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
     </div>
   );
 }
