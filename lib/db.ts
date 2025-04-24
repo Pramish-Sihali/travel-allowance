@@ -3,6 +3,8 @@
 import { supabase } from './supabase';
 import { TravelRequest, ExpenseItem, Receipt, Notification } from '@/types';
 import { UserRole } from '@/types/auth';
+import { v4 as uuidv4 } from 'uuid';
+
 
 // Helper functions for mapping DB to frontend models
 const mapDbToTravelRequest = (item: any) => ({
@@ -198,123 +200,373 @@ export const getTravelRequestsByEmployeeId = async (employeeId: string) => {
   return data.map(mapDbToTravelRequest);
 };
 
-export const getTravelRequestById = async (id: string) => {
-  const { data, error } = await supabase
-    .from('travel_requests')
-    .select('*')
-    .eq('id', id)
-    .single();
+export async function getTravelRequestById(id: string): Promise<TravelRequest | null> {
+  console.log(`Fetching travel request with ID: ${id}`);
   
-  if (error) return null;
-  return mapDbToTravelRequest(data);
-};
-
-export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
   try {
-    // Ensure date conversion is correct - start with midnight for consistency
-    let travelDateFrom, travelDateTo;
+    const { data, error } = await supabase
+      .from('travel_requests')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    try {
-      if (typeof data.travelDateFrom === 'string') {
-        // Ensure the date has a time component by adding T00:00:00Z
-        if (data.travelDateFrom.includes('T')) {
-          travelDateFrom = data.travelDateFrom;
-        } else {
-          travelDateFrom = `${data.travelDateFrom}T00:00:00Z`;
-        }
-      } else {
-        travelDateFrom = new Date(data.travelDateFrom).toISOString();
-      }
-      
-      if (typeof data.travelDateTo === 'string') {
-        // Ensure the date has a time component by adding T00:00:00Z
-        if (data.travelDateTo.includes('T')) {
-          travelDateTo = data.travelDateTo;
-        } else {
-          travelDateTo = `${data.travelDateTo}T00:00:00Z`;
-        }
-      } else {
-        travelDateTo = new Date(data.travelDateTo).toISOString();
-      }
-    } catch (e: unknown) {
-      console.error('Date conversion error:', e);
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      throw new Error(`Date conversion failed: ${errorMessage}`);
+    if (error) {
+      console.error('Error fetching travel request:', error);
+      return null;
     }
+    
+    if (!data) {
+      console.log(`No travel request found with ID: ${id}`);
+      return null;
+    }
+    
+    console.log(`Travel request found, type: ${data.request_type}`);
+    
+    // Convert from database format (snake_case) to frontend format (camelCase)
+    const travelRequest: TravelRequest = {
+      id: data.id,
+      employeeId: data.employee_id,
+      employeeName: data.employee_name,
+      department: data.department,
+      designation: data.designation,
+      requestType: data.request_type,
+      project: data.project,
+      projectOther: data.project_other,
+      purpose: data.purpose,
+      purposeType: data.purpose_type,
+      purposeOther: data.purpose_other,
+      location: data.location,
+      locationOther: data.location_other,
+      travelDateFrom: data.travel_date_from,
+      travelDateTo: data.travel_date_to,
+      transportMode: data.transport_mode,
+      stationPickDrop: data.station_pick_drop,
+      localConveyance: data.local_conveyance,
+      rideShareUsed: data.ride_share_used,
+      ownVehicleReimbursement: data.own_vehicle_reimbursement,
+      status: data.status,
+      phase: data.phase,
+      totalAmount: data.total_amount,
+      previousOutstandingAdvance: data.previous_outstanding_advance,
+      approverComments: data.approver_comments,
+      checkerComments: data.checker_comments,
+      approverId: data.approver_id,
+      
+      // Emergency Request fields - explicitly convert to ensure they're included
+      emergencyReason: data.emergency_reason || null,
+      emergencyReasonOther: data.emergency_reason_other || null,
+      emergencyJustification: data.emergency_justification || null,
+      emergencyAmount: data.emergency_amount || null,
+      
+      // Advance Request fields - explicitly convert to ensure they're included
+      estimatedAmount: data.estimated_amount || null,
+      advanceNotes: data.advance_notes || null,
+      
+      // Group Travel fields
+      isGroupTravel: data.is_group_travel || false,
+      isGroupCaptain: data.is_group_captain || false,
+      groupSize: data.group_size || null,
+      groupDescription: data.group_description || null,
+      groupMembers: data.group_members ? JSON.parse(data.group_members) : [],
+      
+      // In-Valley specific fields
+      expenseDate: data.expense_date || null,
+      meetingType: data.meeting_type || null,
+      meetingParticipants: data.meeting_participants || null,
+      description: data.description || null,
+      paymentMethod: data.payment_method || null,
+      // paymentMethodOther: data.payment_method_other || null,
+      
+      // Timestamps
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      travel_details_approved_at: data.travel_details_approved_at || null,
+      expenses_submitted_at: data.expenses_submitted_at || null,
+    };
+    
+    // Log emergency/advance fields for debugging
+    if (data.request_type === 'emergency') {
+      console.log('Emergency request fields:', {
+        emergencyReason: travelRequest.emergencyReason,
+        emergencyReasonOther: travelRequest.emergencyReasonOther,
+        emergencyJustification: travelRequest.emergencyJustification,
+        emergencyAmount: travelRequest.emergencyAmount
+      });
+    } else if (data.request_type === 'advance') {
+      console.log('Advance request fields:', {
+        estimatedAmount: travelRequest.estimatedAmount,
+        advanceNotes: travelRequest.advanceNotes
+      });
+    }
+    
+    return travelRequest;
+  } catch (error) {
+    console.error('Unexpected error in getTravelRequestById:', error);
+    return null;
+  }
+}
 
-    // Parse total amount to ensure it's a number
-    const totalAmount = typeof data.totalAmount === 'string' 
-      ? parseFloat(data.totalAmount) 
-      : data.totalAmount;
+// export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
+//   try {
+//     // Ensure date conversion is correct - start with midnight for consistency
+//     let travelDateFrom, travelDateTo;
     
-    const previousAdvance = data.previousOutstandingAdvance
-      ? (typeof data.previousOutstandingAdvance === 'string'
-          ? parseFloat(data.previousOutstandingAdvance)
-          : data.previousOutstandingAdvance)
-      : 0;
+//     try {
+//       if (typeof data.travelDateFrom === 'string') {
+//         // Ensure the date has a time component by adding T00:00:00Z
+//         if (data.travelDateFrom.includes('T')) {
+//           travelDateFrom = data.travelDateFrom;
+//         } else {
+//           travelDateFrom = `${data.travelDateFrom}T00:00:00Z`;
+//         }
+//       } else {
+//         travelDateFrom = new Date(data.travelDateFrom).toISOString();
+//       }
+      
+//       if (typeof data.travelDateTo === 'string') {
+//         // Ensure the date has a time component by adding T00:00:00Z
+//         if (data.travelDateTo.includes('T')) {
+//           travelDateTo = data.travelDateTo;
+//         } else {
+//           travelDateTo = `${data.travelDateTo}T00:00:00Z`;
+//         }
+//       } else {
+//         travelDateTo = new Date(data.travelDateTo).toISOString();
+//       }
+//     } catch (e: unknown) {
+//       console.error('Date conversion error:', e);
+//       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+//       throw new Error(`Date conversion failed: ${errorMessage}`);
+//     }
+
+//     // Parse total amount to ensure it's a number
+//     const totalAmount = typeof data.totalAmount === 'string' 
+//       ? parseFloat(data.totalAmount) 
+//       : data.totalAmount;
     
-    // Process boolean fields
-    const rideShareUsed = data.rideShareUsed === true;
-    const ownVehicleReimbursement = data.ownVehicleReimbursement === true;
+//     const previousAdvance = data.previousOutstandingAdvance
+//       ? (typeof data.previousOutstandingAdvance === 'string'
+//           ? parseFloat(data.previousOutstandingAdvance)
+//           : data.previousOutstandingAdvance)
+//       : 0;
     
-    const insertData = {
+//     // Process boolean fields
+//     const rideShareUsed = data.rideShareUsed === true;
+//     const ownVehicleReimbursement = data.ownVehicleReimbursement === true;
+    
+//     const insertData = {
+//       employee_id: data.employeeId,
+//       employee_name: data.employeeName,
+//       department: data.department,
+//       designation: data.designation,
+//       purpose: data.purpose,
+//       travel_date_from: travelDateFrom,
+//       travel_date_to: travelDateTo,
+//       total_amount: totalAmount,
+//       status: data.status,
+//       request_type: data.requestType,
+//       previous_outstanding_advance: previousAdvance,
+//       // Add new fields
+//       project: data.project,
+//       project_other: data.projectOther,
+//       purpose_type: data.purposeType,
+//       purpose_other: data.purposeOther,
+//       location: data.location,
+//       location_other: data.locationOther,
+//       transport_mode: data.transportMode,
+//       station_pick_drop: data.stationPickDrop,
+//       local_conveyance: data.localConveyance,
+//       ride_share_used: rideShareUsed,
+//       own_vehicle_reimbursement: ownVehicleReimbursement,
+//       // New fields for two-phase workflow
+//       phase: data.phase || 1,
+//       approver_id: data.approverId,
+
+//       is_group_travel: data.isGroupTravel || false,
+//       is_group_captain: data.isGroupCaptain || false,
+//       group_size: data.groupSize || null,
+//       group_members: data.groupMembers ? JSON.stringify(data.groupMembers) : null,
+//       group_description: data.groupDescription || null,
+//     };
+
+//     console.log('Inserting travel request with data:', insertData);
+    
+//     const { data: newRequest, error } = await supabase
+//       .from('travel_requests')
+//       .insert([insertData])
+//       .select()
+//       .single();
+    
+//     if (error) {
+//       console.error('Supabase error creating travel request:', error);
+//       throw new Error(`Supabase error: ${error.message}`);
+//     }
+    
+//     if (!newRequest) {
+//       throw new Error('No data returned from travel request creation');
+//     }
+    
+//     return mapDbToTravelRequest(newRequest);
+//   } catch (error: unknown) {
+//     console.error('Error in createTravelRequest:', error);
+//     throw error;
+//   }
+// };
+
+export async function createTravelRequest(data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>): Promise<TravelRequest> {
+  console.log('Creating travel request with data:', data);
+  
+  try {
+    // Convert camelCase fields to snake_case for database insertion
+    const dbData = {
+      id: uuidv4(),
       employee_id: data.employeeId,
       employee_name: data.employeeName,
       department: data.department,
       designation: data.designation,
-      purpose: data.purpose,
-      travel_date_from: travelDateFrom,
-      travel_date_to: travelDateTo,
-      total_amount: totalAmount,
-      status: data.status,
       request_type: data.requestType,
-      previous_outstanding_advance: previousAdvance,
-      // Add new fields
       project: data.project,
       project_other: data.projectOther,
+      purpose: data.purpose,
       purpose_type: data.purposeType,
       purpose_other: data.purposeOther,
       location: data.location,
       location_other: data.locationOther,
+      travel_date_from: data.travelDateFrom,
+      travel_date_to: data.travelDateTo,
       transport_mode: data.transportMode,
       station_pick_drop: data.stationPickDrop,
       local_conveyance: data.localConveyance,
-      ride_share_used: rideShareUsed,
-      own_vehicle_reimbursement: ownVehicleReimbursement,
-      // New fields for two-phase workflow
-      phase: data.phase || 1,
+      ride_share_used: data.rideShareUsed,
+      own_vehicle_reimbursement: data.ownVehicleReimbursement,
+      status: data.status,
+      phase: data.phase,
+      total_amount: data.totalAmount,
       approver_id: data.approverId,
-
-      is_group_travel: data.isGroupTravel || false,
-      is_group_captain: data.isGroupCaptain || false,
-      group_size: data.groupSize || null,
+      
+      // Emergency Request fields
+      emergency_reason: data.emergencyReason,
+      emergency_reason_other: data.emergencyReasonOther,
+      emergency_justification: data.emergencyJustification,
+      emergency_amount: data.emergencyAmount,
+      
+      // Advance Request fields  
+      estimated_amount: data.estimatedAmount,
+      advance_notes: data.advanceNotes,
+      
+      // Group Travel fields
+      is_group_travel: data.isGroupTravel,
+      is_group_captain: data.isGroupCaptain,
+      group_size: data.groupSize,
+      group_description: data.groupDescription,
       group_members: data.groupMembers ? JSON.stringify(data.groupMembers) : null,
-      group_description: data.groupDescription || null,
+      
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
-
-    console.log('Inserting travel request with data:', insertData);
     
+    console.log('Prepared database data:', dbData);
+    
+    // Insert the travel request
     const { data: newRequest, error } = await supabase
       .from('travel_requests')
-      .insert([insertData])
+      .insert([dbData])
       .select()
       .single();
-    
+
     if (error) {
-      console.error('Supabase error creating travel request:', error);
-      throw new Error(`Supabase error: ${error.message}`);
+      console.error('Error creating travel request in database:', error);
+      throw error;
     }
     
-    if (!newRequest) {
-      throw new Error('No data returned from travel request creation');
-    }
+    console.log('Travel request created successfully:', newRequest);
     
-    return mapDbToTravelRequest(newRequest);
-  } catch (error: unknown) {
+    // Also create a notification for the user and approver
+    try {
+      // Create a notification for the employee
+      await createNotification({
+        userId: data.employeeId,
+        requestId: newRequest.id,
+        message: `Your ${data.requestType} travel request has been submitted and is awaiting approval.`,
+      });
+      
+      // Create a notification for the approver
+      let approverMessage = `A new travel request is waiting for your approval`;
+      
+      if (data.requestType === 'emergency') {
+        approverMessage = `URGENT: An emergency travel request requires your immediate attention`;
+      } else if (data.requestType === 'advance') {
+        approverMessage = `An advance payment request is waiting for your approval`;
+      } else if (data.requestType === 'group' && data.isGroupCaptain) {
+        approverMessage = `A group travel request is waiting for your approval`;
+      }
+      
+      await createNotification({
+        userId: data.approverId,
+        requestId: newRequest.id,
+        message: approverMessage,
+      });
+      
+      console.log('Notifications created for request');
+    } catch (notificationError) {
+      console.error('Error creating notifications:', notificationError);
+      // Continue despite notification error
+    }
+
+    // Convert snake_case back to camelCase for the returned object
+    const formattedRequest: TravelRequest = {
+      id: newRequest.id,
+      employeeId: newRequest.employee_id,
+      employeeName: newRequest.employee_name,
+      department: newRequest.department,
+      designation: newRequest.designation,
+      requestType: newRequest.request_type,
+      project: newRequest.project,
+      projectOther: newRequest.project_other,
+      purpose: newRequest.purpose,
+      purposeType: newRequest.purpose_type,
+      purposeOther: newRequest.purpose_other,
+      location: newRequest.location,
+      locationOther: newRequest.location_other,
+      travelDateFrom: newRequest.travel_date_from,
+      travelDateTo: newRequest.travel_date_to,
+      transportMode: newRequest.transport_mode,
+      stationPickDrop: newRequest.station_pick_drop,
+      localConveyance: newRequest.local_conveyance,
+      rideShareUsed: newRequest.ride_share_used,
+      ownVehicleReimbursement: newRequest.own_vehicle_reimbursement,
+      status: newRequest.status,
+      phase: newRequest.phase,
+      totalAmount: newRequest.total_amount,
+      approverId: newRequest.approver_id,
+      
+      // Emergency Request fields
+      emergencyReason: newRequest.emergency_reason,
+      emergencyReasonOther: newRequest.emergency_reason_other,
+      emergencyJustification: newRequest.emergency_justification,
+      emergencyAmount: newRequest.emergency_amount,
+      
+      // Advance Request fields
+      estimatedAmount: newRequest.estimated_amount,
+      advanceNotes: newRequest.advance_notes,
+      
+      // Group Travel fields
+      isGroupTravel: newRequest.is_group_travel,
+      isGroupCaptain: newRequest.is_group_captain,
+      groupSize: newRequest.group_size,
+      groupDescription: newRequest.group_description,
+      groupMembers: newRequest.group_members ? JSON.parse(newRequest.group_members) : [],
+      
+      createdAt: newRequest.created_at,
+      updatedAt: newRequest.updated_at
+    };
+    
+    return formattedRequest;
+  } catch (error) {
     console.error('Error in createTravelRequest:', error);
     throw error;
   }
-};
+}
 
 export const createTravelRequestPhase1 = async (data: any) => {
   try {

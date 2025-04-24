@@ -81,70 +81,110 @@ export default function EmployeeDashboard() {
   // Get employeeId from session, or generate one if not available
   const employeeId = session?.user?.id || uuidv4();
   
-  // Fetch both regular travel requests and in-valley requests
-  const fetchAllRequests = async () => {
-    if (status === 'loading') return;
+// Enhanced error handling for EmployeeDashboard.tsx
+// Implement the fetchAllRequests function with better error handling
+
+// Function to be added/updated in your EmployeeDashboard.tsx file
+const fetchAllRequests = async (employeeId: string) => {
+  try {
+    console.log(`Fetching requests for employee: ${employeeId}`);
     
+    // First attempt to fetch travel requests
+    const travelResponse = await fetch(`/api/requests?employeeId=${employeeId}`);
+    
+    // Handle potential error with detailed logging
+    if (!travelResponse.ok) {
+      const errorText = await travelResponse.text();
+      console.error(`Failed to fetch travel requests. Status: ${travelResponse.status}. Error: ${errorText}`);
+      
+      // Try to parse error if it's JSON
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch (e) {
+        // Not JSON, use as is
+      }
+      
+      throw new Error(
+        `Failed to fetch travel requests: ${errorDetails?.error || travelResponse.statusText || 'Unknown error'}`
+      );
+    }
+    
+    // Parse travel data
+    const travelData = await travelResponse.json();
+    console.log(`Fetched ${travelData.length} travel requests`);
+    
+    // Fetch in-valley requests
+    const valleyResponse = await fetch(`/api/valley-requests?employeeId=${employeeId}`);
+    
+    if (!valleyResponse.ok) {
+      console.error(`Failed to fetch in-valley requests. Status: ${valleyResponse.status}`);
+      // Don't throw here, just return travel data and log the error
+      return {
+        travelRequests: travelData || [],
+        valleyRequests: []
+      };
+    }
+    
+    const valleyData = await valleyResponse.json();
+    console.log(`Fetched ${valleyData.length} in-valley requests`);
+    
+    return {
+      travelRequests: travelData || [],
+      valleyRequests: valleyData || []
+    };
+  } catch (error) {
+    console.error('Error in fetchAllRequests:', error);
+    // Return empty arrays rather than throwing to prevent component failure
+    return {
+      travelRequests: [],
+      valleyRequests: []
+    };
+  }
+};
+
+// Implementation in useEffect or other component logic
+useEffect(() => {
+  const fetchRequests = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Fetch travel requests
-      const travelResponse = await fetch(`/api/requests?employeeId=${employeeId}`);
-      if (!travelResponse.ok) {
-        throw new Error('Failed to fetch travel requests');
+      if (session?.user?.id) {
+        const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
+        
+        // Set the state with the fetched data
+        setRequests([...travelRequests, ...valleyRequests]);
       }
-      const travelData = await travelResponse.json();
-      
-      // Fetch in-valley requests
-      const valleyResponse = await fetch(`/api/valley-requests?employeeId=${employeeId}`);
-      let valleyData: any[] = [];
-      
-      if (valleyResponse.ok) {
-        valleyData = await valleyResponse.json();
-      } else {
-        console.warn('Failed to fetch in-valley requests, might not be implemented yet');
-      }
-      
-      // Combine both types of requests
-      const allRequests = [...travelData, ...valleyData];
-      console.log('Fetched all employee requests:', allRequests);
-      setRequests(allRequests);
-      
-      // Calculate statistics
-      const pendingCount = allRequests.filter((req: TravelRequest) => req.status === 'pending').length;
-      const approvedCount = allRequests.filter((req: TravelRequest) => req.status === 'approved').length;
-      const rejectedCount = allRequests.filter((req: TravelRequest) => req.status === 'rejected' || req.status === 'rejected_by_checker').length;
-      const waitingForExpensesCount = allRequests.filter((req: TravelRequest) => req.status === 'travel_approved').length;
-      const totalAmount = allRequests.reduce((sum: number, req: TravelRequest) => sum + req.totalAmount, 0);
-      const travelCount = travelData.length;
-      const inValleyCount = valleyData.length;
-      
-      setStats({
-        pending: pendingCount,
-        approved: approvedCount,
-        rejected: rejectedCount,
-        totalAmount: totalAmount,
-        travelCount: travelCount,
-        inValleyCount: inValleyCount,
-        waitingForExpenses: waitingForExpensesCount
-      });
     } catch (error) {
       console.error('Error fetching requests:', error);
+      setErrorMessage('Failed to load requests. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
+
+  fetchRequests();
+}, [session]);
   
-  useEffect(() => {
-    fetchAllRequests();
-  }, [employeeId, status]);
+const handleRefresh = async () => {
+  setLoading(true);
+  setErrorMessage('');
   
-  const handleRefresh = () => {
-    setSearchTerm('');
-    setFilterStatus('all');
-    setFilterType('all');
-    fetchAllRequests();
-  };
+  if (!session?.user?.id) {
+    setErrorMessage('Cannot refresh: You are not logged in');
+    setLoading(false);
+    return;
+  }
+  
+  try {
+    const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
+    setRequests([...travelRequests, ...valleyRequests]);
+  } catch (error) {
+    console.error('Error refreshing data:', error);
+    setErrorMessage('Failed to refresh data. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   
   const handleSort = (key: string) => {
     setSortConfig(toggleSort(sortConfig, key));
@@ -908,4 +948,8 @@ export default function EmployeeDashboard() {
       
     </div>
   );
+}
+
+function setErrorMessage(arg0: string) {
+  throw new Error('Function not implemented.');
 }

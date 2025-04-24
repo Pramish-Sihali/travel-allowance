@@ -16,6 +16,9 @@ export async function GET(
   const { id } = await params
 
   try {
+    console.log(`GET /api/requests/${id}`);
+    
+    // Start with standard request retrieval
     const travelRequest = await getTravelRequestById(id)
     if (!travelRequest) {
       return NextResponse.json(
@@ -23,6 +26,71 @@ export async function GET(
         { status: 404 }
       )
     }
+    
+    // Log request type and emergency/advance fields for debugging
+    console.log(`Travel request type: ${travelRequest.requestType}`);
+    
+    // Log emergency/advance fields for debugging
+    if (travelRequest.requestType === 'emergency') {
+      console.log('Emergency request fields:', {
+        emergencyReason: travelRequest.emergencyReason,
+        emergencyReasonOther: travelRequest.emergencyReasonOther,
+        emergencyJustification: travelRequest.emergencyJustification,
+        emergencyAmount: travelRequest.emergencyAmount
+      });
+    } else if (travelRequest.requestType === 'advance') {
+      console.log('Advance request fields:', {
+        estimatedAmount: travelRequest.estimatedAmount,
+        advanceNotes: travelRequest.advanceNotes
+      });
+    }
+    
+    // If fields are not populated, try to fetch them directly
+    if ((travelRequest.requestType === 'emergency' && !travelRequest.emergencyReason) ||
+        (travelRequest.requestType === 'advance' && !travelRequest.estimatedAmount)) {
+      
+      console.log('Specialized fields missing, fetching directly from database...');
+      
+      try {
+        const { data: directData, error: directError } = await supabase
+          .from('travel_requests')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (!directError && directData) {
+          console.log('Direct data fetched successfully');
+          
+          // Manually populate the missing fields
+          if (travelRequest.requestType === 'emergency') {
+            travelRequest.emergencyReason = directData.emergency_reason;
+            travelRequest.emergencyReasonOther = directData.emergency_reason_other;
+            travelRequest.emergencyJustification = directData.emergency_justification;
+            travelRequest.emergencyAmount = directData.emergency_amount;
+            
+            console.log('Updated emergency fields:', {
+              emergencyReason: travelRequest.emergencyReason,
+              emergencyReasonOther: travelRequest.emergencyReasonOther,
+              emergencyJustification: travelRequest.emergencyJustification,
+              emergencyAmount: travelRequest.emergencyAmount
+            });
+          } else if (travelRequest.requestType === 'advance') {
+            travelRequest.estimatedAmount = directData.estimated_amount;
+            travelRequest.advanceNotes = directData.advance_notes;
+            
+            console.log('Updated advance fields:', {
+              estimatedAmount: travelRequest.estimatedAmount,
+              advanceNotes: travelRequest.advanceNotes
+            });
+          }
+        } else {
+          console.error('Error fetching direct data:', directError);
+        }
+      } catch (directFetchError) {
+        console.error('Error in direct fetch:', directFetchError);
+      }
+    }
+    
     return NextResponse.json(travelRequest)
   } catch (error) {
     console.error('Error fetching travel request:', error)

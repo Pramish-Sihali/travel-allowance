@@ -1,3 +1,5 @@
+// Enhanced ApproverRequestDetail.tsx component that properly displays emergency/advance request information
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,7 +31,10 @@ import {
   ThumbsDown,
   Info,
   Calendar,
-  UserIcon
+  UserIcon,
+  CreditCard,
+  Users,
+  MapPin
 } from 'lucide-react';
 
 import { cn } from "@/lib/utils";
@@ -278,6 +283,49 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
     }
   };
   
+  // Function to get a badge for request type
+  const getRequestTypeBadge = (requestType: string | undefined) => {
+    switch (requestType) {
+      case 'normal':
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            Normal
+          </Badge>
+        );
+      case 'advance':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200 flex items-center gap-1.5">
+            <CreditCard className="h-3.5 w-3.5" />
+            Advance
+          </Badge>
+        );
+      case 'emergency':
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Emergency
+          </Badge>
+        );
+      case 'group':
+        return (
+          <Badge className="bg-purple-100 text-purple-800 border-purple-200 flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            Group Travel
+          </Badge>
+        );
+      case 'in-valley':
+        return (
+          <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" />
+            In-Valley
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+  
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto p-6">
@@ -359,9 +407,12 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
         <CardHeader className="border-b bg-muted/10">
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-xl">
-                {request.requestType === 'in-valley' ? 'In-Valley Request Review' : 'Travel Request Review'}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">
+                  {request.requestType === 'in-valley' ? 'In-Valley Request Review' : 'Travel Request Review'}
+                </CardTitle>
+                {getRequestTypeBadge(request.requestType)}
+              </div>
               <CardDescription>
                 Request ID: {requestId.substring(0, 8)}... • Submitted by {request.employeeName} on {new Date(request.createdAt).toLocaleDateString()}
               </CardDescription>

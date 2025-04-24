@@ -1,4 +1,4 @@
-// app/api/valley-requests/[id]/route.ts
+// app/api/valley-requests/[id]/route.ts - Fix for NextJS App Router params
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
@@ -12,12 +12,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const { id } = await params;
+    
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
     console.log(`Fetching valley request details for ID: ${id}`);
 
     const { data, error } = await supabase
@@ -84,6 +85,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const { id } = await params;
+    
     const session = await getServerSession(authOptions);
     if (
       !session?.user ||
@@ -92,7 +95,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
     const body = await request.json();
     console.log('Request ID from params:', id);
     console.log('Request body:', body);

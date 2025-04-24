@@ -84,6 +84,10 @@ export interface TravelRequest {
   emergencyReasonOther?: string;
   emergencyJustification?: string;
   emergencyAmount?: string;
+
+  
+    
+   
   
   // Processing flags
   needs_financial_attention?: boolean;

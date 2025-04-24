@@ -1,8 +1,13 @@
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+const Input = React.forwardRef<
+  HTMLInputElement, 
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, type, value, ...props }, ref) => {
+  // Convert null values to empty string to prevent React warnings
+  const safeValue = value === null ? "" : value;
+  
   return (
     <input
       type={type}
@@ -13,9 +18,13 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         className
       )}
+      value={safeValue}
+      ref={ref}
       {...props}
     />
   )
-}
+})
+
+Input.displayName = "Input"
 
 export { Input }
