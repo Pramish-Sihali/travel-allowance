@@ -274,21 +274,23 @@ export default function RequestApprovalTab({
               )}
             </Button>
             <Button
-              onClick={() => handleApproveReject('approved')}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <ThumbsUp size={16} />
-                  Approve Request
-                </>
-              )}
+             onClick={() => handleApproveReject('approved')}
+             disabled={isSubmitting}
+             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+           >
+             {isSubmitting ? (
+               <>
+                 <Loader2 size={16} className="animate-spin" />
+                 Processing...
+               </>
+             ) : (
+               <>
+                 <ThumbsUp size={16} />
+                 {(request.requestType === 'emergency' || request.requestType === 'advance')
+                   ? 'Approve & Send to Finance'
+                   : 'Approve Request'}
+               </>
+             )}
             </Button>
           </div>
           
@@ -400,7 +402,6 @@ export default function RequestApprovalTab({
         </Card>
       </div>
       
-      {/* Special considerations for emergency requests */}
       {request.requestType === 'emergency' && (
         <Card className="shadow-sm border-red-200">
           <CardHeader className="pb-3 bg-red-50">
@@ -471,6 +472,20 @@ export default function RequestApprovalTab({
           </CardContent>
         </Card>
       )}
+
+{(request.requestType === 'emergency' || request.requestType === 'advance') && (
+  <Alert className="mt-4 mb-4 bg-indigo-50 text-indigo-800 border-indigo-200">
+    <Circle className="h-4 w-4 text-indigo-600" />
+    <AlertTitle>Special Handling Required</AlertTitle>
+    <AlertDescription>
+      {request.requestType === 'emergency' 
+        ? 'This emergency request will be sent directly to Finance for expedited processing upon approval.'
+        : 'This advance request will be sent directly to Finance for advance payment processing upon approval.'}
+      {' '}No further action from the employee will be required at this stage.
+    </AlertDescription>
+  </Alert>
+)}
+
       
       <Card className="shadow-sm">
         <CardHeader className="pb-3 bg-muted/30">

@@ -1,4 +1,4 @@
-// app/api/valley-requests/[id]/route.ts - Fixed for NextJS App Router params
+// app/api/valley-requests/[id]/route.ts - Fix for NextJS App Router params
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
@@ -96,7 +96,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    console.log('Processing PATCH for valley request ID:', id);
+    console.log('Request ID from params:', id);
     console.log('Request body:', body);
 
     const { status, comments, role } = body;
@@ -116,7 +116,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'In-valley request not found' }, { status: 404 });
     }
 
-    console.log(`Current valley request status: ${existingRequest.status}, Role: ${role}, Action: ${status}`);
+    console.log(`Current valley request status: ${existingRequest.status}`);
 
     const employeeId = existingRequest.employee_id;
     let newStatus = status;
@@ -124,10 +124,23 @@ export async function PATCH(
     let notifyCheckers = false;
 
     if (role === 'approver' && status === 'approved') {
-      // Set new status to travel_approved when approver approves
-      newStatus = 'travel_approved';
-      notificationMessage = `Your in-valley reimbursement request has been approved. You can now submit your expenses.`;
-      console.log(`Approver approved request - setting status to 'travel_approved'`);
+      // Special handling for emergency and advance requests
+      if (existingRequest.requestType === 'advance' || existingRequest.requestType === 'emergency') {
+        // Set directly to pending_verification to appear in checker dashboard
+        newStatus = 'pending_verification';
+        notifyCheckers = true;
+        
+        if (existingRequest.requestType === 'emergency') {
+          notificationMessage = `Your emergency in-valley request has been approved and sent to Finance for expedited processing.`;
+        } else if (existingRequest.requestType === 'advance') {
+          notificationMessage = `Your advance in-valley request has been approved and sent to Finance for advance payment processing.`;
+        }
+      } else {
+        // For regular requests, set to travel_approved
+        newStatus = 'travel_approved';
+        notificationMessage = `Your in-valley reimbursement request has been approved. You can now submit your expenses.`;
+      }
+      console.log(`Approver approved request - setting status to '${newStatus}'`);
     } else if (
       role === 'checker' &&
       status === 'approved' &&
@@ -157,8 +170,20 @@ export async function PATCH(
 
     if (role === 'approver') {
       updateData.approver_comments = comments;
-      if (newStatus === 'travel_approved') {
+      if (newStatus === 'travel_approved' || (newStatus === 'pending_verification' && 
+          (existingRequest.requestType === 'advance' || existingRequest.requestType === 'emergency'))) {
         updateData.travel_details_approved_at = new Date().toISOString();
+        
+        // For advance requests, add flags
+        if (existingRequest.requestType === 'advance') {
+          updateData.needs_financial_attention = true;
+        }
+        
+        // For emergency requests, add flags
+        if (existingRequest.requestType === 'emergency') {
+          updateData.needs_financial_attention = true;
+          updateData.is_urgent = true;
+        }
       }
     } else if (role === 'checker') {
       updateData.checker_comments = comments;
@@ -166,7 +191,6 @@ export async function PATCH(
 
     console.log('Updating request with data:', updateData);
 
-    // Execute the update
     const { data, error } = await supabase
       .from('valley_requests')
       .update(updateData)
@@ -182,70 +206,45 @@ export async function PATCH(
     console.log(`Valley request updated successfully: previous status '${existingRequest.status}' → new status '${data.status}'`);
 
     try {
-      // Notify the employee
       console.log(`Creating notification for employee ${employeeId}`);
-      const employeeNotificationId = uuidv4();
-      const notificationData = {
-        id: employeeNotificationId,
-        user_id: employeeId,
-        request_id: id,
-        message: notificationMessage || `Your in-valley reimbursement request has been ${status}`,
-        read: false,
-        created_at: new Date().toISOString()
-      };
-      
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
-      
-      if (notificationError) {
-        console.error('Error creating employee notification:', notificationError);
-      } else {
-        console.log(`Created employee notification with ID: ${employeeNotificationId}`);
-      }
 
-      // Notify checkers if the request was just approved by approver
-      if (newStatus === 'travel_approved' || notifyCheckers) {
+      await createNotification({
+        userId: employeeId,
+        requestId: id,
+        message: notificationMessage || `Your in-valley reimbursement request has been ${status}`,
+      });
+      console.log('Employee notification created');
+
+      // Notify checkers for both new pending_verification status or if explicitly requested
+      if (newStatus === 'pending_verification' || notifyCheckers) {
         const { data: checkers, error: checkersError } = await supabase
           .from('users')
           .select('id')
           .eq('role', 'checker');
-        
-        if (checkersError) {
-          console.error('Error fetching checkers:', checkersError);
-        } else if (checkers && checkers.length > 0) {
+        if (!checkersError && checkers?.length) {
           console.log(`Notifying ${checkers.length} checkers about approved request`);
-          
           for (const checker of checkers) {
-            const checkerId = checker.id;
-            const checkerNotificationId = uuidv4();
-            const checkerMessage = `A new in-valley reimbursement request is waiting for your financial verification`;
+            // Customize the notification message based on request type
+            let checkerMessage = 'A new in-valley reimbursement request is waiting for your financial verification';
             
-            const checkerNotification = {
-              id: checkerNotificationId,
-              user_id: checkerId,
-              request_id: id,
-              message: checkerMessage,
-              read: false,
-              created_at: new Date().toISOString()
-            };
-            
-            const { error: checkerNotifError } = await supabase
-              .from('notifications')
-              .insert([checkerNotification]);
-            
-            if (checkerNotifError) {
-              console.error(`Error creating notification for checker ${checkerId}:`, checkerNotifError);
-            } else {
-              console.log(`Created notification for checker ${checkerId} with ID: ${checkerNotificationId}`);
+            if (existingRequest.requestType === 'advance' && (newStatus === 'pending_verification' || notifyCheckers)) {
+              checkerMessage = 'An approved advance in-valley request requires your immediate attention for fund disbursement';
+            } else if (existingRequest.requestType === 'emergency' && (newStatus === 'pending_verification' || notifyCheckers)) {
+              checkerMessage = 'URGENT: An emergency in-valley request has been approved and requires your immediate attention';
             }
+            
+            await createNotification({
+              userId: checker.id,
+              requestId: id,
+              message: checkerMessage,
+            });
           }
-        } else {
-          console.warn('No checkers found in the system');
+        } else if (checkersError) {
+          console.error('Error fetching checkers:', checkersError);
         }
       }
     } catch (notificationError) {
-      console.error('Error in notification process:', notificationError);
+      console.error('Error creating notification:', notificationError);
     }
 
     const formattedData = {

@@ -108,122 +108,123 @@ export async function PATCH(
   const { id } = await params
 
   try {
-    console.log('Processing PATCH request for ID:', id);
-    const body = await request.json();
-    console.log('Request body:', body);
+    console.log('Request ID from params:', id)
+    const body = await request.json()
+    console.log('Request body:', body)
 
-    const { status, comments, role } = body;
+    const { status, comments, role } = body
     if (!status || !role) {
-      console.error('Missing required parameters:', { status, role });
+      console.error('Missing required parameters:', { status, role })
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
-      );
+      )
     }
 
-    const travelRequest = await getTravelRequestById(id);
+    const travelRequest = await getTravelRequestById(id)
     if (!travelRequest) {
       return NextResponse.json(
         { error: 'Travel request not found' },
         { status: 404 }
-      );
+      )
     }
 
-    const employeeId = travelRequest.employeeId;
-    let newStatus = status;
-    let notificationMessage = '';
-    let notifyCheckers = false;
-
-    console.log(`Current request status: ${travelRequest.status}, Role: ${role}, Action: ${status}, Type: ${travelRequest.requestType}`);
+    const employeeId = travelRequest.employeeId
+    let newStatus = status
+    let notificationMessage = ''
+    let notifyCheckers = false
 
     if (role === 'approver' && status === 'approved') {
-      // For regular requests, set to travel_approved
-      newStatus = 'travel_approved';
-      notificationMessage = `Your travel request has been approved. You can now submit your expenses after your travel is complete.`;
-      
-      // For advance or emergency requests, also notify checkers immediately
+      // Special handling for emergency and advance requests
       if (travelRequest.requestType === 'advance' || travelRequest.requestType === 'emergency') {
-        notifyCheckers = true;
-        console.log(`Special request type detected: ${travelRequest.requestType}. Will notify checkers.`);
+        // Set directly to pending_verification to appear in checker dashboard
+        newStatus = 'pending_verification'
+        notifyCheckers = true
         
-        // For emergency requests, add more specific messaging
+        // Customize notification based on request type
         if (travelRequest.requestType === 'emergency') {
-          notificationMessage = `Your emergency travel request has been approved. Finance will be notified for expedited processing.`;
+          notificationMessage = `Your emergency travel request has been approved and sent to Finance for expedited processing.`
         } else if (travelRequest.requestType === 'advance') {
-          notificationMessage = `Your advance travel request has been approved. Finance will be notified to process your advance payment.`;
+          notificationMessage = `Your advance travel request has been approved and sent to Finance for advance payment processing.`
         }
+      } else {
+        // For regular requests, set to travel_approved
+        newStatus = 'travel_approved'
+        notificationMessage = `Your travel request has been approved. You can now submit your expenses after your travel is complete.`
       }
     } else if (
       role === 'checker' &&
       status === 'approved' &&
       travelRequest.status === 'pending_verification'
     ) {
-      newStatus = 'approved';
-      notificationMessage = `Your travel request and expenses have been fully approved and processed`;
+      newStatus = 'approved'
+      notificationMessage = `Your travel request and expenses have been fully approved and processed`
     } else if (role === 'checker' && status === 'rejected') {
-      newStatus = 'rejected_by_checker';
-      notificationMessage = `Your travel expenses have been rejected during financial verification`;
+      newStatus = 'rejected_by_checker'
+      notificationMessage = `Your travel expenses have been rejected during financial verification`
     } else if (role === 'approver' && status === 'rejected') {
-      newStatus = 'rejected';
-      notificationMessage = `Your travel request has been rejected`;
+      newStatus = 'rejected'
+      notificationMessage = `Your travel request has been rejected`
     }
 
-    console.log(`Updating request status from ${travelRequest.status} to ${newStatus}`);
+    console.log(`Updating request status from ${travelRequest.status} to ${newStatus}`)
 
-    const updatedData: Record<string, any> = { status: newStatus };
+    const updatedData: Record<string, any> = { status: newStatus }
     if (role === 'approver') {
-      updatedData.approverComments = comments;
-      if (newStatus === 'travel_approved') {
-        updatedData.travel_details_approved_at = new Date().toISOString();
+      updatedData.approverComments = comments
+      if (newStatus === 'travel_approved' || (newStatus === 'pending_verification' && 
+          (travelRequest.requestType === 'advance' || travelRequest.requestType === 'emergency'))) {
+        updatedData.travel_details_approved_at = new Date().toISOString()
         
         // For advance requests, add a flag to indicate it needs financial attention
         if (travelRequest.requestType === 'advance') {
-          updatedData.needs_financial_attention = true;
+          updatedData.needs_financial_attention = true
         }
         
         // For emergency requests, add a flag to indicate it's urgent
         if (travelRequest.requestType === 'emergency') {
-          updatedData.needs_financial_attention = true;
-          updatedData.is_urgent = true;
+          updatedData.needs_financial_attention = true
+          updatedData.is_urgent = true
         }
       }
     } else if (role === 'checker') {
-      updatedData.checkerComments = comments;
+      updatedData.checkerComments = comments
     }
 
     const updatedRequest = await updateTravelRequestStatus(
       id,
       newStatus as any,
       updatedData
-    );
+    )
 
     if (!updatedRequest) {
-      console.error('Failed to update travel request');
+      console.error('Failed to update travel request')
       return NextResponse.json(
         { error: 'Failed to update travel request status' },
         { status: 500 }
-      );
+      )
     }
 
     try {
-      // Notify the employee
-      console.log(`Creating notification for employee ${employeeId}`);
+      console.log(`Creating notification for employee ${employeeId}`)
       await createNotification({
         userId: employeeId,
         requestId: id,
-        message: notificationMessage || `Your travel request has been ${status}`,
-      });
-      console.log('Employee notification created successfully');
+        message:
+          notificationMessage ||
+          `Your travel request has been ${status}`,
+      })
+      console.log('Employee notification created successfully')
 
       // Notify checkers if it's a new verification request or an approved advance/emergency request
       if (newStatus === 'pending_verification' || notifyCheckers) {
         const { data: checkers, error: checkersError } = await supabase
           .from('users')
           .select('id')
-          .eq('role', 'checker');
+          .eq('role', 'checker')
 
         if (!checkersError && checkers?.length) {
-          console.log(`Notifying ${checkers.length} checkers about request ${id}`);
+          console.log(`Notifying ${checkers.length} checkers`)
           for (const checker of checkers) {
             // Customize the notification message based on request type
             let checkerMessage = 'A new travel request is waiting for your financial verification';
@@ -238,27 +239,24 @@ export async function PATCH(
               userId: checker.id,
               requestId: id,
               message: checkerMessage,
-            });
-            console.log(`Created notification for checker ${checker.id}`);
+            })
           }
         } else if (checkersError) {
-          console.error('Error fetching checkers:', checkersError);
-        } else {
-          console.warn('No checkers found in the system');
+          console.error('Error fetching checkers:', checkersError)
         }
       }
     } catch (notificationError) {
-      console.error('Error creating notification:', notificationError);
+      console.error('Error creating notification:', notificationError)
     }
 
-    console.log('Request successfully updated to:', newStatus);
-    return NextResponse.json(updatedRequest);
+    console.log('Request successfully updated to:', newStatus)
+    return NextResponse.json(updatedRequest)
   } catch (error) {
-    console.error('Error updating travel request:', error);
+    console.error('Error updating travel request:', error)
     return NextResponse.json(
       { error: 'Failed to update travel request' },
       { status: 400 }
-    );
+    )
   }
 }
 
