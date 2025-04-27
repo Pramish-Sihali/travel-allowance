@@ -270,6 +270,8 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
         return 'Pending Verification';
       case 'rejected_by_checker':
         return 'Rejected by Finance';
+      case 'travel_approved':
+        return 'Approved (Ready for Expenses)';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -308,10 +310,10 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
       const updatedRequest = await response.json();
       setRequest(updatedRequest);
       
-      // Show status message
+      // UPDATED MESSAGE TO BE CONSISTENT WITH ACTUAL STATUS
       setStatusMessage({
         type: 'success',
-        message: `Request ${newStatus === 'approved' ? 'approved and sent for financial verification' : 'rejected'}.`
+        message: `Request ${newStatus === 'approved' ? 'approved and ready for expense submission' : 'rejected'}. Redirecting...`
       });
       
       // Redirect to dashboard after short delay

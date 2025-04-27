@@ -210,12 +210,12 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
       const updatedRequest = await response.json();
       setRequest(updatedRequest);
       
-      // Show success message
+      // UPDATED MESSAGE TO BE CONSISTENT
       setStatusMessage({
         type: 'success',
         title: status === 'approved' ? 'Request Approved' : 'Request Rejected',
         message: status === 'approved' 
-          ? 'Request has been approved and sent for financial verification.' 
+          ? 'Request has been approved and is ready for expense submission.' 
           : 'Request has been rejected.'
       });
       
@@ -273,7 +273,7 @@ export default function ApproverRequestDetail({ requestId }: ApproverRequestDeta
   const getFormattedStatus = (status: string) => {
     switch (status) {
       case 'travel_approved':
-        return 'Travel Approved';
+        return 'Approved (Ready for Expenses)';
       case 'pending_verification':
         return 'Pending Verification';
       case 'rejected_by_checker':

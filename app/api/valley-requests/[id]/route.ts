@@ -1,4 +1,4 @@
-// app/api/valley-requests/[id]/route.ts - Fix for NextJS App Router params
+// app/api/valley-requests/[id]/route.ts - Fixed for NextJS App Router params
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
@@ -96,7 +96,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    console.log('Request ID from params:', id);
+    console.log('Processing PATCH for valley request ID:', id);
     console.log('Request body:', body);
 
     const { status, comments, role } = body;
@@ -116,11 +116,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'In-valley request not found' }, { status: 404 });
     }
 
-    console.log(`Current valley request status: ${existingRequest.status}`);
+    console.log(`Current valley request status: ${existingRequest.status}, Role: ${role}, Action: ${status}`);
 
     const employeeId = existingRequest.employee_id;
     let newStatus = status;
     let notificationMessage = '';
+    let notifyCheckers = false;
 
     if (role === 'approver' && status === 'approved') {
       // Set new status to travel_approved when approver approves
@@ -165,6 +166,7 @@ export async function PATCH(
 
     console.log('Updating request with data:', updateData);
 
+    // Execute the update
     const { data, error } = await supabase
       .from('valley_requests')
       .update(updateData)
@@ -180,42 +182,70 @@ export async function PATCH(
     console.log(`Valley request updated successfully: previous status '${existingRequest.status}' → new status '${data.status}'`);
 
     try {
+      // Notify the employee
       console.log(`Creating notification for employee ${employeeId}`);
-
+      const employeeNotificationId = uuidv4();
       const notificationData = {
-        id: uuidv4(),
+        id: employeeNotificationId,
         user_id: employeeId,
         request_id: id,
         message: notificationMessage || `Your in-valley reimbursement request has been ${status}`,
         read: false,
         created_at: new Date().toISOString()
       };
-      await supabase.from('notifications').insert([notificationData]);
-      console.log('Employee notification created');
+      
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert([notificationData]);
+      
+      if (notificationError) {
+        console.error('Error creating employee notification:', notificationError);
+      } else {
+        console.log(`Created employee notification with ID: ${employeeNotificationId}`);
+      }
 
-      if (newStatus === 'travel_approved') {
+      // Notify checkers if the request was just approved by approver
+      if (newStatus === 'travel_approved' || notifyCheckers) {
         const { data: checkers, error: checkersError } = await supabase
           .from('users')
           .select('id')
           .eq('role', 'checker');
-        if (!checkersError && checkers?.length) {
+        
+        if (checkersError) {
+          console.error('Error fetching checkers:', checkersError);
+        } else if (checkers && checkers.length > 0) {
           console.log(`Notifying ${checkers.length} checkers about approved request`);
+          
           for (const checker of checkers) {
-            await supabase.from('notifications').insert([{
-              id: uuidv4(),
-              user_id: checker.id,
+            const checkerId = checker.id;
+            const checkerNotificationId = uuidv4();
+            const checkerMessage = `A new in-valley reimbursement request is waiting for your financial verification`;
+            
+            const checkerNotification = {
+              id: checkerNotificationId,
+              user_id: checkerId,
               request_id: id,
-              message: `A new in-valley reimbursement request is waiting for your financial verification`,
+              message: checkerMessage,
               read: false,
               created_at: new Date().toISOString()
-            }]);
+            };
+            
+            const { error: checkerNotifError } = await supabase
+              .from('notifications')
+              .insert([checkerNotification]);
+            
+            if (checkerNotifError) {
+              console.error(`Error creating notification for checker ${checkerId}:`, checkerNotifError);
+            } else {
+              console.log(`Created notification for checker ${checkerId} with ID: ${checkerNotificationId}`);
+            }
           }
-        } else if (checkersError) {
-          console.error('Error fetching checkers:', checkersError);
+        } else {
+          console.warn('No checkers found in the system');
         }
       }
     } catch (notificationError) {
-      console.error('Error creating notification:', notificationError);
+      console.error('Error in notification process:', notificationError);
     }
 
     const formattedData = {

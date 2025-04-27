@@ -33,7 +33,8 @@ import {
   MapPin,
   Building,
   Briefcase,
-  Clock
+  Clock,
+  Circle
 } from 'lucide-react';
 
 interface RequestApprovalTabProps {
@@ -76,11 +77,11 @@ export default function RequestApprovalTab({
     <div className="p-6 space-y-6">
       {request.status !== 'pending' ? (
         <Alert className={
-          request.status === 'approved' || request.status === 'pending_verification' 
+          request.status === 'approved' || request.status === 'pending_verification' || request.status === 'travel_approved'
             ? 'bg-green-50 text-green-800 border-green-200' 
             : 'bg-red-50 text-red-800 border-red-200'
         }>
-          {request.status === 'approved' || request.status === 'pending_verification' ? (
+          {request.status === 'approved' || request.status === 'pending_verification' || request.status === 'travel_approved' ? (
             <CheckCircle className="h-4 w-4 text-green-600" />
           ) : (
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -90,14 +91,18 @@ export default function RequestApprovalTab({
               ? 'Request Approved - Pending Financial Verification' 
               : request.status === 'approved' 
                 ? 'Request Fully Approved'
-                : 'Request Rejected'}
+                : request.status === 'travel_approved'
+                  ? 'Request Approved - Ready for Expenses'
+                  : 'Request Rejected'}
           </AlertTitle>
           <AlertDescription>
             {request.status === 'pending_verification' 
               ? 'You have approved this request. It is now awaiting financial verification.' 
               : request.status === 'approved'
                 ? 'This request has been fully approved by both you and Finance.'
-                : 'This request has been rejected.'}
+                : request.status === 'travel_approved'
+                  ? 'You have approved this request. The employee can now submit expenses after travel.'
+                  : 'This request has been rejected.'}
             
             {request.approverComments && (
               <div className="mt-2 p-3 bg-white/50 rounded-md border border-current/20">
@@ -115,7 +120,7 @@ export default function RequestApprovalTab({
           </div>
           
           <p className="text-muted-foreground mb-4">
-            Review the request carefully before making a decision. After your approval, the request will be sent to Finance for verification.
+            Review the request carefully before making a decision. After your approval, the request will move to the next stage of the process.
           </p>
           
           {/* Display advance request information */}
@@ -286,6 +291,14 @@ export default function RequestApprovalTab({
               )}
             </Button>
           </div>
+          
+          <Alert className="mt-5 bg-blue-50 text-blue-700 border-blue-200">
+            <Circle className="h-4 w-4 text-blue-600" />
+            <AlertTitle>Approval Process Note</AlertTitle>
+            <AlertDescription>
+              When you approve this request, it will be marked as "Approved (Ready for Expenses)" and allow the employee to submit expenses after completion of travel.
+            </AlertDescription>
+          </Alert>
         </div>
       )}
       
