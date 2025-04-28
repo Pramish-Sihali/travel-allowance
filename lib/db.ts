@@ -39,6 +39,7 @@ const mapDbToTravelRequest = (item: any) => ({
   // Comments
   approverComments: item.approver_comments,
   checkerComments: item.checker_comments,
+  financeComments: item.finance_comments,
   
   // New fields for two-phase workflow
   phase: item.phase || 1,
@@ -76,6 +77,7 @@ const mapDbToValleyRequest = (item: any) => ({
   updatedAt: item.updated_at || new Date().toISOString(),
   approverComments: item.approver_comments,
   checkerComments: item.checker_comments,
+  financeComments: item.finance_comments,
   previousOutstandingAdvance: 0, // Default value for compatibility
   
   // New fields for two-phase workflow
@@ -250,6 +252,7 @@ export async function getTravelRequestById(id: string): Promise<TravelRequest | 
       previousOutstandingAdvance: data.previous_outstanding_advance,
       approverComments: data.approver_comments,
       checkerComments: data.checker_comments,
+      financeComments: data.finance_comments,
       approverId: data.approver_id,
       
       // Emergency Request fields - explicitly convert to ensure they're included

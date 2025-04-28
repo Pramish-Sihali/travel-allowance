@@ -14,8 +14,35 @@ export async function GET(request: NextRequest) {
     let results;
     if (employeeId) {
       results = await getTravelRequestsByEmployeeId(employeeId);
+      
+      // Add proper transformation for finance_comments to financeComments
+      if (results && results.length > 0) {
+        results = results.map(req => {
+          // If finance_comments exists in the database result, add it to the transformed object
+          if (req.financeComments !== undefined) {
+            return {
+              ...req,
+              financeComments: req.financeComments
+            };
+          }
+          return req;
+        });
+      }
     } else {
       results = await getAllTravelRequests();
+      
+      // Apply the same transformation for all requests
+      if (results && results.length > 0) {
+        results = results.map(req => {
+          if (req.financeComments !== undefined) {
+            return {
+              ...req,
+              financeComments: req.financeComments
+            };
+          }
+          return req;
+        });
+      }
     }
         
     return NextResponse.json(results);

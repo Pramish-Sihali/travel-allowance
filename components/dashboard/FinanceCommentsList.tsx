@@ -202,17 +202,17 @@ export default function FinanceCommentsList({ requests, loading }: FinanceCommen
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="p-4 pt-0 border-t">
-                <div className="bg-amber-50 p-4 rounded-md border border-amber-200 mb-4">
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-amber-800 mb-1">Finance Comment</h4>
-                      <p className="text-amber-700 whitespace-pre-line">
-                        {request.finance_comments || request.checkerComments}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div className="bg-amber-50 p-4 rounded-md border border-amber-200 mb-4">
+  <div className="flex items-start gap-2">
+    <MessageSquare className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+    <div>
+      <h4 className="font-medium text-amber-800 mb-1">Finance Comment</h4>
+      <p className="text-amber-700 whitespace-pre-line">
+        {request.financeComments || request.checkerComments}
+      </p>
+    </div>
+  </div>
+</div>
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
                   <div>
                     <p className="text-sm mb-1">Amount: <span className="font-medium">

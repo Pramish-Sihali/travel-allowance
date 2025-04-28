@@ -102,6 +102,7 @@ export interface TravelRequest {
   approverComments?: string;
   checkerComments?: string;
   finance_comments?: string; // Add this new field
+  financeComments ?: string; 
   
   // Valley-specific fields
   expenseDate?: string;

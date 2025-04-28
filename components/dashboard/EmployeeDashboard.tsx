@@ -94,11 +94,12 @@ export default function EmployeeDashboard() {
     return requests.filter(req => 
       // Only include emergency or advance requests
       (req.requestType === 'emergency' || req.requestType === 'advance') &&
-      // That have either finance_comments or checkerComments (check both to be safe)
-      ((req.finance_comments && req.finance_comments.trim() !== '') || 
+      // Look for financeComments (camelCase) instead of finance_comments (snake_case)
+      ((req.financeComments && req.financeComments.trim() !== '') || 
        (req.checkerComments && req.checkerComments.trim() !== ''))
     );
   };
+  
 
   // Enhanced error handling for EmployeeDashboard.tsx
   // Implement the fetchAllRequests function with better error handling
