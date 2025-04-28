@@ -38,7 +38,6 @@ export async function PATCH(
       );
     }
 
-    // Check if the request is in the correct state (travel_approved)
     // if (existingRequest.status !== 'travel_approved') {
     //   return NextResponse.json(
     //     { error: 'This travel request is not ready for expense submission' },
