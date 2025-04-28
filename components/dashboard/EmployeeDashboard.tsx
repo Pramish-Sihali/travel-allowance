@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel';
+import FinanceCommentsList from '@/components/dashboard/FinanceCommentsList';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +50,9 @@ import {
   CreditCard,
   AlertTriangle,
   RefreshCw,
-  Search
+  Search,
+  Info as InfoIcon,
+  MessageSquare
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 import { cn } from "@/lib/utils";
@@ -57,6 +60,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 export default function EmployeeDashboard() {
   const router = useRouter();
@@ -77,114 +81,164 @@ export default function EmployeeDashboard() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Finance comments state
+  const [requestsWithComments, setRequestsWithComments] = useState<TravelRequest[]>([]);
+  const [hasFinanceComments, setHasFinanceComments] = useState(false);
   
   // Get employeeId from session, or generate one if not available
   const employeeId = session?.user?.id || uuidv4();
   
-// Enhanced error handling for EmployeeDashboard.tsx
-// Implement the fetchAllRequests function with better error handling
+  const getRequestsWithFinanceComments = (requests: TravelRequest[]) => {
+    return requests.filter(req => 
+      // Only include emergency or advance requests
+      (req.requestType === 'emergency' || req.requestType === 'advance') &&
+      // That have either finance_comments or checkerComments (check both to be safe)
+      ((req.finance_comments && req.finance_comments.trim() !== '') || 
+       (req.checkerComments && req.checkerComments.trim() !== ''))
+    );
+  };
 
-// Function to be added/updated in your EmployeeDashboard.tsx file
-const fetchAllRequests = async (employeeId: string) => {
-  try {
-    console.log(`Fetching requests for employee: ${employeeId}`);
-    
-    // First attempt to fetch travel requests
-    const travelResponse = await fetch(`/api/requests?employeeId=${employeeId}`);
-    
-    // Handle potential error with detailed logging
-    if (!travelResponse.ok) {
-      const errorText = await travelResponse.text();
-      console.error(`Failed to fetch travel requests. Status: ${travelResponse.status}. Error: ${errorText}`);
+  // Enhanced error handling for EmployeeDashboard.tsx
+  // Implement the fetchAllRequests function with better error handling
+  const fetchAllRequests = async (employeeId: string) => {
+    try {
+      console.log(`Fetching requests for employee: ${employeeId}`);
       
-      // Try to parse error if it's JSON
-      let errorDetails;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch (e) {
-        // Not JSON, use as is
+      // First attempt to fetch travel requests
+      const travelResponse = await fetch(`/api/requests?employeeId=${employeeId}`);
+      
+      // Handle potential error with detailed logging
+      if (!travelResponse.ok) {
+        const errorText = await travelResponse.text();
+        console.error(`Failed to fetch travel requests. Status: ${travelResponse.status}. Error: ${errorText}`);
+        
+        // Try to parse error if it's JSON
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch (e) {
+          // Not JSON, use as is
+        }
+        
+        throw new Error(
+          `Failed to fetch travel requests: ${errorDetails?.error || travelResponse.statusText || 'Unknown error'}`
+        );
       }
       
-      throw new Error(
-        `Failed to fetch travel requests: ${errorDetails?.error || travelResponse.statusText || 'Unknown error'}`
-      );
-    }
-    
-    // Parse travel data
-    const travelData = await travelResponse.json();
-    console.log(`Fetched ${travelData.length} travel requests`);
-    
-    // Fetch in-valley requests
-    const valleyResponse = await fetch(`/api/valley-requests?employeeId=${employeeId}`);
-    
-    if (!valleyResponse.ok) {
-      console.error(`Failed to fetch in-valley requests. Status: ${valleyResponse.status}`);
-      // Don't throw here, just return travel data and log the error
+      // Parse travel data
+      const travelData = await travelResponse.json();
+      console.log(`Fetched ${travelData.length} travel requests`);
+      
+      // Fetch in-valley requests
+      const valleyResponse = await fetch(`/api/valley-requests?employeeId=${employeeId}`);
+      
+      if (!valleyResponse.ok) {
+        console.error(`Failed to fetch in-valley requests. Status: ${valleyResponse.status}`);
+        // Don't throw here, just return travel data and log the error
+        return {
+          travelRequests: travelData || [],
+          valleyRequests: []
+        };
+      }
+      
+      const valleyData = await valleyResponse.json();
+      console.log(`Fetched ${valleyData.length} in-valley requests`);
+      
       return {
         travelRequests: travelData || [],
+        valleyRequests: valleyData || []
+      };
+    } catch (error) {
+      console.error('Error in fetchAllRequests:', error);
+      // Return empty arrays rather than throwing to prevent component failure
+      return {
+        travelRequests: [],
         valleyRequests: []
       };
     }
-    
-    const valleyData = await valleyResponse.json();
-    console.log(`Fetched ${valleyData.length} in-valley requests`);
-    
-    return {
-      travelRequests: travelData || [],
-      valleyRequests: valleyData || []
-    };
-  } catch (error) {
-    console.error('Error in fetchAllRequests:', error);
-    // Return empty arrays rather than throwing to prevent component failure
-    return {
-      travelRequests: [],
-      valleyRequests: []
-    };
-  }
-};
+  };
 
-// Implementation in useEffect or other component logic
-useEffect(() => {
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      if (session?.user?.id) {
-        const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
-        
-        // Set the state with the fetched data
-        setRequests([...travelRequests, ...valleyRequests]);
+  // Implementation in useEffect or other component logic
+  useEffect(() => {
+    const fetchRequests = async () => {
+      setLoading(true);
+      try {
+        if (session?.user?.id) {
+          const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
+          
+          // Set the state with the fetched data
+          const allRequests = [...travelRequests, ...valleyRequests];
+          setRequests(allRequests);
+          
+          // Update finance comments
+          const withComments = getRequestsWithFinanceComments(allRequests);
+          setRequestsWithComments(withComments);
+          setHasFinanceComments(withComments.length > 0);
+          
+          // Calculate statistics
+          const newStats = {
+            pending: allRequests.filter(req => req.status === 'pending').length,
+            approved: allRequests.filter(req => req.status === 'approved').length,
+            rejected: allRequests.filter(req => ['rejected', 'rejected_by_checker'].includes(req.status)).length,
+            totalAmount: allRequests.reduce((total, req) => total + (req.totalAmount || 0), 0),
+            travelCount: travelRequests.length,
+            inValleyCount: valleyRequests.length,
+            waitingForExpenses: allRequests.filter(req => req.status === 'travel_approved').length
+          };
+          setStats(newStats);
+        }
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+        setErrorMessage('Failed to load requests. Please try again later.');
+      } finally {
+        setLoading(false);
       }
+    };
+
+    fetchRequests();
+  }, [session]);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    
+    if (!session?.user?.id) {
+      setErrorMessage('Cannot refresh: You are not logged in');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
+      const allRequests = [...travelRequests, ...valleyRequests];
+      setRequests(allRequests);
+      
+      // Update finance comments
+      const withComments = getRequestsWithFinanceComments(allRequests);
+      setRequestsWithComments(withComments);
+      setHasFinanceComments(withComments.length > 0);
+      
+      // Update stats
+      const newStats = {
+        pending: allRequests.filter(req => req.status === 'pending').length,
+        approved: allRequests.filter(req => req.status === 'approved').length,
+        rejected: allRequests.filter(req => ['rejected', 'rejected_by_checker'].includes(req.status)).length,
+        totalAmount: allRequests.reduce((total, req) => total + (req.totalAmount || 0), 0),
+        travelCount: travelRequests.length,
+        inValleyCount: valleyRequests.length,
+        waitingForExpenses: allRequests.filter(req => req.status === 'travel_approved').length
+      };
+      setStats(newStats);
+      
     } catch (error) {
-      console.error('Error fetching requests:', error);
-      setErrorMessage('Failed to load requests. Please try again later.');
+      console.error('Error refreshing data:', error);
+      setErrorMessage('Failed to refresh data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  fetchRequests();
-}, [session]);
-  
-const handleRefresh = async () => {
-  setLoading(true);
-  setErrorMessage('');
-  
-  if (!session?.user?.id) {
-    setErrorMessage('Cannot refresh: You are not logged in');
-    setLoading(false);
-    return;
-  }
-  
-  try {
-    const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
-    setRequests([...travelRequests, ...valleyRequests]);
-  } catch (error) {
-    console.error('Error refreshing data:', error);
-    setErrorMessage('Failed to refresh data. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
   
   const handleSort = (key: string) => {
     setSortConfig(toggleSort(sortConfig, key));
@@ -335,6 +389,11 @@ const handleRefresh = async () => {
       id: 'past',
       label: 'Past Requests',
       icon: Calendar
+    },
+    {
+      id: 'finance-comments',
+      label: 'Finance Comments',
+      icon: InfoIcon
     }
   ];
   
@@ -356,6 +415,14 @@ const handleRefresh = async () => {
       
       <main className="flex-grow p-6">
         <div className="max-w-7xl mx-auto">
+          {errorMessage && (
+            <Alert className="mb-6 bg-red-50 text-red-800 border-red-200">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -537,6 +604,13 @@ const handleRefresh = async () => {
                         <TabsTrigger value="past" className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
                           <span>Completed Requests</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="finance-comments" className="flex items-center gap-2 relative">
+                          <InfoIcon className="h-4 w-4" />
+                          <span>Finance Comments</span>
+                          {hasFinanceComments && (
+                            <span className="absolute h-2 w-2 top-1 right-1 bg-red-500 rounded-full"></span>
+                          )}
                         </TabsTrigger>
                       </TabsList>
                       
@@ -819,6 +893,13 @@ const handleRefresh = async () => {
                           </div>
                         )}
                       </TabsContent>
+                      
+                      <TabsContent value="finance-comments">
+                        <FinanceCommentsList 
+                          requests={requestsWithComments}
+                          loading={loading}
+                        />
+                      </TabsContent>
                     </Tabs>
                   </CardContent>
                 </Card>
@@ -941,6 +1022,28 @@ const handleRefresh = async () => {
                   </Button>
                 </CardContent>
               </Card>
+
+              {hasFinanceComments && (
+                <Card className="bg-amber-50 border border-amber-200">
+                  <CardContent className="p-4">
+                    <h3 className="font-medium text-amber-800 mb-2 flex items-center gap-2">
+                      <MessageSquare size={16} className="text-amber-600" />
+                      Finance Comments Available
+                    </h3>
+                    <p className="text-amber-700 text-sm mb-3">
+                      You have {requestsWithComments.length} request(s) with comments from the finance team that may need your attention.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-white border-amber-300 text-amber-800 hover:bg-amber-100"
+                      onClick={() => setActiveTab('finance-comments')}
+                    >
+                      View Finance Comments
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
@@ -948,8 +1051,4 @@ const handleRefresh = async () => {
       
     </div>
   );
-}
-
-function setErrorMessage(arg0: string) {
-  throw new Error('Function not implemented.');
 }

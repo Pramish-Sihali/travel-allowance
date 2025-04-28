@@ -57,7 +57,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Mail,
+  Send
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -140,6 +142,11 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
   const [comments, setComments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error'; message: string} | null>(null);
+  
+  // Finance comment state variables
+  const [financeComment, setFinanceComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [financeCommentMessage, setFinanceCommentMessage] = useState<{type: 'success' | 'error'; message: string} | null>(null);
   
   // New state for projects and budgets
   const [projects, setProjects] = useState<Project[]>([]);
@@ -460,6 +467,110 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
+  
+  // Handle sending finance comment
+  const handleSendFinanceComment = async () => {
+    if (!request || !financeComment.trim()) return;
+    
+    setIsSubmittingComment(true);
+    setFinanceCommentMessage(null);
+    
+    try {
+      const response = await fetch(`/api/valley-requests/${requestId}/finance-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          comment: financeComment
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send finance comment');
+      }
+      
+      const data = await response.json();
+      
+      // Show success message
+      setFinanceCommentMessage({
+        type: 'success',
+        message: 'Finance comment sent successfully. The employee has been notified.'
+      });
+      
+      // Clear the comment field
+      setFinanceComment('');
+      
+    } catch (error) {
+      console.error('Error sending finance comment:', error);
+      setFinanceCommentMessage({
+        type: 'error',
+        message: 'Failed to send finance comment. Please try again.'
+      });
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  // Create a function to render the finance comment section
+  const renderFinanceCommentSection = () => (
+    <div className="bg-amber-50 border border-amber-200 rounded-md p-6 mb-6">
+      <h3 className="text-lg font-medium flex items-center gap-2 text-amber-800 mb-4">
+        <Mail className="h-5 w-5 text-amber-600" />
+        Send Finance Comment to Employee
+      </h3>
+      
+      {financeCommentMessage && (
+        <Alert className={cn(
+          "mb-4",
+          financeCommentMessage.type === 'success' ? "bg-green-50 text-green-800 border-green-200" : 
+          "bg-red-50 text-red-800 border-red-200"
+        )}>
+          {financeCommentMessage.type === 'success' ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+          )}
+          <AlertTitle>{financeCommentMessage.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
+          <AlertDescription>{financeCommentMessage.message}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="space-y-4">
+        <p className="text-amber-700 text-sm">
+          Send a message about financial matters without changing the request status. The employee will receive a notification.
+        </p>
+        
+        <Textarea
+          value={financeComment}
+          onChange={(e) => setFinanceComment(e.target.value)}
+          placeholder="Add a finance-related comment for the employee (e.g., 'Funds will be released tomorrow')"
+          className="min-h-[100px] resize-none bg-white"
+        />
+        
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={handleSendFinanceComment}
+            disabled={isSubmittingComment || !financeComment.trim()}
+            className="flex items-center gap-2 bg-white"
+          >
+            {isSubmittingComment ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4" />
+                Send Comment
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
   
   const handleStatusUpdate = async (newStatus: 'approved' | 'rejected') => {
     if (!request) return;
@@ -870,6 +981,8 @@ export default function CheckerInValleyDetail({ requestId }: CheckerInValleyDeta
           </AlertDescription>
         </Alert>
       )}
+      
+      {request.status === 'pending_verification' && renderFinanceCommentSection()}
       
       {(request.previousOutstandingAdvance || 0) > 0 && (
         <div className="flex items-center space-x-2 mb-4 bg-amber-50 p-3 rounded-md border border-amber-200">
