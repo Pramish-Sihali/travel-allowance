@@ -46,6 +46,9 @@ export async function PATCH(
       );
     }
 
+    console.log('Fetched request:', existingRequest);
+
+
     // Prepare update data
     const updateData = {
       total_amount: body.totalAmount || 0,
