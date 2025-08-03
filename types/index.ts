@@ -1,6 +1,6 @@
 // types/index.ts
 
-export type Role = 'employee' | 'approver' | 'checker' | 'admin';
+export type Role = 'employee' | 'approver';
 
 export type RequestStatus = 
   | 'pending' 
@@ -150,7 +150,7 @@ export interface Notification {
 }
 
 // Auth Types
-export type UserRole = 'employee' | 'approver' | 'checker' | 'admin';
+export type UserRole = 'employee' | 'approver';
 
 export interface Project {
   id: string;
@@ -255,6 +255,38 @@ export interface TaskUpdate {
   updatedBy?: string;
   updatedByName: string;
   createdAt: string;
+}
+
+// Attendance Types
+export type AttendanceStatus = 'present' | 'leave';
+export type LeaveType = 'sick' | 'personal' | 'vacation' | 'emergency' | 'other';
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  status: AttendanceStatus;
+  leaveType?: LeaveType;
+  leaveReason?: string;
+  approver?: string;
+  isAdvancedLeave?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  leaveType: LeaveType;
+  reason: string;
+  approverId: string;
+  approverName?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  isAdvanced?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // API Response Types

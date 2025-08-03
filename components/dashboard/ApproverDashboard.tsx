@@ -6,6 +6,8 @@ import { useSession } from 'next-auth/react';
 import { TravelRequest } from '@/types';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import LeaveRequestsPanel from '@/components/attendance/LeaveRequestsPanel';
+import AttendancePanel from '@/components/attendance/AttendancePanel';
 
 // Import components
 import {
@@ -29,7 +31,8 @@ import {
   MapPin,
   CheckCircle,
   AlertTriangle,
-  Calendar
+  Calendar,
+  Users
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -245,8 +248,11 @@ const fetchRequests = async () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Stats Cards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Stats Cards Section */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatsCard
           icon={Clock}
           title="Pending Approval"
@@ -283,10 +289,10 @@ const fetchRequests = async () => {
           iconColor="text-blue-600"
           iconBgColor="bg-blue-100"
         />
-      </div>
-      
-      {/* Main Dashboard Card */}
-      <Card>
+          </div>
+          
+          {/* Main Dashboard Card */}
+          <Card>
         <DashboardHeader
           title="Approver Dashboard"
           description="Review and approve expense requests assigned to you"
@@ -301,14 +307,24 @@ const fetchRequests = async () => {
           onRefresh={handleRefresh}
           loading={loading}
         >
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/calendar')}
-            className="flex items-center gap-2"
-          >
-            <Calendar className="h-4 w-4" />
-            Calendar
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/calendar')}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="h-4 w-4" />
+              Calendar
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/attendance-sheet')}
+              className="flex items-center gap-2"
+            >
+              <Users className="h-4 w-4" />
+              Attendance Sheet
+            </Button>
+          </div>
         </DashboardHeader>
         
         <CardContent>
@@ -376,10 +392,10 @@ const fetchRequests = async () => {
             </TabsContent>
           </RequestTabs>
         </CardContent>
-      </Card>
-      
-      {/* Help Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          </Card>
+          
+          {/* Help Panel */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="border shadow-sm">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -444,6 +460,31 @@ const fetchRequests = async () => {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
+        
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
+          <AttendancePanel userId={session?.user?.id || ''} userName={session?.user?.name || 'Approver'} />
+          
+          {/* Attendance Sheet Button */}
+          <Card className="border-l-4 border-l-purple-500">
+            <CardContent className="p-4">
+              <Button 
+                onClick={() => router.push('/attendance-sheet')}
+                className="w-full flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <Users className="h-4 w-4" />
+                View Attendance Sheet
+              </Button>
+              <p className="text-xs text-gray-600 mt-2 text-center">
+                View complete monthly attendance records for all employees
+              </p>
+            </CardContent>
+          </Card>
+          
+          <LeaveRequestsPanel approverId={session?.user?.id || ''} />
+        </div>
       </div>
     </div>
   );

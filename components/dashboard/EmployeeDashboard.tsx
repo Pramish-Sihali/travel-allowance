@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel';
 import FinanceCommentsList from '@/components/dashboard/FinanceCommentsList';
+import AttendancePanel from '@/components/attendance/AttendancePanel';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -701,6 +702,7 @@ export default function EmployeeDashboard() {
             
             {/* Sidebar */}
             <div className="md:col-span-1 space-y-6">
+              <AttendancePanel userId={employeeId} userName={session?.user?.name || 'Employee'} />
               <NotificationsPanel userId={employeeId} />
               
               <Card>
