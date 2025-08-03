@@ -12,6 +12,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from '@/components/dashboard';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -289,44 +290,7 @@ export default function AdminRequestsTable() {
       .substring(0, 2);
   };
   
-  // Get status badge style
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'pending_verification':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'travel_approved':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-      case 'rejected_by_checker':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
-  // Get formatted status text
-  const getFormattedStatus = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'pending_verification':
-        return 'Under Verification';
-      case 'travel_approved':
-        return 'Travel Approved';
-      case 'approved':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      case 'rejected_by_checker':
-        return 'Rejected by Finance';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
-    }
-  };
 
   // Get request type badge style
   const getRequestTypeBadgeClass = (type: string) => {
@@ -882,9 +846,7 @@ export default function AdminRequestsTable() {
                       {request.totalAmount ? `Nrs.${request.totalAmount.toLocaleString()}` : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadgeClass(request.status)}>
-                        {getFormattedStatus(request.status)}
-                      </Badge>
+                      <StatusBadge status={request.status} />
                     </TableCell>
                     <TableCell>
                       <Badge className={getRequestTypeBadgeClass(request.requestType)}>
@@ -942,9 +904,7 @@ export default function AdminRequestsTable() {
                                       {selectedRequest.totalAmount ? `Nrs.${selectedRequest.totalAmount.toLocaleString()}` : 'No amount specified'}
                                     </p>
                                     <div className="mt-1 flex gap-2">
-                                      <Badge className={getStatusBadgeClass(selectedRequest.status)}>
-                                        {getFormattedStatus(selectedRequest.status)}
-                                      </Badge>
+                                      <StatusBadge status={selectedRequest.status} />
                                       <Badge className={getRequestTypeBadgeClass(selectedRequest.requestType)}>
                                         {selectedRequest.requestType.charAt(0).toUpperCase() + selectedRequest.requestType.slice(1).replace('-', ' ')}
                                       </Badge>
@@ -1033,9 +993,7 @@ export default function AdminRequestsTable() {
                   <p className="text-muted-foreground">{selectedRequest.department || 'No Department'}</p>
                 </div>
                 <div className="ml-auto flex flex-col items-end">
-                  <Badge className={getStatusBadgeClass(selectedRequest.status)}>
-                    {getFormattedStatus(selectedRequest.status)}
-                  </Badge>
+                  <StatusBadge status={selectedRequest.status} />
                   <span className="text-sm text-muted-foreground mt-1">
                     Created on {new Date(selectedRequest.createdAt).toLocaleDateString()}
                   </span>

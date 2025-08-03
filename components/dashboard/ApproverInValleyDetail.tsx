@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from '@/components/dashboard';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -230,21 +231,6 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
     fetchRequestDetails();
   }, [requestId]);
   
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'pending_verification':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-      case 'rejected_by_checker':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
   
   const getStatusIcon = () => {
     if (!request) return null;
@@ -264,18 +250,6 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
     }
   };
   
-  const getFormattedStatus = (status: string) => {
-    switch (status) {
-      case 'pending_verification':
-        return 'Pending Verification';
-      case 'rejected_by_checker':
-        return 'Rejected by Finance';
-      case 'travel_approved':
-        return 'Approved (Ready for Expenses)';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-  };
   
   const formatCategoryName = (category: string) => {
     // Convert category values like "ride-share" to "Ride Share"
@@ -519,9 +493,7 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
               <div className="py-2 grid grid-cols-2">
                 <span className="text-muted-foreground">Status:</span>
                 <span className="font-medium text-right">
-                  <Badge className={getStatusBadgeClass(status)}>
-                    {getFormattedStatus(status)}
-                  </Badge>
+                  <StatusBadge status={status} />
                 </span>
               </div>
               
@@ -677,7 +649,7 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
           <Info className="h-4 w-4 text-blue-600" />
           <div className="font-medium">Action Not Available</div>
           <AlertDescription>
-            This request is in the "{getFormattedStatus(status)}" state and cannot be modified.
+            This request is in a non-modifiable state.
           </AlertDescription>
         </Alert>
       )}
@@ -698,9 +670,7 @@ export default function ApproverInValleyDetail({ requestId }: ApproverInValleyDe
         
         <div className="flex items-center gap-2">
           {getStatusIcon()}
-          <Badge className={getStatusBadgeClass(status)}>
-            {getFormattedStatus(status)}
-          </Badge>
+          <StatusBadge status={status} />
         </div>
       </div>
       

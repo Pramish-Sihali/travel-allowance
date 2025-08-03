@@ -24,6 +24,7 @@ import {
   RequestTable,
   FilterControls,
   EmptyState,
+  StatusBadge,
   filterRequests,
   sortRequests,
   toggleSort,
@@ -245,43 +246,6 @@ export default function EmployeeDashboard() {
     setSortConfig(toggleSort(sortConfig, key));
   };
   
-  // Get CSS classes for status badges
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'travel_approved':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'pending_verification':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-      case 'rejected_by_checker':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-  
-  const getFormattedStatus = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending Approval';
-      case 'travel_approved':
-        return 'Ready for Expenses';
-      case 'pending_verification':
-        return 'Under Verification';
-      case 'rejected_by_checker':
-        return 'Rejected by Finance';
-      case 'approved':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-  };
   
   const getRequestTypeLabel = (type: string) => {
     switch (type) {
@@ -616,283 +580,39 @@ export default function EmployeeDashboard() {
                       </TabsList>
                       
                       <TabsContent value="current">
-                        {currentRequests.length === 0 ? (
-                          <div className="text-center py-10 bg-muted/20 rounded-md">
-                            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-muted-foreground">No current requests found</p>
-                          </div>
-                        ) : (
-                          <div className="rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <FileText size={16} className="mr-2 text-muted-foreground" />
-                                      Purpose
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <Calendar size={16} className="mr-2 text-muted-foreground" />
-                                      Date
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <FileText size={16} className="mr-2 text-muted-foreground" />
-                                      Type
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <DollarSign size={16} className="mr-2 text-muted-foreground" />
-                                      Amount
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <Clock size={16} className="mr-2 text-muted-foreground" />
-                                      Status
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {currentRequests.map((request) => (
-                                  <TableRow 
-                                    key={request.id} 
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handleRequestClick(request)}
-                                  >
-                                    <TableCell>
-                                      <div className="max-w-[200px] truncate font-medium" title={request.purpose}>
-                                        {request.purpose.substring(0, 30)}
-                                        {request.purpose.length > 30 ? '...' : ''}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell>
-                                      {request.requestType === 'in-valley' ? (
-                                        <div className="text-sm">
-                                          <span className="font-medium">
-                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
-                                              year: 'numeric',
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col text-sm">
-                                          <span className="font-medium">
-                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                          <span className="text-muted-foreground">
-                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className={cn(
-                                        "flex items-center gap-1.5 w-fit",
-                                        request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                        request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
-                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                                        'bg-red-100 text-red-800 border-red-200'
-                                      )}>
-                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
-                                        {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
-                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
-                                        {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                                        {getRequestTypeLabel(request.requestType || 'normal')}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                      {request.status === 'travel_approved' ? (
-                                        <span className="text-muted-foreground italic">Pending</span>
-                                      ) : (
-                                        <>
-                                          Nrs.{request.totalAmount.toLocaleString(undefined, {
-                                            minimumFractionDigits: 0, 
-                                            maximumFractionDigits: 0
-                                          })}
-                                        </>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className={getStatusBadgeClass(request.status)}>
-                                        {getFormattedStatus(request.status)}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRequestClick(request);
-                                        }}
-                                        className="flex items-center gap-1"
-                                      >
-                                        {request.status === 'travel_approved' ? 'Add Expenses' : 'View'}
-                                        <ArrowRight className="h-4 w-4" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
+                        <RequestTable
+                          requests={currentRequests}
+                          loading={false}
+                          onViewDetails={handleRequestClick}
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                          variant="employee"
+                          mode="current"
+                          actionVariant="view"
+                          emptyStateProps={{
+                            icon: FileText,
+                            title: "No current requests",
+                            description: "You haven't submitted any travel requests yet."
+                          }}
+                        />
                       </TabsContent>
                       
                       <TabsContent value="past">
-                        {pastRequests.length === 0 ? (
-                          <div className="text-center py-10 bg-muted/20 rounded-md">
-                            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-muted-foreground">No completed requests found</p>
-                          </div>
-                        ) : (
-                          <div className="rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <FileText size={16} className="mr-2 text-muted-foreground" />
-                                      Purpose
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <Calendar size={16} className="mr-2 text-muted-foreground" />
-                                      Date
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <FileText size={16} className="mr-2 text-muted-foreground" />
-                                      Type
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <DollarSign size={16} className="mr-2 text-muted-foreground" />
-                                      Amount
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>
-                                    <div className="flex items-center">
-                                      <Clock size={16} className="mr-2 text-muted-foreground" />
-                                      Status
-                                    </div>
-                                  </TableHead>
-                                  <TableHead>Submitted</TableHead>
-                                  <TableHead>Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {pastRequests.map((request) => (
-                                  <TableRow 
-                                    key={request.id} 
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handleRequestClick(request)}
-                                  >
-                                    <TableCell>
-                                      <div className="max-w-[200px] truncate font-medium" title={request.purpose}>
-                                        {request.purpose.substring(0, 30)}
-                                        {request.purpose.length > 30 ? '...' : ''}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell>
-                                      {request.requestType === 'in-valley' ? (
-                                        <div className="text-sm">
-                                          <span className="font-medium">
-                                            {new Date(request.expenseDate || request.travelDateFrom).toLocaleDateString(undefined, {
-                                              year: 'numeric',
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col text-sm">
-                                          <span className="font-medium">
-                                            {new Date(request.travelDateFrom).toLocaleDateString(undefined, {
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                          <span className="text-muted-foreground">
-                                            to {new Date(request.travelDateTo).toLocaleDateString(undefined, {
-                                              month: 'short',
-                                              day: 'numeric'
-                                            })}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className={cn(
-                                        "flex items-center gap-1.5 w-fit",
-                                        request.requestType === 'normal' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                        request.requestType === 'advance' ? 'bg-green-100 text-green-800 border-green-200' :
-                                        request.requestType === 'in-valley' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                                        'bg-red-100 text-red-800 border-red-200'
-                                      )}>
-                                        {(request.requestType === 'normal' || !request.requestType) && <Plane className="h-3 w-3" />}
-                                        {request.requestType === 'advance' && <CreditCard className="h-3 w-3" />}
-                                        {request.requestType === 'in-valley' && <MapPin className="h-3 w-3" />}
-                                        {request.requestType === 'emergency' && <AlertTriangle className="h-3 w-3" />}
-                                        {getRequestTypeLabel(request.requestType || 'normal')}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                      Nrs.{request.totalAmount.toLocaleString(undefined, {
-                                        minimumFractionDigits: 0, 
-                                        maximumFractionDigits: 0
-                                      })}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className={getStatusBadgeClass(request.status)}>
-                                        {getFormattedStatus(request.status)}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm">
-                                      {new Date(request.createdAt).toLocaleDateString(undefined, {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRequestClick(request);
-                                        }}
-                                        className="flex items-center gap-1"
-                                      >
-                                        View
-                                        <ArrowRight className="h-4 w-4" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
+                        <RequestTable
+                          requests={pastRequests}
+                          loading={false}
+                          onViewDetails={handleRequestClick}
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                          variant="employee"
+                          mode="past"
+                          actionVariant="view"
+                          emptyStateProps={{
+                            icon: Calendar,
+                            title: "No completed requests",
+                            description: "No completed requests found."
+                          }}
+                        />
                       </TabsContent>
                       
                       <TabsContent value="finance-comments">

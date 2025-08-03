@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from '@/components/dashboard';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -525,20 +526,6 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
     }
   };
   
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pending_verification':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected_by_checker':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
   
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -555,16 +542,6 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
     }
   };
   
-  const getFormattedStatus = (status: string) => {
-    switch (status) {
-      case 'pending_verification':
-        return 'Pending Verification';
-      case 'rejected_by_checker':
-        return 'Rejected';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-  };
   
   // Calculate combined total (including previous outstanding advance)
   const calculateCombinedTotal = () => {
@@ -726,9 +703,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
         
         <div className="flex items-center gap-2">
           {getStatusIcon(status)}
-          <Badge className={getStatusBadgeClass(status)}>
-            {getFormattedStatus(status)}
-          </Badge>
+          <StatusBadge status={status} />
         </div>
       </div>
       
@@ -920,7 +895,7 @@ export default function CheckerRequestDetail({ requestId }: CheckerRequestDetail
                     ) : (
                       <AlertTriangle className="h-4 w-4 text-red-600" />
                     )}
-                    <AlertTitle>{getFormattedStatus(request.status)}</AlertTitle>
+                    <AlertTitle><StatusBadge status={request.status} /></AlertTitle>
                     <AlertDescription>
                       This request has already been {request.status === 'rejected_by_checker' ? 'rejected' : request.status}.
                       {request.checkerComments && (
