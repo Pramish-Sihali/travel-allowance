@@ -11,6 +11,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { getInitials, getSortIndicator, RoleBadge } from '@/components/dashboard';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -190,60 +191,8 @@ export default function AdminUsersTable() {
   // Calculate total pages
   const totalPages = Math.ceil(getFilteredUsers().length / itemsPerPage);
   
-  // Get sort indicator for table headers
-  const getSortIndicator = (key: string) => {
-    if (sortConfig?.key !== key) {
-      return <ArrowUpDown size={14} className="ml-1 text-muted-foreground" />;
-    }
-    
-    if (sortConfig.direction === 'ascending') {
-      return <ArrowUpDown size={14} className="ml-1 text-primary rotate-0" />;
-    }
-    
-    return <ArrowUpDown size={14} className="ml-1 text-primary rotate-180" />;
-  };
   
-  // Get user initials for avatar
-  const getInitials = (name: string) => {
-    if (!name) return 'U';
-    
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
   
-  // Get role badge style
-  const getRoleBadgeClass = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'approver':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'checker':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'employee':
-      default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-    }
-  };
-
-  // Get role icon
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Users className="h-3 w-3 mr-1" />;
-      case 'approver':
-        return <Check className="h-3 w-3 mr-1" />;
-      case 'checker':
-        return <Briefcase className="h-3 w-3 mr-1" />;
-      case 'employee':
-      default:
-        return <UserPlus className="h-3 w-3 mr-1" />;
-    }
-  };
   
   // Function to handle adding a new user
   const handleAddUser = async () => {
@@ -805,7 +754,7 @@ const handleDeleteUser = async () => {
                     onClick={() => requestSort('name')}
                   >
                     <div className="flex items-center">
-                      Name {getSortIndicator('name')}
+                      Name {getSortIndicator('name', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead 
@@ -813,7 +762,7 @@ const handleDeleteUser = async () => {
                     onClick={() => requestSort('email')}
                   >
                     <div className="flex items-center">
-                      Email {getSortIndicator('email')}
+                      Email {getSortIndicator('email', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead 
@@ -821,7 +770,7 @@ const handleDeleteUser = async () => {
                     onClick={() => requestSort('role')}
                   >
                     <div className="flex items-center">
-                      Role {getSortIndicator('role')}
+                      Role {getSortIndicator('role', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead 
@@ -829,7 +778,7 @@ const handleDeleteUser = async () => {
                     onClick={() => requestSort('department')}
                   >
                     <div className="flex items-center">
-                      Department {getSortIndicator('department')}
+                      Department {getSortIndicator('department', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -858,12 +807,7 @@ const handleDeleteUser = async () => {
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getRoleBadgeClass(user.role)}>
-                        <div className="flex items-center">
-                          {getRoleIcon(user.role)}
-                          {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
-                        </div>
-                      </Badge>
+                      <RoleBadge role={user.role} size="sm" />
                     </TableCell>
                     <TableCell>
                       {user.department ? (
@@ -1048,9 +992,7 @@ const handleDeleteUser = async () => {
                                     <p className="font-medium">{selectedUser.name}</p>
                                     <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
                                     <div className="flex items-center mt-1">
-                                      <Badge className={getRoleBadgeClass(selectedUser.role)}>
-                                        {selectedUser.role?.charAt(0).toUpperCase() + selectedUser.role?.slice(1)}
-                                      </Badge>
+                                      <RoleBadge role={selectedUser.role} size="sm" />
                                       {selectedUser.department && (
                                         <Badge variant="outline" className="ml-2">
                                           {selectedUser.department}
@@ -1139,12 +1081,7 @@ const handleDeleteUser = async () => {
                     {selectedUser.email}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <Badge className={getRoleBadgeClass(selectedUser.role)}>
-                      <div className="flex items-center">
-                        {getRoleIcon(selectedUser.role)}
-                        {selectedUser.role?.charAt(0).toUpperCase() + selectedUser.role?.slice(1)}
-                      </div>
-                    </Badge>
+                    <RoleBadge role={selectedUser.role} />
                   </div>
                 </div>
               </div>

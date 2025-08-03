@@ -12,7 +12,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from '@/components/dashboard';
+import { StatusBadge, getInitials, getSortIndicator, RequestTypeBadge } from '@/components/dashboard';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -265,48 +265,10 @@ export default function AdminRequestsTable() {
   // Calculate total pages
   const totalPages = Math.ceil(getFilteredRequests().length / itemsPerPage);
   
-  // Get sort indicator for table headers
-  const getSortIndicator = (key: string) => {
-    if (sortConfig?.key !== key) {
-      return <ArrowUpDown size={14} className="ml-1 text-muted-foreground" />;
-    }
-    
-    if (sortConfig.direction === 'ascending') {
-      return <ArrowUpDown size={14} className="ml-1 text-primary rotate-0" />;
-    }
-    
-    return <ArrowUpDown size={14} className="ml-1 text-primary rotate-180" />;
-  };
   
-  // Get initials for avatar
-  const getInitials = (name: string) => {
-    if (!name) return 'U';
-    
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
   
 
 
-  // Get request type badge style
-  const getRequestTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case 'normal':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'advance':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'emergency':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'in-valley':
-        return 'bg-teal-100 text-teal-800 border-teal-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
   
   // Function to handle viewing a request
   const handleViewRequest = (request: TravelRequest) => {
@@ -776,7 +738,7 @@ export default function AdminRequestsTable() {
                     onClick={() => requestSort('department')}
                   >
                     <div className="flex items-center">
-                      Department {getSortIndicator('department')}
+                      Department {getSortIndicator('department', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead
@@ -785,7 +747,7 @@ export default function AdminRequestsTable() {
                   >
                     <div className="flex items-center">
                       <Calendar size={16} className="mr-2 text-muted-foreground" />
-                      Date {getSortIndicator('travelDateFrom')}
+                      Date {getSortIndicator('travelDateFrom', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead
@@ -794,7 +756,7 @@ export default function AdminRequestsTable() {
                   >
                     <div className="flex items-center">
                       <DollarSign size={16} className="mr-2 text-muted-foreground" />
-                      Amount {getSortIndicator('totalAmount')}
+                      Amount {getSortIndicator('totalAmount', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead
@@ -802,7 +764,7 @@ export default function AdminRequestsTable() {
                     onClick={() => requestSort('status')}
                   >
                     <div className="flex items-center">
-                      Status {getSortIndicator('status')}
+                      Status {getSortIndicator('status', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead
@@ -810,7 +772,7 @@ export default function AdminRequestsTable() {
                     onClick={() => requestSort('requestType')}
                   >
                     <div className="flex items-center">
-                      Type {getSortIndicator('requestType')}
+                      Type {getSortIndicator('requestType', sortConfig)}
                     </div>
                   </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -849,15 +811,7 @@ export default function AdminRequestsTable() {
                       <StatusBadge status={request.status} />
                     </TableCell>
                     <TableCell>
-                      <Badge className={getRequestTypeBadgeClass(request.requestType)}>
-                        <div className="flex items-center gap-1">
-                          {request.requestType === 'normal' && <FileText size={12} />}
-                          {request.requestType === 'advance' && <CreditCard size={12} />}
-                          {request.requestType === 'emergency' && <AlertTriangle size={12} />}
-                          {request.requestType === 'in-valley' && <Building size={12} />}
-                          {request.requestType.charAt(0).toUpperCase() + request.requestType.slice(1).replace('-', ' ')}
-                        </div>
-                      </Badge>
+                      <RequestTypeBadge type={request.requestType} size="sm" />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -905,9 +859,7 @@ export default function AdminRequestsTable() {
                                     </p>
                                     <div className="mt-1 flex gap-2">
                                       <StatusBadge status={selectedRequest.status} />
-                                      <Badge className={getRequestTypeBadgeClass(selectedRequest.requestType)}>
-                                        {selectedRequest.requestType.charAt(0).toUpperCase() + selectedRequest.requestType.slice(1).replace('-', ' ')}
-                                      </Badge>
+                                      <RequestTypeBadge type={selectedRequest.requestType} size="sm" />
                                     </div>
                                   </div>
                                 </div>

@@ -3,6 +3,7 @@
 // Export all components
 export { default as StatusBadge } from './common/StatusBadge';
 export { default as RequestTypeBadge } from './common/RequestTypeBadge';
+export { default as RoleBadge } from './common/RoleBadge';
 export { default as StatsCard } from './common/StatsCard';
 export { default as UserAvatar } from './common/UserAvatar';
 export { default as EmptyState } from './common/EmptyState';

@@ -1,5 +1,6 @@
 // components/dashboard/utils/sortingHelpers.ts
 import { TravelRequest } from '@/types';
+import { ArrowUpDown } from 'lucide-react';
 
 // Sort configuration type
 export interface SortConfig {
@@ -68,4 +69,22 @@ export const toggleSort = (
   }
   
   return { key, direction };
+};
+
+/**
+ * Get sort indicator icon for table headers
+ */
+export const getSortIndicator = (
+  key: string,
+  sortConfig: SortConfig | null
+) => {
+  if (sortConfig?.key !== key) {
+    return <ArrowUpDown size={14} className="ml-1 text-muted-foreground" />;
+  }
+  
+  if (sortConfig.direction === 'ascending') {
+    return <ArrowUpDown size={14} className="ml-1 text-primary rotate-0" />;
+  }
+  
+  return <ArrowUpDown size={14} className="ml-1 text-primary rotate-180" />;
 };
