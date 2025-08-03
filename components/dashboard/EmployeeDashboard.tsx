@@ -46,7 +46,8 @@ import {
   RefreshCw,
   Search,
   Info as InfoIcon,
-  MessageSquare
+  MessageSquare,
+  CheckSquare
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -394,6 +395,16 @@ export default function EmployeeDashboard() {
                   >
                     <Calendar size={16} />
                     Calendar
+                  </Button>
+                  
+                  {/* Task Manager Button */}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push('/tasks')}
+                    className="flex items-center gap-2"
+                  >
+                    <CheckSquare size={16} />
+                    Task Manager
                   </Button>
                   
                   {/* New Request Dropdown Button */}

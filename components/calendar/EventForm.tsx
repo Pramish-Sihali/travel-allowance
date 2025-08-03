@@ -30,7 +30,6 @@ interface EventFormData {
 
 // Event types available to all employees
 const EMPLOYEE_EVENT_TYPES: { value: EventType; label: string }[] = [
-  { value: 'hall_booking', label: 'Hall Booking' },
   { value: 'potluck', label: 'Potluck/Social Event' },
   { value: 'birthday', label: 'Birthday Celebration' },
   { value: 'team_outing', label: 'Team Outing' },
@@ -247,7 +246,7 @@ export function EventForm({ event, onSave, onCancel }: EventFormProps) {
             )}
           </div>
 
-          {(eventType === 'hall_booking' || eventType === 'workshop' || eventType === 'team_outing') && (
+          {(eventType === 'workshop' || eventType === 'team_outing') && (
             <div>
               <Label htmlFor="maxAttendees">Maximum Attendees (Optional)</Label>
               <Input

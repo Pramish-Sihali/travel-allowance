@@ -173,7 +173,7 @@ export interface Budget {
 
 export type EventType = 
   | 'company_meeting'    // Company Meetings - Admin/Approver only
-  | 'hall_booking'       // Hall Bookings - All employees
+  | 'hall_booking'      // Hall Bookings - All employees
   | 'potluck'           // Potluck/Social Events - All employees
   | 'training'          // Training Sessions - Admin/Approver only
   | 'holiday'           // Company Holidays - Admin/Approver only
@@ -183,17 +183,6 @@ export type EventType =
   | 'team_outing'       // Team Outings - All employees
   | 'workshop'          // Workshops - All employees
   | 'general';          // General Events - All employees
-
-export interface Hall {
-  id: string;
-  name: string;
-  capacity: number;
-  location: string;
-  amenities: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface Event {
   id: string;
@@ -206,7 +195,6 @@ export interface Event {
   isAllDay?: boolean;
   eventType: EventType;
   location?: string;
-  hallId?: string;
   createdBy: string;
   createdByName: string;
   createdByRole: string;
@@ -216,6 +204,57 @@ export interface Event {
   approvalStatus?: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   updatedAt: string;
+}
+
+// Task Manager Types
+export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Cancelled';
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type RagStatus = 'Red' | 'Amber' | 'Green' | 'Unrated';
+
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  departmentId: string;
+  departmentName?: string;
+  assignedTo: string[];
+  assignedUserIds?: string[];
+  status: TaskStatus;
+  priority: TaskPriority;
+  ragStatus: RagStatus;
+  dueDate?: string;
+  startDate?: string;
+  completionDate?: string;
+  bottlenecks?: string;
+  ragTakeaway?: string;
+  remarks?: string;
+  createdBy?: string;
+  createdByName?: string;
+  lastUpdatedBy?: string;
+  lastUpdatedByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskUpdate {
+  id: string;
+  taskId: string;
+  updateType: string;
+  oldValue?: string;
+  newValue?: string;
+  remarks?: string;
+  updatedBy?: string;
+  updatedByName: string;
+  createdAt: string;
 }
 
 // API Response Types
