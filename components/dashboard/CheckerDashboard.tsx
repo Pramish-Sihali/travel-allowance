@@ -38,7 +38,8 @@ import {
   Plane,
   MapPin,
   Filter,
-  FileText
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -431,7 +432,16 @@ export default function CheckerDashboard() {
           onTypeFilterChange={(value) => setRequestTypeFilter(value as any)}
           onRefresh={handleRefresh}
           loading={loading || refreshing}
-        />
+        >
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/calendar')}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            Calendar
+          </Button>
+        </DashboardHeader>
         
         <CardContent>
           <RequestTabs

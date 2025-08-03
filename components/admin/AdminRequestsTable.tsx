@@ -12,7 +12,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge, getInitials, getSortIndicator, RequestTypeBadge } from '@/components/dashboard';
+import { StatusBadge, getInitials, getSortIndicator, RequestTypeBadge, getRequestTypeBadgeClass } from '@/components/dashboard';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";

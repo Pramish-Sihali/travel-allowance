@@ -171,6 +171,53 @@ export interface Budget {
   updatedAt?: string | Date;
 }
 
+export type EventType = 
+  | 'company_meeting'    // Company Meetings - Admin/Approver only
+  | 'hall_booking'       // Hall Bookings - All employees
+  | 'potluck'           // Potluck/Social Events - All employees
+  | 'training'          // Training Sessions - Admin/Approver only
+  | 'holiday'           // Company Holidays - Admin/Approver only
+  | 'deadline'          // Important Deadlines - Admin/Approver only
+  | 'announcement'      // Company Announcements - Admin/Approver only
+  | 'birthday'          // Birthday Celebrations - All employees
+  | 'team_outing'       // Team Outings - All employees
+  | 'workshop'          // Workshops - All employees
+  | 'general';          // General Events - All employees
+
+export interface Hall {
+  id: string;
+  name: string;
+  capacity: number;
+  location: string;
+  amenities: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string; // Time format: "14:30"
+  endTime?: string; // Time format: "16:00"
+  isAllDay?: boolean;
+  eventType: EventType;
+  location?: string;
+  hallId?: string;
+  createdBy: string;
+  createdByName: string;
+  createdByRole: string;
+  maxAttendees?: number;
+  currentAttendees?: number;
+  requiresApproval?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   data?: T;

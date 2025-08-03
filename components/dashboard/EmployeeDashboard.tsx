@@ -19,18 +19,11 @@ import {
 
 // Import our reusable components
 import {
-  StatsCard,
-  RequestTabs,
+
   RequestTable,
-  FilterControls,
-  EmptyState,
-  StatusBadge,
-  filterRequests,
-  sortRequests,
+
   toggleSort,
-  splitRequestsByDate,
-  getRequestStatistics,
-  formatDate
+
 } from '@/components/dashboard';
 
 // Import icons
@@ -56,9 +49,8 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
-import { cn } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Badge } from '../ui/badge';
+
+
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -393,8 +385,19 @@ export default function EmployeeDashboard() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-foreground">My Expense Requests</h1>
                 
-                {/* New Request Dropdown Button */}
-                <DropdownMenu>
+                <div className="flex gap-2">
+                  {/* Calendar Button */}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push('/calendar')}
+                    className="flex items-center gap-2"
+                  >
+                    <Calendar size={16} />
+                    Calendar
+                  </Button>
+                  
+                  {/* New Request Dropdown Button */}
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button className="flex items-center gap-2">
                       <PlusCircle size={16} />
@@ -412,6 +415,7 @@ export default function EmployeeDashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               </div>
               
               {/* Stats Cards */}

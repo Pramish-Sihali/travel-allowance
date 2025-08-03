@@ -195,6 +195,15 @@ export default function AdminDashboardContent({ user }: AdminDashboardContentPro
         <div className="flex gap-3">
           <Button 
             variant="outline" 
+            onClick={() => router.push('/calendar')}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            Calendar
+          </Button>
+          
+          <Button 
+            variant="outline" 
             onClick={handleRefreshDashboard}
             disabled={isRefreshing}
             className="flex items-center gap-2"

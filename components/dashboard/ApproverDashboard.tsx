@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { TravelRequest } from '@/types';
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 // Import components
 import {
@@ -27,7 +28,8 @@ import {
   DollarSign,
   MapPin,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -298,7 +300,16 @@ const fetchRequests = async () => {
           onTypeFilterChange={(value) => setTypeFilter(value as any)}
           onRefresh={handleRefresh}
           loading={loading}
-        />
+        >
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/calendar')}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            Calendar
+          </Button>
+        </DashboardHeader>
         
         <CardContent>
           <RequestTabs
