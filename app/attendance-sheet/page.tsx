@@ -19,6 +19,7 @@ import {
   Calendar,
   ArrowLeft,
   Download,
+  ClipboardList,
   Filter,
   UserCheck
 } from 'lucide-react';
@@ -245,6 +246,14 @@ export default function AttendanceSheetPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/tasks')}
+              className="flex items-center gap-2"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Tasks
+            </Button>
             <Button
               variant="outline"
               onClick={fetchAttendanceSheet}

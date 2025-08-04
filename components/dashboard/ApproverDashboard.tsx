@@ -32,7 +32,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Calendar,
-  Users
+  Users,
+  ClipboardList
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -247,6 +248,26 @@ const fetchRequests = async () => {
         />
           </div>
           
+          {/* Quick Actions */}
+          <div className="flex flex-wrap gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/calendar')}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="h-4 w-4" />
+              Calendar
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/tasks')}
+              className="flex items-center gap-2"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Tasks
+            </Button>
+          </div>
+          
           {/* Main Dashboard Card */}
           <Card>
         <DashboardHeader
@@ -262,26 +283,7 @@ const fetchRequests = async () => {
           onTypeFilterChange={(value) => setTypeFilter(value as any)}
           onRefresh={handleRefresh}
           loading={loading}
-        >
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push('/calendar')}
-              className="flex items-center gap-2"
-            >
-              <Calendar className="h-4 w-4" />
-              Calendar
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => router.push('/attendance-sheet')}
-              className="flex items-center gap-2"
-            >
-              <Users className="h-4 w-4" />
-              Attendance Sheet
-            </Button>
-          </div>
-        </DashboardHeader>
+        />
         
         <CardContent>
           <RequestTabs
