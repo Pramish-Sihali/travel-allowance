@@ -109,8 +109,8 @@ export default function TaskManager() {
   };
 
   const handleTaskView = (task: Task) => {
-    setSelectedTask(task);
-    setShowTaskDetails(true);
+    // Navigate to task detail page instead of showing modal
+    window.location.href = `/tasks/${task.id}`;
   };
 
   const handleTaskUpdated = () => {
@@ -360,20 +360,6 @@ export default function TaskManager() {
         />
       )}
 
-      {/* Task Details Modal */}
-      {showTaskDetails && selectedTask && (
-        <TaskDetails
-          task={selectedTask}
-          onTaskUpdated={handleTaskUpdated}
-          onCancel={() => {
-            setShowTaskDetails(false);
-            setSelectedTask(null);
-          }}
-          statusColors={STATUS_COLORS}
-          priorityColors={PRIORITY_COLORS}
-          ragColors={RAG_COLORS}
-        />
-      )}
     </div>
   );
 }

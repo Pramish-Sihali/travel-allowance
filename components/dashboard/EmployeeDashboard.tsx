@@ -82,6 +82,9 @@ export default function EmployeeDashboard() {
   const [requestsWithComments, setRequestsWithComments] = useState<TravelRequest[]>([]);
   const [hasFinanceComments, setHasFinanceComments] = useState(false);
   
+  // Notifications state
+  const [notifications, setNotifications] = useState<any[]>([]);
+  
   // Get employeeId from session, or generate one if not available
   const employeeId = session?.user?.id || uuidv4();
   
@@ -162,28 +165,27 @@ export default function EmployeeDashboard() {
       setLoading(true);
       try {
         if (session?.user?.id) {
-          const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
+          // Use optimized dashboard API instead of multiple calls
+          const response = await fetch(`/api/dashboard/employee?employeeId=${session.user.id}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch dashboard data');
+          }
           
-          // Set the state with the fetched data
-          const allRequests = [...travelRequests, ...valleyRequests];
+          const data = await response.json();
+          
+          // Set the state with the fetched data from optimized API
+          const allRequests = data.allRequests;
           setRequests(allRequests);
           
           // Update finance comments
-          const withComments = getRequestsWithFinanceComments(allRequests);
-          setRequestsWithComments(withComments);
-          setHasFinanceComments(withComments.length > 0);
+          setRequestsWithComments(data.requestsWithComments);
+          setHasFinanceComments(data.hasFinanceComments);
           
-          // Calculate statistics
-          const newStats = {
-            pending: allRequests.filter(req => req.status === 'pending').length,
-            approved: allRequests.filter(req => req.status === 'approved').length,
-            rejected: allRequests.filter(req => ['rejected', 'rejected_by_checker'].includes(req.status)).length,
-            totalAmount: allRequests.reduce((total, req) => total + (req.totalAmount || 0), 0),
-            travelCount: travelRequests.length,
-            inValleyCount: valleyRequests.length,
-            waitingForExpenses: allRequests.filter(req => req.status === 'travel_approved').length
-          };
-          setStats(newStats);
+          // Use stats from optimized API
+          setStats(data.stats);
+          
+          // Set notifications from optimized API
+          setNotifications(data.notifications);
         }
       } catch (error) {
         console.error('Error fetching requests:', error);
@@ -207,26 +209,20 @@ export default function EmployeeDashboard() {
     }
     
     try {
-      const { travelRequests, valleyRequests } = await fetchAllRequests(session.user.id);
-      const allRequests = [...travelRequests, ...valleyRequests];
-      setRequests(allRequests);
+      // Use optimized dashboard API for refresh too
+      const response = await fetch(`/api/dashboard/employee?employeeId=${session.user.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to refresh dashboard data');
+      }
       
-      // Update finance comments
-      const withComments = getRequestsWithFinanceComments(allRequests);
-      setRequestsWithComments(withComments);
-      setHasFinanceComments(withComments.length > 0);
+      const data = await response.json();
       
-      // Update stats
-      const newStats = {
-        pending: allRequests.filter(req => req.status === 'pending').length,
-        approved: allRequests.filter(req => req.status === 'approved').length,
-        rejected: allRequests.filter(req => ['rejected', 'rejected_by_checker'].includes(req.status)).length,
-        totalAmount: allRequests.reduce((total, req) => total + (req.totalAmount || 0), 0),
-        travelCount: travelRequests.length,
-        inValleyCount: valleyRequests.length,
-        waitingForExpenses: allRequests.filter(req => req.status === 'travel_approved').length
-      };
-      setStats(newStats);
+      // Set the state with refreshed data
+      setRequests(data.allRequests);
+      setRequestsWithComments(data.requestsWithComments);
+      setHasFinanceComments(data.hasFinanceComments);
+      setStats(data.stats);
+      setNotifications(data.notifications);
       
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -703,7 +699,7 @@ export default function EmployeeDashboard() {
             {/* Sidebar */}
             <div className="md:col-span-1 space-y-6">
               <AttendancePanel userId={employeeId} userName={session?.user?.name || 'Employee'} />
-              <NotificationsPanel userId={employeeId} />
+              <NotificationsPanel userId={employeeId} notifications={notifications} />
               
               <Card>
                 <CardHeader>

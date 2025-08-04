@@ -46,53 +46,15 @@ export default function AttendanceSheet({ approverId }: AttendanceSheetProps) {
   const fetchAttendanceSheet = async () => {
     setLoading(true);
     try {
-      // Fetch all employees for attendance
-      const employeesResponse = await fetch('/api/users/employees?forAttendance=true');
-      if (!employeesResponse.ok) throw new Error('Failed to fetch employees');
+      // Use optimized attendance sheet API
+      const response = await fetch(`/api/attendance-sheet?date=${selectedDate}`);
+      if (!response.ok) throw new Error('Failed to fetch attendance sheet');
       
-      const employeesData = await employeesResponse.json();
-      setEmployees(employeesData);
-
-      // Fetch attendance for selected date
-      const attendancePromises = employeesData.map(async (employee: User) => {
-        const attendanceResponse = await fetch(
-          `/api/attendance?employeeId=${employee.id}&date=${selectedDate}`
-        );
-        
-        let attendanceRecord = null;
-        if (attendanceResponse.ok) {
-          const attendanceArray = await attendanceResponse.json();
-          attendanceRecord = attendanceArray.length > 0 ? attendanceArray[0] : null;
-        }
-
-        // Determine status based on attendance and time
-        let status: 'present' | 'late' | 'absent' | 'leave' = 'absent';
-        let timestamp = undefined;
-
-        if (attendanceRecord) {
-          timestamp = attendanceRecord.createdAt;
-          if (attendanceRecord.status === 'leave') {
-            status = 'leave';
-          } else if (attendanceRecord.status === 'present') {
-            // Check if they were late (after 9:30 AM)
-            const attendanceTime = new Date(attendanceRecord.createdAt);
-            const cutoffTime = new Date(selectedDate);
-            cutoffTime.setHours(9, 30, 0, 0); // 9:30 AM cutoff
-            
-            status = attendanceTime > cutoffTime ? 'late' : 'present';
-          }
-        }
-
-        return {
-          employee,
-          todayAttendance: attendanceRecord,
-          status,
-          timestamp
-        };
-      });
-
-      const attendanceResults = await Promise.all(attendancePromises);
-      setAttendanceData(attendanceResults);
+      const data = await response.json();
+      
+      // Use data from optimized API
+      setEmployees(data.employees);
+      setAttendanceData(data.attendanceData);
     } catch (error) {
       console.error('Error fetching attendance sheet:', error);
       toast.error("Failed to load attendance sheet.");

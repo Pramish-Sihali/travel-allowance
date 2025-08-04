@@ -40,6 +40,8 @@ export function TaskForm({ task, departments, onSave, onCancel }: TaskFormProps)
   const [loading, setLoading] = useState(false);
   const [assignedPersons, setAssignedPersons] = useState<string[]>(task?.assignedTo || []);
   const [newPerson, setNewPerson] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   const {
     register,
@@ -79,6 +81,25 @@ export function TaskForm({ task, departments, onSave, onCancel }: TaskFormProps)
 
   const selectedDepartmentId = watch('departmentId');
   const selectedStatus = watch('status');
+
+  // Fetch users for assignment dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users/employees');
+        if (response.ok) {
+          const userData = await response.json();
+          setUsers(userData);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const addAssignedPerson = () => {
     if (newPerson.trim() && !assignedPersons.includes(newPerson.trim())) {
@@ -265,13 +286,19 @@ export function TaskForm({ task, departments, onSave, onCancel }: TaskFormProps)
             <Label htmlFor="assignedPersons">Assigned Persons</Label>
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Input
-                  value={newPerson}
-                  onChange={(e) => setNewPerson(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Enter person name and press Enter"
-                />
-                <Button type="button" onClick={addAssignedPerson}>
+                <Select value={newPerson} onValueChange={setNewPerson}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user to assign"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.name}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" onClick={addAssignedPerson} disabled={!newPerson}>
                   Add
                 </Button>
               </div>

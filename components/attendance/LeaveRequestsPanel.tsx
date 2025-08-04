@@ -69,21 +69,7 @@ export default function LeaveRequestsPanel({ approverId }: LeaveRequestsPanelPro
           )
         );
 
-        // Send notification to employee
-        const request = leaveRequests.find(req => req.id === requestId);
-        if (request) {
-          await fetch('/api/notifications', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: request.employeeId,
-              message: `Your ${request.leaveType} leave request has been ${status}.`,
-            }),
-          });
-        }
-
+        // The API now handles notification creation internally, so no additional call needed
         toast.success(`Leave request has been ${status}.`);
 
         setDialogOpen(false);

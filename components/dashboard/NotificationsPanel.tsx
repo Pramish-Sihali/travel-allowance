@@ -12,37 +12,45 @@ import { Separator } from "@/components/ui/separator";
 
 interface NotificationsPanelProps {
   userId: string;
+  notifications?: Notification[]; // Allow notifications to be passed as prop
 }
 
-export default function NotificationsPanel({ userId }: NotificationsPanelProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function NotificationsPanel({ userId, notifications: propNotifications }: NotificationsPanelProps) {
+  const [notifications, setNotifications] = useState<Notification[]>(propNotifications || []);
+  const [loading, setLoading] = useState(!propNotifications);
   const [isExpanded, setIsExpanded] = useState(false);
   
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch(`/api/notifications?userId=${userId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch notifications');
+    // If notifications are passed as props, use them directly
+    if (propNotifications) {
+      setNotifications(propNotifications);
+      setLoading(false);
+    } else {
+      // Fall back to individual API call only if no notifications provided
+      const fetchNotifications = async () => {
+        try {
+          const response = await fetch(`/api/notifications?userId=${userId}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch notifications');
+          }
+          
+          const data = await response.json();
+          setNotifications(data);
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+        } finally {
+          setLoading(false);
         }
-        
-        const data = await response.json();
-        setNotifications(data);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchNotifications();
-    
-    // Setup polling for new notifications (every 30 seconds)
-    const intervalId = setInterval(fetchNotifications, 30000);
-    
-    return () => clearInterval(intervalId);
-  }, [userId]);
+      };
+      
+      fetchNotifications();
+      
+      // Setup polling for new notifications (every 30 seconds)
+      const intervalId = setInterval(fetchNotifications, 30000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [userId, propNotifications]);
   
   const markAsRead = async (notificationId: string) => {
     try {
