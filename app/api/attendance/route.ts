@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
     }
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('attendance')
       .select('*')
       .eq('employee_id', employeeId);
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if attendance already exists for this date
-    const { data: existingAttendance } = await supabase
+    const { data: existingAttendance } = await supabaseAdmin
       .from('attendance')
       .select('id')
       .eq('employee_id', employeeId)
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     if (existingAttendance && existingAttendance.length > 0) {
       // Update existing attendance
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('attendance')
         .update({
           status,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Create new attendance record
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('attendance')
         .insert([{
           employee_id: employeeId,

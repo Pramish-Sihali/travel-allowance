@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
     // Fetch all employees and their attendance for the specific date in a single query
-    const { data: employees, error: employeesError } = await supabase
+    const { data: employees, error: employeesError } = await supabaseAdmin
       .from('users')
       .select('id, name, email, role, department, designation')
       .order('name', { ascending: true });
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all attendance records for the specific date in a single query
-    const { data: attendanceRecords, error: attendanceError } = await supabase
+    const { data: attendanceRecords, error: attendanceError } = await supabaseAdmin
       .from('attendance')
       .select('*')
       .eq('date', date);

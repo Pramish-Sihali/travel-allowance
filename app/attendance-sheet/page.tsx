@@ -92,11 +92,11 @@ export default function AttendanceSheetPage() {
       const data = await response.json();
       
       // Update state with the fetched data
-      setAttendanceData(data.employees);
-      setMonthDates(data.monthDates);
+      setAttendanceData(data.employees || []);
+      setMonthDates(data.monthDates || []);
       
       // Extract employees list for search functionality
-      const employeesList = data.employees.map((item: any) => item.employee);
+      const employeesList = (data.employees || []).map((item: any) => item.employee).filter(Boolean);
       setEmployees(employeesList);
       
       console.log(`Loaded attendance sheet: ${data.totalEmployees} employees, ${data.totalRecords} records`);
@@ -204,11 +204,22 @@ export default function AttendanceSheetPage() {
     return { present, late, leave, absent, workDays: workDays.length };
   };
 
-  const filteredAttendance = attendanceData.filter(item =>
-    item.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.employee.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAttendance = attendanceData.filter(item => {
+    // Skip if item or employee doesn't exist
+    if (!item?.employee) return false;
+    
+    // If no search term, show all items
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const name = item.employee.name || '';
+    const email = item.employee.email || '';
+    const department = item.employee.department || '';
+    
+    return name.toLowerCase().includes(searchLower) || 
+           email.toLowerCase().includes(searchLower) || 
+           department.toLowerCase().includes(searchLower);
+  });
 
   if (status === 'loading' || loading) {
     return (
@@ -343,24 +354,24 @@ export default function AttendanceSheetPage() {
                 </thead>
                 <tbody>
                   {filteredAttendance.map((item, index) => {
-                    const stats = getEmployeeStats(item.attendanceRecords);
+                    const stats = getEmployeeStats(item.attendanceRecords || {});
                     const attendanceRate = stats.workDays > 0 
                       ? Math.round(((stats.present + stats.late) / stats.workDays) * 100) 
                       : 0;
 
                     return (
-                      <tr key={item.employee.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <tr key={item.employee?.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="p-4 sticky left-0 bg-inherit border-r">
                           <div>
-                            <div className="font-medium text-sm">{item.employee.name}</div>
+                            <div className="font-medium text-sm">{item.employee?.name || 'Unknown'}</div>
                             <div className="text-xs text-gray-500">
-                              {item.employee.department} • {item.employee.email}
+                              {item.employee?.department || 'Unknown'} • {item.employee?.email || 'No email'}
                             </div>
                           </div>
                         </td>
                         {monthDates.map((dateInfo) => (
                           <td key={dateInfo.date} className="p-2 text-center">
-                            {getStatusCell(item.attendanceRecords[dateInfo.date], dateInfo.isWeekend)}
+                            {getStatusCell(item.attendanceRecords?.[dateInfo.date], dateInfo.isWeekend)}
                           </td>
                         ))}
                         <td className="p-4 sticky right-0 bg-inherit border-l">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // Fetch all employees first
-    const { data: employees, error: employeesError } = await supabase
+    const { data: employees, error: employeesError } = await supabaseAdmin
       .from('users')
       .select('id, name, email, role, department, designation')
       .order('name', { ascending: true });
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all attendance records for the month in a single query
-    const { data: attendanceRecords, error: attendanceError } = await supabase
+    const { data: attendanceRecords, error: attendanceError } = await supabaseAdmin
       .from('attendance')
       .select('*')
       .gte('date', startDateStr)
@@ -177,16 +177,7 @@ export async function GET(request: NextRequest) {
     }) : null;
 
     return NextResponse.json({
-      employees: employees.map(emp => ({
-        id: emp.id,
-        name: emp.name || 'Unknown',
-        email: emp.email,
-        role: emp.role,
-        department: emp.department || 'Unassigned',
-        designation: emp.designation || 'Staff'
-      })),
-      attendanceData,
-      monthData, // For month view if needed
+      employees: month ? monthData : attendanceData, // Return the correct data structure
       monthDates: month ? monthDates : null,
       month: month || `${year}-${monthNum.toString().padStart(2, '0')}`,
       totalEmployees: employees.length,
