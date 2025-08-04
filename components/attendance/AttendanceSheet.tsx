@@ -46,8 +46,8 @@ export default function AttendanceSheet({ approverId }: AttendanceSheetProps) {
   const fetchAttendanceSheet = async () => {
     setLoading(true);
     try {
-      // Use optimized attendance sheet API
-      const response = await fetch(`/api/attendance-sheet?date=${selectedDate}`);
+      // Use optimized attendance summary API for single date queries
+      const response = await fetch(`/api/attendance-summary?date=${selectedDate}`);
       if (!response.ok) throw new Error('Failed to fetch attendance sheet');
       
       const data = await response.json();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -19,7 +19,7 @@ export async function GET(
     const { id: taskId } = await params;
 
     // Fetch time logs for the task
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('time_logs')
       .select('*')
       .eq('task_id', taskId)
@@ -110,7 +110,7 @@ export async function POST(
     }
 
     // Check if task exists
-    const { data: taskData, error: taskError } = await supabase
+    const { data: taskData, error: taskError } = await supabaseAdmin
       .from('tasks')
       .select('id')
       .eq('id', taskId)
@@ -124,7 +124,7 @@ export async function POST(
     }
 
     // Insert time log
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('time_logs')
       .insert({
         task_id: taskId,

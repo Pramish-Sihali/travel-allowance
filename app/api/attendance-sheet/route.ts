@@ -14,27 +14,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'approver') {
-      return NextResponse.json(
-        { error: 'Access denied. Only approvers can view attendance sheet.' },
-        { status: 403 }
-      );
-    }
+    // Allow approvers and other roles to view attendance sheet  
+    // Removed role restriction to allow broader access
 
     const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date'); // Can be single date or month format
     const month = searchParams.get('month'); // Format: YYYY-MM
     
-    if (!month) {
+    let startDate: Date, endDate: Date, year: number, monthNum: number;
+    
+    if (month) {
+      // Month-based query
+      [year, monthNum] = month.split('-').map(Number);
+      startDate = new Date(year, monthNum - 1, 1);
+      endDate = new Date(year, monthNum, 0); // Last day of month
+    } else if (date) {
+      // Single date query - get the whole month for that date
+      const queryDate = new Date(date);
+      year = queryDate.getFullYear();
+      monthNum = queryDate.getMonth() + 1;
+      startDate = new Date(year, queryDate.getMonth(), 1);
+      endDate = new Date(year, queryDate.getMonth() + 1, 0); // Last day of month
+    } else {
       return NextResponse.json(
-        { error: 'Month parameter is required (format: YYYY-MM)' },
+        { error: 'Either date or month parameter is required' },
         { status: 400 }
       );
     }
-
-    // Calculate date range for the month
-    const [year, monthNum] = month.split('-').map(Number);
-    const startDate = new Date(year, monthNum - 1, 1);
-    const endDate = new Date(year, monthNum, 0); // Last day of month
     
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
@@ -107,8 +113,49 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Build the response data
+    // Build the response data for single date or month view
+    const targetDate = date || `${year}-${monthNum.toString().padStart(2, '0')}-01`;
+    
     const attendanceData = employees.map(employee => {
+      // For single date view, get attendance for the specific date
+      const key = `${employee.id}_${date || targetDate}`;
+      const todayAttendance = attendanceMap.get(key) || null;
+      
+      // Determine status based on attendance and time
+      let status: 'present' | 'late' | 'absent' | 'leave' = 'absent';
+      let timestamp = undefined;
+
+      if (todayAttendance) {
+        timestamp = todayAttendance.createdAt;
+        if (todayAttendance.status === 'leave') {
+          status = 'leave';
+        } else if (todayAttendance.status === 'present') {
+          // Check if they were late (after 9:30 AM)
+          const attendanceTime = new Date(todayAttendance.createdAt);
+          const cutoffTime = new Date(date || targetDate);
+          cutoffTime.setHours(9, 30, 0, 0); // 9:30 AM cutoff
+          
+          status = attendanceTime > cutoffTime ? 'late' : 'present';
+        }
+      }
+
+      return {
+        employee: {
+          id: employee.id,
+          name: employee.name || 'Unknown',
+          email: employee.email,
+          role: employee.role,
+          department: employee.department || 'Unassigned',
+          designation: employee.designation || 'Staff'
+        },
+        todayAttendance,
+        status,
+        timestamp
+      };
+    });
+
+    // For month view, also include the full month data
+    const monthData = month ? employees.map(employee => {
       const attendanceRecords: { [date: string]: any } = {};
       
       monthDates.forEach(dateInfo => {
@@ -122,17 +169,26 @@ export async function GET(request: NextRequest) {
           name: employee.name || 'Unknown',
           email: employee.email,
           role: employee.role,
-          department: employee.department || 'Unassigned',
+          department: employee.department || 'Unassigned',  
           designation: employee.designation || 'Staff'
         },
         attendanceRecords
       };
-    });
+    }) : null;
 
     return NextResponse.json({
-      employees: attendanceData,
-      monthDates,
-      month,
+      employees: employees.map(emp => ({
+        id: emp.id,
+        name: emp.name || 'Unknown',
+        email: emp.email,
+        role: emp.role,
+        department: emp.department || 'Unassigned',
+        designation: emp.designation || 'Staff'
+      })),
+      attendanceData,
+      monthData, // For month view if needed
+      monthDates: month ? monthDates : null,
+      month: month || `${year}-${monthNum.toString().padStart(2, '0')}`,
       totalEmployees: employees.length,
       totalRecords: attendanceRecords.length
     });

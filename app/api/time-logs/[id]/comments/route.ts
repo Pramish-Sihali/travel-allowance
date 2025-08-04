@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -19,7 +19,7 @@ export async function GET(
     const { id: timeLogId } = await params;
 
     // Fetch comments for the time log
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('time_log_comments')
       .select('*')
       .eq('time_log_id', timeLogId)
@@ -80,7 +80,7 @@ export async function POST(
     }
 
     // Check if time log exists
-    const { data: timeLogData, error: timeLogError } = await supabase
+    const { data: timeLogData, error: timeLogError } = await supabaseAdmin
       .from('time_logs')
       .select('id')
       .eq('id', timeLogId)
@@ -94,7 +94,7 @@ export async function POST(
     }
 
     // Insert comment
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('time_log_comments')
       .insert({
         time_log_id: timeLogId,
