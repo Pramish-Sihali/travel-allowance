@@ -48,7 +48,8 @@ import {
   Search,
   Info as InfoIcon,
   MessageSquare,
-  CheckSquare
+  CheckSquare,
+  Users
 } from 'lucide-react';
 import { TabsContent } from '@radix-ui/react-tabs';
 
@@ -404,6 +405,16 @@ export default function EmployeeDashboard() {
                     Task Manager
                   </Button>
                   
+                  {/* MoM Button */}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push('/mom')}
+                    className="flex items-center gap-2"
+                  >
+                    <Users size={16} />
+                    Minutes of Meeting
+                  </Button>
+                  
                   {/* New Request Dropdown Button */}
                   <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -633,6 +644,7 @@ export default function EmployeeDashboard() {
                           loading={loading}
                         />
                       </TabsContent>
+                      
                     </Tabs>
                   </CardContent>
                 </Card>
