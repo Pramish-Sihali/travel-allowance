@@ -26,6 +26,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CreateMeetingForm from './CreateMeetingForm';
+import MeetingDetailView from './MeetingDetailView';
+import FollowUpManager from './FollowUpManager';
 
 interface Meeting {
   id: string;
@@ -72,6 +74,8 @@ export default function MomDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'create' | 'view' | 'edit' | 'followup'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -102,7 +106,24 @@ export default function MomDashboard() {
   const handleMeetingCreated = () => {
     // Refresh data when a new meeting is created
     fetchMeetingsData();
-    // Hide the create form and show the meetings list
+    // Return to meetings list
+    setViewMode('list');
+    setShowCreateForm(false);
+  };
+
+  const handleViewMeeting = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setViewMode('view');
+  };
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setViewMode('edit');
+  };
+
+  const handleBackToList = () => {
+    setViewMode('list');
+    setSelectedMeeting(null);
     setShowCreateForm(false);
   };
 
@@ -228,7 +249,7 @@ export default function MomDashboard() {
   }
 
   // Show create form
-  if (showCreateForm) {
+  if (showCreateForm || viewMode === 'create') {
     return (
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
@@ -236,7 +257,7 @@ export default function MomDashboard() {
             <h1 className="text-3xl font-bold text-foreground">Create New Meeting</h1>
             <p className="text-muted-foreground mt-1">Add a new meeting with minutes and action items</p>
           </div>
-          <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+          <Button variant="outline" onClick={handleBackToList}>
             <ArrowRight className="h-4 w-4 mr-2" />
             Back to Meetings
           </Button>
@@ -251,6 +272,72 @@ export default function MomDashboard() {
     );
   }
 
+  // Show meeting detail view
+  if (viewMode === 'view' && selectedMeeting) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Meeting Details</h1>
+            <p className="text-muted-foreground mt-1">{selectedMeeting.title}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleEditMeeting(selectedMeeting)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Meeting
+            </Button>
+            <Button variant="outline" onClick={handleBackToList}>
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Back to Meetings
+            </Button>
+          </div>
+        </div>
+        
+        <MeetingDetailView 
+          meeting={selectedMeeting}
+          onMeetingUpdated={() => {
+            fetchMeetingsData();
+            // Update the selected meeting with fresh data
+            const updatedMeeting = meetings.find(m => m.id === selectedMeeting.id);
+            if (updatedMeeting) {
+              setSelectedMeeting(updatedMeeting);
+            }
+          }}
+          onStartFollowUp={() => {
+            setViewMode('followup');
+          }}
+          userId={session?.user?.id}
+        />
+      </div>
+    );
+  }
+
+  // Show follow-up manager
+  if (viewMode === 'followup' && selectedMeeting) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Follow-up Manager</h1>
+            <p className="text-muted-foreground mt-1">Manage action items for: {selectedMeeting.title}</p>
+          </div>
+          <Button variant="outline" onClick={() => setViewMode('view')}>
+            <ArrowRight className="h-4 w-4 mr-2" />
+            Back to Meeting
+          </Button>
+        </div>
+        
+        <FollowUpManager 
+          meetings={[selectedMeeting]}
+          onFollowUpUpdated={() => {
+            fetchMeetingsData();
+          }}
+          userId={session?.user?.id}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -259,7 +346,7 @@ export default function MomDashboard() {
           <h1 className="text-3xl font-bold text-foreground">Minutes of Meeting</h1>
           <p className="text-muted-foreground mt-1">Manage your meetings, minutes, and follow-up actions</p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
+        <Button onClick={() => setViewMode('create')} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add New Meeting
         </Button>
@@ -416,7 +503,7 @@ export default function MomDashboard() {
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Get started by creating your first meeting with minutes and action items to track your team's progress.
             </p>
-            <Button onClick={() => setShowCreateForm(true)} size="lg" className="flex items-center gap-2">
+            <Button onClick={() => setViewMode('create')} size="lg" className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
               Create Your First Meeting
             </Button>
@@ -563,11 +650,20 @@ export default function MomDashboard() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleViewMeeting(meeting)}
+                      >
                         <Eye className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditMeeting(meeting)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                     </div>
