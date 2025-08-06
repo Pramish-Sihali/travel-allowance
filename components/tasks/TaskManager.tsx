@@ -348,17 +348,16 @@ export default function TaskManager() {
       </Card>
 
       {/* Task Form Modal */}
-      {showTaskForm && (
-        <TaskForm
-          task={selectedTask}
-          departments={departments}
-          onSave={handleTaskSaved}
-          onCancel={() => {
-            setShowTaskForm(false);
-            setSelectedTask(null);
-          }}
-        />
-      )}
+      <TaskForm
+        task={selectedTask}
+        departments={departments}
+        open={showTaskForm}
+        onSave={handleTaskSaved}
+        onCancel={() => {
+          setShowTaskForm(false);
+          setSelectedTask(null);
+        }}
+      />
 
     </div>
   );

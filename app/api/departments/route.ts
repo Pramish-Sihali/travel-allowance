@@ -9,14 +9,15 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     const { data, error } = await supabaseAdmin
       .from('departments')
       .select('*')
       .eq('is_active', true)
+      .eq('organization_id', session.user.organizationId)
       .order('name', { ascending: true });
 
     if (error) {

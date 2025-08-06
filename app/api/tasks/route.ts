@@ -9,17 +9,18 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const department = searchParams.get('department');
 
-    // First, get tasks - bypass RLS by using service role
+    // First, get tasks from same organization only
     const { data: tasksData, error: tasksError } = await supabaseAdmin
       .from('tasks')
       .select('*')
+      .eq('organization_id', session.user.organizationId)
       .order('created_at', { ascending: false });
 
     if (tasksError) {
@@ -29,10 +30,11 @@ export async function GET(request: NextRequest) {
 
     console.log('Raw tasks data:', tasksData?.length || 0, 'tasks found');
 
-    // Then get departments
+    // Then get departments from same organization
     const { data: departmentsData, error: deptError } = await supabaseAdmin
       .from('departments')
-      .select('*');
+      .select('*')
+      .eq('organization_id', session.user.organizationId);
 
     if (deptError) {
       console.error('Error fetching departments:', deptError);
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest) {
       created_by_name: userData.name,
       last_updated_by: session.user.id,
       last_updated_by_name: userData.name,
+      organization_id: session.user.organizationId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

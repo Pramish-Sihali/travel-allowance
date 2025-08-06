@@ -314,24 +314,22 @@ export default function CompanyCalendar() {
       </div>
 
       {/* Event Form Modal */}
-      {showEventForm && (
-        <EventForm
-          event={selectedEvent}
-          onSave={handleEventSaved}
-          onCancel={() => {
-            setShowEventForm(false);
-            setSelectedEvent(null);
-          }}
-        />
-      )}
+      <EventForm
+        event={selectedEvent}
+        open={showEventForm}
+        onSave={handleEventSaved}
+        onCancel={() => {
+          setShowEventForm(false);
+          setSelectedEvent(null);
+        }}
+      />
 
       {/* Hall Booking Form Modal */}
-      {showHallBookingForm && (
-        <HallBookingForm
-          onSave={handleEventSaved}
-          onCancel={() => setShowHallBookingForm(false)}
-        />
-      )}
+      <HallBookingForm
+        open={showHallBookingForm}
+        onSave={handleEventSaved}
+        onCancel={() => setShowHallBookingForm(false)}
+      />
     </div>
   );
 }

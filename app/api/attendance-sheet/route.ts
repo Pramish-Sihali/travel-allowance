@@ -5,11 +5,11 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is authenticated and is an approver
+    // Check if user is authenticated and has organization
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.organizationId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No organization found' },
         { status: 401 }
       );
     }
@@ -45,10 +45,11 @@ export async function GET(request: NextRequest) {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // Fetch all employees first
+    // Fetch employees from same organization only
     const { data: employees, error: employeesError } = await supabaseAdmin
       .from('users')
       .select('id, name, email, role, department, designation')
+      .eq('organization_id', session.user.organizationId)
       .order('name', { ascending: true });
 
     if (employeesError) {
@@ -59,10 +60,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all attendance records for the month in a single query
+    // Fetch attendance records for the month from same organization only
     const { data: attendanceRecords, error: attendanceError } = await supabaseAdmin
       .from('attendance')
       .select('*')
+      .eq('organization_id', session.user.organizationId)
       .gte('date', startDateStr)
       .lte('date', endDateStr)
       .order('date', { ascending: true });

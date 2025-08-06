@@ -15,6 +15,7 @@ import { Task, TaskUpdate, TaskStatus, TaskPriority, RagStatus } from '@/types';
 
 interface TaskDetailsProps {
   task: Task;
+  open: boolean;
   onTaskUpdated: () => void;
   onCancel: () => void;
   statusColors: Record<TaskStatus, string>;
@@ -24,6 +25,7 @@ interface TaskDetailsProps {
 
 export function TaskDetails({ 
   task, 
+  open,
   onTaskUpdated, 
   onCancel, 
   statusColors, 
@@ -148,7 +150,7 @@ export function TaskDetails({
                    task.status !== 'Completed';
 
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={open} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">

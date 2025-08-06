@@ -9,13 +9,14 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     const { data, error } = await supabase
       .from('events')
       .select('*')
+      .eq('organization_id', session.user.organizationId)
       .order('start_date', { ascending: true });
 
     if (error) {
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     // Get user information
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       current_attendees: 0,
       requires_approval: false, // For now, all events are auto-approved
       approval_status: 'approved',
+      organization_id: session.user.organizationId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

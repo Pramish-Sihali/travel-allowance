@@ -14,10 +14,17 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         
-        // Get user from Supabase
+        // Get user from Supabase with organization info
         const { data: user, error } = await supabase
           .from('users')
-          .select('*')
+          .select(`
+            *,
+            organizations!users_organization_id_fkey (
+              id,
+              name,
+              slug
+            )
+          `)
           .eq('email', credentials.email)
           .single();
         
@@ -32,6 +39,9 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          organizationId: user.organization_id,
+          organizationName: user.organizations?.name,
+          organizationSlug: user.organizations?.slug,
         };
       }
     })
@@ -41,6 +51,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role;
         token.id = user.id;
+        token.organizationId = user.organizationId || '';
+        token.organizationName = user.organizationName || '';
+        token.organizationSlug = user.organizationSlug || '';
       }
       return token;
     },
@@ -48,6 +61,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.role = token.role;
         session.user.id = token.id as string;
+        session.user.organizationId = token.organizationId;
+        session.user.organizationName = token.organizationName;
+        session.user.organizationSlug = token.organizationSlug;
       }
       return session;
     }

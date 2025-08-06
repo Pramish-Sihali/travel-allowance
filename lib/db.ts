@@ -119,11 +119,18 @@ export const getAllUsers = async () => {
   return data;
 };
 
-export const getUsersByRole = async (role: UserRole) => {
-  const { data, error } = await supabase
+export const getUsersByRole = async (role: UserRole, organizationId?: string) => {
+  let query = supabase
     .from('users')
     .select('*')
     .eq('role', role);
+  
+  // Add organization filter if provided
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
+  }
+  
+  const { data, error } = await query;
   
   if (error) return [];
   return data;
@@ -181,11 +188,18 @@ export const deleteUser = async (id: string) => {
 };
 
 // Travel Requests Functions
-export const getAllTravelRequests = async () => {
-  const { data, error } = await supabase
+export const getAllTravelRequests = async (organizationId?: string) => {
+  let query = supabase
     .from('travel_requests')
     .select('*')
     .order('created_at', { ascending: false });
+  
+  // Add organization filter if provided
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
+  }
+  
+  const { data, error } = await query;
   
   if (error) return [];
   return data.map(mapDbToTravelRequest);

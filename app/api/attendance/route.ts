@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
     const date = searchParams.get('date');
@@ -14,7 +22,8 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from('attendance')
       .select('*')
-      .eq('employee_id', employeeId);
+      .eq('employee_id', employeeId)
+      .eq('organization_id', session.user.organizationId);
 
     if (date) {
       query = query.eq('date', date);
@@ -56,6 +65,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       employeeId,
@@ -75,12 +90,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if attendance already exists for this date
+    // Check if attendance already exists for this date in same organization
     const { data: existingAttendance } = await supabaseAdmin
       .from('attendance')
       .select('id')
       .eq('employee_id', employeeId)
-      .eq('date', date);
+      .eq('date', date)
+      .eq('organization_id', session.user.organizationId);
 
     if (existingAttendance && existingAttendance.length > 0) {
       // Update existing attendance
@@ -116,7 +132,8 @@ export async function POST(request: NextRequest) {
           leave_type: leaveType,
           leave_reason: leaveReason,
           approver,
-          is_advanced_leave: isAdvancedLeave
+          is_advanced_leave: isAdvancedLeave,
+          organization_id: session.user.organizationId
         }]);
 
       if (error) {

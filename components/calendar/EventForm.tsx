@@ -14,6 +14,7 @@ import { Trash2 } from 'lucide-react';
 
 interface EventFormProps {
   event?: Event | null;
+  open: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -46,7 +47,7 @@ const APPROVER_EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'announcement', label: 'Company Announcement' }
 ];
 
-export function EventForm({ event, onSave, onCancel }: EventFormProps) {
+export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -63,6 +64,7 @@ export function EventForm({ event, onSave, onCancel }: EventFormProps) {
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors }
   } = useForm<EventFormData>({
     defaultValues: {
@@ -158,8 +160,25 @@ export function EventForm({ event, onSave, onCancel }: EventFormProps) {
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Small delay to ensure dialog closes properly
+      setTimeout(() => {
+        onCancel();
+      }, 100);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form state when canceling
+    reset();
+    
+    // Call parent cancel handler
+    onCancel();
+  };
+
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -275,7 +294,7 @@ export function EventForm({ event, onSave, onCancel }: EventFormProps) {
               )}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onCancel}>
+              <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>

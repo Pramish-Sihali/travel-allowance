@@ -6,17 +6,17 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is authenticated
+    // Check if user is authenticated and has organization
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.organizationId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No organization found' },
         { status: 401 }
       );
     }
     
-    // Get all users with approver role
-    const approvers = await getUsersByRole('approver');
+    // Get approvers from same organization only
+    const approvers = await getUsersByRole('approver', session.user.organizationId);
     
     // Transform to format needed by the form
     const approverOptions = approvers.map(approver => ({

@@ -16,6 +16,7 @@ import { Task, Department, TaskStatus, TaskPriority, RagStatus } from '@/types';
 interface TaskFormProps {
   task?: Task | null;
   departments: Department[];
+  open: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -35,7 +36,7 @@ interface TaskFormData {
   remarks: string;
 }
 
-export function TaskForm({ task, departments, onSave, onCancel }: TaskFormProps) {
+export function TaskForm({ task, departments, open, onSave, onCancel }: TaskFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [assignedPersons, setAssignedPersons] = useState<string[]>(task?.assignedTo || []);
@@ -154,7 +155,7 @@ export function TaskForm({ task, departments, onSave, onCancel }: TaskFormProps)
   };
 
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={open} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>

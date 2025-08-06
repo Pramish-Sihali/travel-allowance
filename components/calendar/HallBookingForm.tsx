@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface HallBookingFormProps {
+  open: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -26,7 +27,7 @@ interface HallBookingFormData {
   maxAttendees?: number;
 }
 
-export function HallBookingForm({ onSave, onCancel }: HallBookingFormProps) {
+export function HallBookingForm({ open, onSave, onCancel }: HallBookingFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +36,7 @@ export function HallBookingForm({ onSave, onCancel }: HallBookingFormProps) {
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors }
   } = useForm<HallBookingFormData>({
     defaultValues: {
@@ -89,8 +91,46 @@ export function HallBookingForm({ onSave, onCancel }: HallBookingFormProps) {
     }
   };
 
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      // Reset form when opening
+      reset();
+    }
+  }, [open, reset]);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Reset form state immediately when closing
+      reset();
+      // Ensure focus is returned to body
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = '';
+        document.body.focus();
+      }
+      // Small delay to ensure dialog closes properly
+      setTimeout(() => {
+        onCancel();
+      }, 50);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form state when canceling
+    reset();
+    // Ensure focus is returned to body
+    if (typeof document !== 'undefined') {
+      document.body.style.pointerEvents = '';
+      document.body.focus();
+    }
+    // Call parent cancel handler with slight delay
+    setTimeout(() => {
+      onCancel();
+    }, 50);
+  };
+
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Book Conference Hall</DialogTitle>
@@ -199,9 +239,11 @@ export function HallBookingForm({ onSave, onCancel }: HallBookingFormProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+            </DialogClose>
             <Button type="submit" disabled={loading}>
               {loading ? 'Booking...' : 'Book Hall'}
             </Button>
