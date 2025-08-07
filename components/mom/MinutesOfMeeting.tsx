@@ -17,7 +17,8 @@ import {
 
 import CreateMeetingForm from './CreateMeetingForm';
 import MeetingList from './MeetingList';
-import FollowUpManager from './FollowUpManager';
+import Link from 'next/link';
+import { Button } from "@/components/ui/button";
 
 interface Meeting {
   id: string;
@@ -252,11 +253,27 @@ export default function MinutesOfMeeting() {
             </TabsContent>
 
             <TabsContent value="followups" className="mt-6">
-              <FollowUpManager 
-                meetings={meetings}
-                onFollowUpUpdated={handleMeetingUpdated}
-                userId={session?.user?.id}
-              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckSquare className="h-5 w-5" />
+                    Follow-up Manager
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-center py-12">
+                  <CheckSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">Manage Action Items</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Track and update the status of all action items from your meetings in one dedicated interface.
+                  </p>
+                  <Link href="/follow-up">
+                    <Button size="lg">
+                      <CheckSquare className="h-5 w-5 mr-2" />
+                      Open Follow-up Manager
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </CardContent>

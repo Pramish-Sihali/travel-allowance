@@ -1,23 +1,20 @@
 'use client';
 
 import { Suspense } from 'react';
-import ApproverDashboard from '@/components/dashboard/ApproverDashboard';
+import LandingPage from '@/components/dashboard/LandingPage';
 import Header from '@/components/layout/Header';
 
 export default function ApproverDashboardPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header variant="approver" />
-      
-      <main className="flex-grow p-6">
-        <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-          <ApproverDashboard />
-        </Suspense>
-      </main>
-      
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} Company Name. All rights reserved.</p>
-      </footer>
-    </div>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <LandingPage userRole="approver" />
+    </Suspense>
   );
 }

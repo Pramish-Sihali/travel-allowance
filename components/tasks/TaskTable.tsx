@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Edit, Eye, Calendar, Users, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Edit, Calendar, Users, AlertTriangle, CheckCircle, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Task, TaskStatus, TaskPriority, RagStatus } from '@/types';
 
 interface TaskTableProps {
@@ -142,7 +143,7 @@ export function TaskTable({
         </TableHeader>
         <TableBody>
           {sortedTasks.map((task) => (
-            <TableRow key={task.id} className="hover:bg-muted/50">
+            <TableRow key={task.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => onTaskView(task)}>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{task.title}</span>
@@ -202,35 +203,49 @@ export function TaskTable({
                 </div>
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onTaskView(task)}
-                    title="View Details"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onTaskEdit(task)}
-                    title="Edit Task"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  {task.status !== 'Completed' && onMarkAsDone && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onMarkAsDone(task)}
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Mark as Done"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <CheckCircle className="h-4 w-4" />
+                      <MoreVertical className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskView(task);
+                      }}
+                    >
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskEdit(task);
+                      }}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Task
+                    </DropdownMenuItem>
+                    {task.status !== 'Completed' && onMarkAsDone && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkAsDone(task);
+                        }}
+                        className="text-green-600"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark as Done
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

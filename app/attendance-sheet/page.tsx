@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import { cn } from '@/lib/utils';
 import { User, AttendanceRecord } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -232,58 +235,58 @@ export default function AttendanceSheetPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Attendance Sheet</h1>
-              <p className="text-gray-600">
-                {new Date(selectedMonth + '-01').toLocaleDateString('en-US', {
-                  month: 'long',
-                  year: 'numeric'
-                })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/tasks')}
-              className="flex items-center gap-2"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Tasks
-            </Button>
-            <Button
-              variant="outline"
-              onClick={fetchAttendanceSheet}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </div>
+  const userRole = session?.user?.role as 'employee' | 'approver' | 'checker' | 'admin' || 'employee';
 
-        {/* Controls */}
+  return (
+    <div className="min-h-screen bg-background">
+      <Header variant={userRole} />
+      
+      <div className="flex">
+        <Sidebar userRole={userRole} />
+        
+        <main className={cn(
+          "flex-1 transition-all duration-200",
+          "md:ml-64",
+          "p-6"
+        )}>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Page Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground font-lato">Attendance Sheet</h1>
+                  <p className="text-muted-foreground font-nunito mt-1">
+                    {new Date(selectedMonth + '-01').toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric'
+                    })} - Employee attendance tracking and management
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={fetchAttendanceSheet}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            </div>
+
+            {/* Controls */}
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="flex gap-4 items-center">
@@ -324,7 +327,7 @@ export default function AttendanceSheetPage() {
           </CardContent>
         </Card>
 
-        {/* Attendance Table */}
+            {/* Attendance Table */}
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -397,12 +400,14 @@ export default function AttendanceSheetPage() {
           </CardContent>
         </Card>
 
-        {filteredAttendance.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No employees found</p>
+            {filteredAttendance.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No employees found</p>
+              </div>
+            )}
           </div>
-        )}
+        </main>
       </div>
     </div>
   );

@@ -1,24 +1,19 @@
 'use client';
 
 import { Suspense } from 'react';
-
-import Header from '@/components/layout/Header';
-import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
+import LandingPage from '@/components/dashboard/LandingPage';
 
 export default function EmployeeDashboardPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header variant="employee" />
-      
-      <main className="flex-grow p-6">
-        <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-        <EmployeeDashboard />
-        </Suspense>
-      </main>
-      
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} Company Name. All rights reserved.</p>
-      </footer>
-    </div>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <LandingPage userRole="employee" />
+    </Suspense>
   );
 }

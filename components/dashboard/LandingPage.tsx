@@ -1,0 +1,229 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import AttendancePanel from '@/components/attendance/AttendancePanel';
+import CalendarOfTheDay from '@/components/dashboard/CalendarOfTheDay';
+import FollowUpManager from '@/components/mom/FollowUpManager';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Plus, CheckSquare, Clock, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
+
+interface Meeting {
+  id: string;
+  title: string;
+  meeting_date: string;
+  status: string;
+  action_items_count: number;
+  completed_action_items: number;
+}
+
+interface LandingPageProps {
+  userRole?: 'employee' | 'approver' | 'checker' | 'admin';
+}
+
+export default function LandingPage({ userRole = 'employee' }: LandingPageProps) {
+  const { data: session } = useSession();
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [hasFollowUpTasks, setHasFollowUpTasks] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMeetings();
+  }, []);
+
+  const fetchMeetings = async () => {
+    try {
+      const response = await fetch('/api/meetings');
+      if (response.ok) {
+        const data = await response.json();
+        setMeetings(data);
+        // Check if user has any follow-up tasks
+        const hasActiveTasks = data.some((meeting: Meeting) => 
+          meeting.action_items_count > 0 && meeting.status !== 'completed'
+        );
+        setHasFollowUpTasks(hasActiveTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFollowUpUpdated = () => {
+    fetchMeetings();
+  };
+
+  // New Log Component for when no follow-up tasks exist
+  const NewLogComponent = () => (
+    <Card className="mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Plus className="h-5 w-5 text-primary" />
+          <span>Quick Actions</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Link href="/tasks" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <CheckSquare className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm">View Tasks</h4>
+                    <p className="text-xs text-muted-foreground">Manage your tasks</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/calendar" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm">Calendar</h4>
+                    <p className="text-xs text-muted-foreground">View schedule</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/attendance-sheet" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm">Attendance</h4>
+                    <p className="text-xs text-muted-foreground">View records</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <Header variant={userRole} />
+      
+      {/* Layout with Sidebar */}
+      <div className="flex">
+        <Sidebar userRole={userRole} />
+        
+        {/* Main Content */}
+        <main className={cn(
+          "flex-1 transition-all duration-200",
+          "md:ml-64", // Account for sidebar width
+          "p-6"
+        )}>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Welcome Section */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-foreground font-lato mb-2">
+                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {session?.user?.name || 'there'}!
+              </h1>
+              <p className="text-muted-foreground font-nunito">
+                Welcome to your IXI Employee Portal dashboard. Here's what's happening today.
+              </p>
+            </div>
+
+            {/* Attendance Component */}
+            {session?.user?.id && (
+              <AttendancePanel 
+                userId={session.user.id} 
+                userName={session.user.name || 'User'} 
+              />
+            )}
+
+            {/* Calendar of the Day Component */}
+            <CalendarOfTheDay userId={session?.user?.id} />
+
+            {/* Follow-Up Manager or New Log Component */}
+            {!loading && (
+              hasFollowUpTasks ? (
+                <FollowUpManager 
+                  meetings={meetings} 
+                  onFollowUpUpdated={handleFollowUpUpdated}
+                  userId={session?.user?.id}
+                />
+              ) : (
+                <NewLogComponent />
+              )
+            )}
+
+            {loading && (
+              <Card className="mb-6">
+                <CardContent className="p-8">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-6 bg-muted rounded w-1/3"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-muted rounded w-full"></div>
+                      <div className="h-4 bg-muted rounded w-2/3"></div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Additional Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary mb-1">0</div>
+                    <div className="text-sm text-muted-foreground">Pending Approvals</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary mb-1">
+                      {meetings.reduce((sum, m) => sum + m.action_items_count, 0)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Action Items</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary mb-1">
+                      {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date().toLocaleDateString()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

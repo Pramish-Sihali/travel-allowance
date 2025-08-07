@@ -4,9 +4,10 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import CompanyCalendar from '@/components/calendar/CompanyCalendar';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import { Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default async function CalendarPage() {
   const session = await getServerSession(authOptions);
@@ -15,38 +16,42 @@ export default async function CalendarPage() {
     redirect('/');
   }
 
-  // Determine dashboard URL based on user role
-  const getDashboardUrl = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return '/admin/dashboard';
-      case 'approver':
-        return '/approver/dashboard';
-      case 'checker':
-        return '/checker/dashboard';
-      default:
-        return '/employee/dashboard';
-    }
-  };
+
+  const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Link href={getDashboardUrl(session.user.role)}>
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
-        </div>
-        <h1 className="text-3xl font-bold">Company Calendar</h1>
-        <p className="text-muted-foreground mt-2">
-          View company events, meetings, and important dates. Weekends are highlighted in red.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header variant={userRole} />
       
-      <CompanyCalendar />
+      <div className="flex">
+        <Sidebar userRole={userRole} />
+        
+        <main className={cn(
+          "flex-1 transition-all duration-200",
+          "md:ml-64",
+          "p-6"
+        )}>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Page Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground font-lato">Company Calendar</h1>
+                  <p className="text-muted-foreground font-nunito mt-1">
+                    View company events, meetings, and important dates. Plan your schedule effectively.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Calendar Component */}
+            <CompanyCalendar />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
