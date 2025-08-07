@@ -8,8 +8,8 @@ import { getSession } from "@/lib/server/auth";
 import { getDashboardForRole } from "@/lib/server/auth";
 
 export const metadata: Metadata = {
-  title: "Login - Travel Allowance System",
-  description: "Sign in to the Travel Allowance System",
+  title: "Login - IXI Employee Portal",
+  description: "Sign in to the IXI Employee Portal",
 };
 
 export default async function LoginPage() {
@@ -35,7 +35,7 @@ export default async function LoginPage() {
         </svg>
 
       
-        <h1 className="text-3xl font-bold tracking-tight">Travel Allowance System</h1>
+        <h1 className="text-3xl font-bold tracking-tight">IXI Employee Portal</h1>
         <p className="text-muted-foreground mt-2">
           Manage travel requests, approvals, and expenses
         </p>

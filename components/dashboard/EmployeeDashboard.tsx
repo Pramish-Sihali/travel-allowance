@@ -650,62 +650,7 @@ export default function EmployeeDashboard() {
                 </Card>
               )}
               
-              {/* Travel Policy Highlights */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <BookOpen size={18} className="text-primary" />
-                    Travel Policy Highlights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">1</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Submit all invoices and supporting documents within three days of returning from the field.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">2</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Local travel and food allowances are covered through per-diem (NPR 1,500), and no invoices are needed for these expenses.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">3</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Accommodation and other costs will be reimbursed based on actual expenses, with invoices in the company's name required.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">4</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Maximum lodging allowance for each official trip will be determined by the Board and Finance Department based on the nature of travel.</p>
-                      </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-bold text-primary">5</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Any additional expenses for which reimbursement is requested must be supported by invoices or bills.</p>
-                      </div>
-                      
-                      <Button variant="link" className="text-sm text-primary mt-2 pl-7">
-                        View Full Policy Document
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        
             </div>
             
             {/* Sidebar */}
@@ -713,61 +658,7 @@ export default function EmployeeDashboard() {
               <AttendancePanel userId={employeeId} userName={session?.user?.name || 'Employee'} />
               <NotificationsPanel userId={employeeId} notifications={notifications} />
               
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <ExternalLink size={18} />
-                    Quick Links
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y">
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <BookOpen size={18} className="text-primary" />
-                      <span>Travel Policy Documents</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <FileText size={18} className="text-primary" />
-                      <span>Expense Categories Guide</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <Mail size={18} className="text-primary" />
-                      <span>Contact Finance Department</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex items-center justify-start gap-2 w-full p-4 rounded-none h-auto"
-                    >
-                      <HelpCircle size={18} className="text-primary" />
-                      <span>Frequently Asked Questions</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-blue-50 border border-blue-200">
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-blue-800 mb-2">Need Help?</h3>
-                  <p className="text-blue-700 text-sm mb-3">
-                    If you have any questions about your expense reimbursements or need assistance with your requests, contact the finance team.
-                  </p>
-                  <Button variant="link" asChild className="p-0 h-auto text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    <a href="mailto:finance@company.com">
-                      <Mail size={14} />
-                      finance@company.com
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
+           
 
               {hasFinanceComments && (
                 <Card className="bg-amber-50 border border-amber-200">

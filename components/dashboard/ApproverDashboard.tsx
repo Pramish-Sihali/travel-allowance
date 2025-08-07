@@ -352,73 +352,7 @@ const fetchRequests = async () => {
         </CardContent>
           </Card>
           
-          {/* Help Panel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border shadow-sm">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              Approval Process
-            </h3>
-            <div className="space-y-4 mt-4">
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-amber-700">1</span>
-                </div>
-                <div>
-                  <p className="font-medium">Review Request Details</p>
-                  <p className="text-sm text-muted-foreground">Verify that the travel purpose aligns with business needs and company policy</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-amber-700">2</span>
-                </div>
-                <div>
-                  <p className="font-medium">Approve or Reject</p>
-                  <p className="text-sm text-muted-foreground">Make a decision based on your review and provide any necessary comments</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-amber-700">3</span>
-                </div>
-                <div>
-                  <p className="font-medium">Financial Verification</p>
-                  <p className="text-sm text-muted-foreground">After your approval, the request will be sent to Finance for final verification</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border shadow-sm">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Approval Guidelines
-            </h3>
-            <div className="space-y-4 mt-4">
-              <div className="p-3 bg-muted/10 rounded-md">
-                <p className="font-medium">Expense Policy Compliance</p>
-                <p className="text-sm text-muted-foreground">Ensure that all expenses comply with company policy limits and guidelines</p>
-              </div>
-              
-              <div className="p-3 bg-muted/10 rounded-md">
-                <p className="font-medium">Business Justification</p>
-                <p className="text-sm text-muted-foreground">Verify that each request has a clear business purpose and justification</p>
-              </div>
-              
-              <div className="p-3 bg-muted/10 rounded-md">
-                <p className="font-medium">Budget Considerations</p>
-                <p className="text-sm text-muted-foreground">Check that expenses are within departmental or project budget constraints</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-          </div>
+      
         </div>
         
         {/* Sidebar */}

@@ -58,7 +58,7 @@ export default function LoginForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Travel Allowance System</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">IXI Employee Portal</CardTitle>
         <CardDescription className="text-center">
           Enter your credentials to sign in to your account
         </CardDescription>

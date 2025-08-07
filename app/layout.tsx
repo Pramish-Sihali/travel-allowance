@@ -10,7 +10,7 @@ const lexendDeca = Lexend_Deca({
 });
 
 export const metadata: Metadata = {
-  title: 'Travel Allowance System',
+  title: 'IXI Employee Portal',
   description: 'A system for managing travel allowance requests and approvals',
 };
 

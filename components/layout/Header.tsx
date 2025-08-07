@@ -106,7 +106,7 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
             >
               <path d="M16 16V8H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h1 className="text-2xl font-bold tracking-tight">Travel Allowance System</h1>
+            <h1 className="text-2xl font-bold tracking-tight"></h1>
           </div>
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
