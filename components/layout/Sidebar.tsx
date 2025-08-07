@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSidebar } from './SidebarContext';
 import { 
   Home, 
   CheckSquare, 
@@ -26,8 +26,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ userRole = 'employee' }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar();
   const pathname = usePathname();
 
   const navigationItems = [
@@ -38,7 +37,7 @@ export default function Sidebar({ userRole = 'employee' }: SidebarProps) {
       roles: ['employee', 'approver', 'checker', 'admin']
     },
     {
-      name: 'Tasks',
+      name: 'Projects',
       href: '/tasks',
       icon: CheckSquare,
       roles: ['employee', 'approver', 'checker', 'admin']
@@ -207,7 +206,7 @@ export default function Sidebar({ userRole = 'employee' }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <div className={cn(
-        "hidden md:flex flex-col fixed left-0 top-0 h-full z-30 transition-all duration-200",
+        "hidden md:flex flex-col fixed left-0 top-0 h-full z-30 transition-all duration-300 ease-in-out",
         isCollapsed ? "w-16" : "w-64"
       )}>
         <SidebarContent />

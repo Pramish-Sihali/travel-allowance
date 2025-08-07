@@ -212,7 +212,7 @@ export default function TaskManager() {
             </div>
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>{stats.completed} completed</span>
-              <span>{stats.total} total tasks</span>
+              <span>{stats.total} total projects</span>
             </div>
           </div>
         </CardContent>
@@ -227,7 +227,7 @@ export default function TaskManager() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Projects</p>
                 <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -316,12 +316,12 @@ export default function TaskManager() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Task Management
+              Project Management
             </CardTitle>
             {isAuthenticated && (
               <Button onClick={() => setShowTaskForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Task
+                Add Project
               </Button>
             )}
           </div>
@@ -333,7 +333,7 @@ export default function TaskManager() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search tasks, descriptions, or assigned persons..."
+                  placeholder="Search projects, descriptions, or assigned persons..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"

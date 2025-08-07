@@ -129,14 +129,14 @@ export default function UserTasksSection({ userId, userName }: UserTasksSectionP
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
-            <span>Your Tasks</span>
+            <span>My Active Projects</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6 text-muted-foreground">
             <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No tasks assigned to you</p>
-            <p className="text-xs">Tasks assigned to you will appear here</p>
+            <p className="text-sm">No projects assigned to you</p>
+            <p className="text-xs">Projects assigned to you will appear here</p>
           </div>
         </CardContent>
       </Card>
@@ -149,7 +149,7 @@ export default function UserTasksSection({ userId, userName }: UserTasksSectionP
         <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
-            <span>Your Tasks</span>
+            <span>My Active Projects</span>
           </div>
           <Badge variant="outline" className="text-xs">
             {tasks.length} active
@@ -221,7 +221,7 @@ export default function UserTasksSection({ userId, userName }: UserTasksSectionP
             <div className="text-center pt-2">
               <Link href="/tasks">
                 <Button variant="outline" size="sm" className="text-xs">
-                  View all tasks →
+                  View all projects →
                 </Button>
               </Link>
             </div>

@@ -1,9 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import { cn } from '@/lib/utils';
+import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MapPin, Plus, FileText, Clock } from 'lucide-react';
@@ -19,35 +17,14 @@ export default async function RequestsPage() {
   const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant={userRole} />
-      
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Page Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <MapPin className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground font-lato">Travel Requests</h1>
-                  <p className="text-muted-foreground font-nunito mt-1">
-                    Submit and manage your travel requests
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <PageLayout
+      title="Travel Requests"
+      description="Submit and manage your travel requests"
+      headerIcon={<MapPin className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
+      {/* Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               <Card className="hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -110,10 +87,7 @@ export default async function RequestsPage() {
                   </Button>
                 </CardContent>
               </Card>
-            </div>
-          </div>
-        </main>
       </div>
-    </div>
+    </PageLayout>
   );
 }

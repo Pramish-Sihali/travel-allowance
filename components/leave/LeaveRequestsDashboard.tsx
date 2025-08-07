@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import { cn } from '@/lib/utils';
+import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -203,71 +201,52 @@ export default function LeaveRequestsDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header variant={userRole} />
-        <div className="flex">
-          <Sidebar userRole={userRole} />
-          <main className={cn("flex-1 transition-all duration-200", "md:ml-64", "p-6")}>
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading leave requests...</p>
-              </div>
-            </div>
-          </main>
+      <PageLayout
+        title={isEmployee ? 'My Leave Requests' : 'Leave Requests'}
+        description={isEmployee 
+          ? 'Submit and track your leave requests'
+          : 'Manage employee leave requests and approvals'
+        }
+        headerIcon={<FileText className="h-6 w-6 text-primary" />}
+        userRole={userRole}
+      >
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading leave requests...</p>
+          </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant={userRole} />
-      
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Page Header */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-foreground font-lato">
-                      {isEmployee ? 'My Leave Requests' : 'Leave Requests'}
-                    </h1>
-                    <p className="text-muted-foreground font-nunito mt-1">
-                      {isEmployee 
-                        ? 'Submit and track your leave requests'
-                        : 'Manage employee leave requests and approvals'
-                      }
-                    </p>
-                  </div>
-                </div>
-                
-                {isEmployee && (
-                  <Dialog open={showNewRequestDialog} onOpenChange={setShowNewRequestDialog}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Leave Request
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Submit Leave Request</DialogTitle>
-                        <DialogDescription>
-                          Fill in the details for your leave request
-                        </DialogDescription>
-                      </DialogHeader>
+    <PageLayout
+      title={isEmployee ? 'My Leave Requests' : 'Leave Requests'}
+      description={isEmployee 
+        ? 'Submit and track your leave requests'
+        : 'Manage employee leave requests and approvals'
+      }
+      headerIcon={<FileText className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
+      <div className="mb-6">
+        <div className="flex items-center justify-end">
+          {isEmployee && (
+            <Dialog open={showNewRequestDialog} onOpenChange={setShowNewRequestDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Leave Request
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Submit Leave Request</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details for your leave request
+                  </DialogDescription>
+                </DialogHeader>
                       <div className="space-y-4">
                         <div>
                           <label className="text-sm font-medium">Leave Type</label>
@@ -329,14 +308,15 @@ export default function LeaveRequestsDashboard() {
                           </Button>
                         </div>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      </div>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="space-y-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card>
                 <CardContent className="p-4">
                   <div className="text-center">
@@ -377,21 +357,21 @@ export default function LeaveRequestsDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+        </div>
 
-            {/* Main Content */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Leave Requests
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {/* Main Content */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Leave Requests
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -415,13 +395,13 @@ export default function LeaveRequestsDashboard() {
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+            </div>
 
-                {/* Leave Requests Table */}
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
+            {/* Leave Requests Table */}
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                         {!isEmployee && <TableHead>Employee</TableHead>}
                         <TableHead>Leave Type</TableHead>
                         <TableHead>Reason</TableHead>
@@ -498,14 +478,12 @@ export default function LeaveRequestsDashboard() {
                           )}
                         </TableRow>
                       ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }

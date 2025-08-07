@@ -2,6 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Lato, Nunito } from 'next/font/google';
 import SessionProvider from '@/components/auth/SessionProvider';
+import { SidebarProvider } from '@/components/layout/SidebarContext';
+import { ProjectProvider } from '@/contexts/ProjectContext';
+import { NotificationProvider } from '@/components/notifications/NotificationProvider';
 
 const lato = Lato({
   subsets: ['latin'],
@@ -29,7 +32,13 @@ export default function RootLayout({
     <html lang="en" className={`${lato.variable} ${nunito.variable} font-sans`}>
       <body>
         <SessionProvider>
-          {children}
+          <NotificationProvider>
+            <ProjectProvider>
+              <SidebarProvider>
+                {children}
+              </SidebarProvider>
+            </ProjectProvider>
+          </NotificationProvider>
         </SessionProvider>
       </body>
     </html>

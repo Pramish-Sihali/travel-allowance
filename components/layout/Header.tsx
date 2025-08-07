@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { UserCircle, LogOut, Bell, X } from 'lucide-react';
+import { useSidebar } from './SidebarContext';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
 import { 
@@ -40,6 +41,7 @@ interface HeaderProps {
 
 export default function Header({ variant = 'employee' }: HeaderProps) {
   const { data: session, status } = useSession();
+  const { isCollapsed } = useSidebar();
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -84,11 +86,9 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
       return () => clearTimeout(timer);
     }
     
-    // Fetch notifications
+    // Fetch notifications only once when authenticated
     if (status === 'authenticated') {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
-      return () => clearInterval(interval);
     }
   }, [session, status]);
 
@@ -105,6 +105,12 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
     }
   };
 
+  const handleNotificationClick = () => {
+    // Refresh notifications when bell is clicked
+    fetchNotifications();
+    setIsNotificationsOpen(!isNotificationsOpen);
+  };
+
   const markNotificationAsRead = async (notificationId: string) => {
     try {
       const response = await fetch(`/api/notifications/${notificationId}/read`, {
@@ -118,6 +124,22 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'PATCH',
+      });
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => ({ ...n, is_read: true }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
     }
   };
 
@@ -167,53 +189,69 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
   return (
     <>
       <header className={`bg-gradient-to-r ${styles.gradientFrom} ${styles.gradientTo} text-white shadow-md`}>
-        <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-          {/* <div className="flex items-center space-x-2">
-            <svg 
-              className="w-8 h-8" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2"
-            >
-              <path d="M16 16V8H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h1 className="text-2xl font-bold tracking-tight font-lato">IXI Employee Portal</h1>
-          </div> */}
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <UserCircle className="w-5 h-5" />
-              <span className="font-medium font-nunito">
-                Welcome, {session?.user?.name || variant.charAt(0).toUpperCase() + variant.slice(1)}
-              </span>
+        <div className="w-full px-4 md:px-6 py-3 md:py-4">
+          <div className="flex justify-between items-center">
+            {/* Left side - Logo and Welcome */}
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-[#d38d38] rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm md:text-base">IX</span>
+                </div>
+                <div className="hidden sm:block">
+                  <h1 className="text-lg md:text-xl font-bold tracking-tight font-lato">IXI Employee Portal</h1>
+                </div>
+              </div>
             </div>
-            
-            {/* Notifications Dropdown */}
-            <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+
+            {/* Right side - User info, Notifications, and Logout */}
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* User Welcome Message */}
+              <div className="hidden md:flex items-center space-x-2">
+                <UserCircle className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="font-medium font-nunito text-sm md:text-base">
+                  Welcome, {session?.user?.name || variant.charAt(0).toUpperCase() + variant.slice(1)}
+                </span>
+              </div>
+              
+              {/* Notifications Dropdown */}
+              <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="relative p-2 text-white hover:bg-white/20"
+                  onClick={handleNotificationClick}
                 >
-                  <Bell className="w-5 h-5" />
+                  <Bell className="w-4 h-4 md:w-5 md:h-5" />
                   {unreadCount > 0 && (
                     <Badge 
-                      className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#d38d38] text-white border-0"
+                      className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#d38d38] text-white border-0"
                     >
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </Badge>
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 max-h-96">
+              <DropdownMenuContent align="end" className="w-72 md:w-80 max-h-96">
                 <DropdownMenuLabel className="flex items-center justify-between">
                   <span>Notifications</span>
-                  {unreadCount > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {unreadCount} new
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-xs h-6 px-2"
+                        onClick={markAllNotificationsAsRead}
+                      >
+                        Mark all read
+                      </Button>
+                    )}
+                    {unreadCount > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {unreadCount} new
+                      </Badge>
+                    )}
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <ScrollArea className="max-h-64">
@@ -258,13 +296,14 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Button 
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md ${styles.buttonBg} ${styles.buttonHover} transition-colors text-white`}
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </Button>
+              <Button 
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className={`flex items-center space-x-1 px-2 md:px-3 py-1.5 rounded-md ${styles.buttonBg} ${styles.buttonHover} transition-colors text-white text-sm md:text-base`}
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>

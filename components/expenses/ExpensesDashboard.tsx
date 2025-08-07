@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import { cn } from '@/lib/utils';
+import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,150 +156,128 @@ export default function ExpensesDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header variant={userRole} />
-        <div className="flex">
-          <Sidebar userRole={userRole} />
-          <main className={cn("flex-1 transition-all duration-200", "md:ml-64", "p-6")}>
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading expenses...</p>
-              </div>
-            </div>
-          </main>
+      <PageLayout
+        title="Expenses Dashboard"
+        description="View and manage travel requests with expenses and finance comments"
+        headerIcon={<DollarSign className="h-6 w-6 text-primary" />}
+        userRole={userRole}
+      >
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading expenses...</p>
+          </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant={userRole} />
-      
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Page Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <DollarSign className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground font-lato">Expenses Dashboard</h1>
-                  <p className="text-muted-foreground font-nunito mt-1">
-                    View and manage travel requests with expenses and finance comments
-                  </p>
-                </div>
+    <PageLayout
+      title="Expenses Dashboard"
+      description="View and manage travel requests with expenses and finance comments"
+      headerIcon={<DollarSign className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{stats.total}</div>
+              <div className="text-sm text-muted-foreground">Total Requests</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+              <div className="text-sm text-muted-foreground">Pending</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+              <div className="text-sm text-muted-foreground">Approved</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.completed}</div>
+              <div className="text-sm text-muted-foreground">Completed</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">₹{stats.totalAmount.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground">Total Amount</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Travel Requests & Expenses
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, destination, or purpose..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
             </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{stats.total}</div>
-                    <div className="text-sm text-muted-foreground">Total Requests</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                    <div className="text-sm text-muted-foreground">Pending</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-                    <div className="text-sm text-muted-foreground">Approved</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{stats.completed}</div>
-                    <div className="text-sm text-muted-foreground">Completed</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">₹{stats.totalAmount.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Total Amount</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Travel Requests & Expenses
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by name, destination, or purpose..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full sm:w-48">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Requests Table */}
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Destination</TableHead>
-                        <TableHead>Purpose</TableHead>
-                        <TableHead>Date Range</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Comments</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+          {/* Requests Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>Purpose</TableHead>
+                  <TableHead>Date Range</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Comments</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                       {filteredRequests.map((request) => (
                         <TableRow key={request.id}>
                           <TableCell>
@@ -408,16 +384,13 @@ export default function ExpensesDashboard() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        </main>
-      </div>
-
+        </CardContent>
+      </Card>
+      
       {/* Finance Comment Dialog */}
       <Dialog open={showCommentDialog} onOpenChange={setShowCommentDialog}>
         <DialogContent>
@@ -445,6 +418,6 @@ export default function ExpensesDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

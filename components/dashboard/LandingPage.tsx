@@ -2,17 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
+import PageLayout from '@/components/layout/PageLayout';
 import AttendancePanel from '@/components/attendance/AttendancePanel';
 import CalendarOfTheDay from '@/components/dashboard/CalendarOfTheDay';
 import FollowUpManager from '@/components/mom/FollowUpManager';
 import UserTasksSection from '@/components/dashboard/UserTasksSection';
+import EnhancedUserDashboard from '@/components/dashboard/EnhancedUserDashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckSquare, Clock, Calendar } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 
 interface Meeting {
   id: string;
@@ -62,30 +61,16 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
 
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <Header variant={userRole} />
-      
-      {/* Layout with Sidebar */}
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        {/* Main Content */}
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64", // Account for sidebar width
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Welcome Section */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-foreground font-lato mb-2">
-                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {session?.user?.name || 'there'}!
-              </h1>
-              <p className="text-muted-foreground font-nunito">
-                Welcome to your IXI Employee Portal dashboard. Here's what's happening today.
-              </p>
-            </div>
+    <PageLayout userRole={userRole}>
+      {/* Welcome Section */}
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground font-lato mb-2">
+          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {session?.user?.name || 'there'}!
+        </h1>
+        <p className="text-muted-foreground font-nunito text-sm md:text-base">
+          Welcome to your IXI Employee Portal dashboard. Here's what's happening today.
+        </p>
+      </div>
 
             {/* Attendance Component */}
             {session?.user?.id && (
@@ -95,12 +80,9 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
               />
             )}
 
-            {/* User's Assigned Tasks */}
+            {/* Enhanced User Dashboard */}
             {session?.user?.id && (
-              <UserTasksSection 
-                userId={session.user.id} 
-                userName={session.user.name || 'User'} 
-              />
+              <EnhancedUserDashboard className="mb-6" />
             )}
 
             {/* Calendar of the Day Component */}
@@ -129,44 +111,41 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
               </Card>
             )}
 
-            {/* Additional Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary mb-1">0</div>
-                    <div className="text-sm text-muted-foreground">Pending Approvals</div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary mb-1">
-                      {meetings.reduce((sum, m) => sum + m.action_items_count, 0)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Total Action Items</div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary mb-1">
-                      {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date().toLocaleDateString()}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Additional Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <Card>
+          <CardContent className="p-4 md:p-6">
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold text-primary mb-1">0</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Pending Approvals</div>
             </div>
-          </div>
-        </main>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 md:p-6">
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold text-primary mb-1">
+                {meetings.reduce((sum, m) => sum + m.action_items_count, 0)}
+              </div>
+              <div className="text-xs md:text-sm text-muted-foreground">Total Action Items</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 md:p-6">
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold text-primary mb-1">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+              </div>
+              <div className="text-xs md:text-sm text-muted-foreground">
+                {new Date().toLocaleDateString()}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }

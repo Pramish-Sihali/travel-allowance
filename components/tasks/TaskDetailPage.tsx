@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Calendar, Users, AlertCircle, Clock, MessageSquare, Edit, Plus, Timer, User, Send } from 'lucide-react';
+import { Calendar, Users, AlertCircle, Clock, MessageSquare, Edit, Plus, User, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Task, TaskUpdate, TaskStatus, TaskPriority, RagStatus } from '@/types';
 import { toast } from 'sonner';
+import TaskActionItems from './TaskActionItems';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   'Not Started': 'bg-gray-100 text-gray-800 border-gray-200',
@@ -36,36 +37,6 @@ const RAG_COLORS: Record<RagStatus, string> = {
   'Unrated': 'bg-gray-300'
 };
 
-const TASK_TYPES = [
-  'Desk Research',
-  'Field Visit',
-  'Report Writing',
-  'Interview/Consultation Meetings',
-  'Visuals and Designing',
-  'Data Analysis/Interpretation',
-  'Finance/Administrative Tasks'
-];
-
-interface TimeLog {
-  id: string;
-  taskId: string;
-  userId: string;
-  userName: string;
-  taskType: string;
-  description: string;
-  date: string;
-  hoursSpent: number;
-  createdAt: string;
-}
-
-interface TimeLogComment {
-  id: string;
-  timeLogId: string;
-  userId: string;
-  userName: string;
-  comment: string;
-  createdAt: string;
-}
 
 interface TaskDetailPageProps {
   taskId: string;
@@ -75,25 +46,9 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
   const { data: session } = useSession();
   const [task, setTask] = useState<Task | null>(null);
   const [updates, setUpdates] = useState<TaskUpdate[]>([]);
-  const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
-  const [timeLogComments, setTimeLogComments] = useState<{[key: string]: TimeLogComment[]}>({});
   const [loading, setLoading] = useState(true);
-  const [showUpdateForm, setShowUpdateForm] = useState(false);
-  const [showTimeLogForm, setShowTimeLogForm] = useState(false);
   const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
-  const [newStatus, setNewStatus] = useState<TaskStatus>('Not Started');
-  const [updateRemark, setUpdateRemark] = useState('');
-  const [commentText, setCommentText] = useState<{[key: string]: string}>({});
   const [users, setUsers] = useState<any[]>([]);
-  
-  // Time log form state
-  const [timeLogData, setTimeLogData] = useState({
-    taskType: '',
-    description: '',
-    date: new Date().toISOString().split('T')[0],
-    hoursSpent: ''
-  });
-
   // Create task form state
   const [createTaskData, setCreateTaskData] = useState({
     title: '',
@@ -107,7 +62,6 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
     if (taskId) {
       fetchTaskDetails();
       fetchTaskUpdates();
-      fetchTimeLogs();
       fetchUsers();
     }
   }, [taskId]);
@@ -130,7 +84,6 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
       if (response.ok) {
         const data = await response.json();
         setTask(data);
-        setNewStatus(data.status);
       }
     } catch (error) {
       console.error('Error fetching task details:', error);
@@ -461,22 +414,6 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
                     Overdue
                   </Badge>
                 )}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowUpdateForm(!showUpdateForm)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Update Status
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowTimeLogForm(!showTimeLogForm)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Time Log
-                </Button>
                 {session?.user?.role === 'approver' && (
                   <Button 
                     variant="outline" 
@@ -630,83 +567,6 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
         </Card>
       </div>
 
-      {/* Time Log Form */}
-      {showTimeLogForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Timer className="h-4 w-4" />
-              Add Time Log
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="taskType">Task Type *</Label>
-                <Select 
-                  value={timeLogData.taskType} 
-                  onValueChange={(value) => setTimeLogData({...timeLogData, taskType: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select task type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TASK_TYPES.map(type => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="date">Date *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={timeLogData.date}
-                  onChange={(e) => setTimeLogData({...timeLogData, date: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="hoursSpent">Hours Spent *</Label>
-                <Input
-                  id="hoursSpent"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  value={timeLogData.hoursSpent}
-                  onChange={(e) => setTimeLogData({...timeLogData, hoursSpent: e.target.value})}
-                  placeholder="e.g., 2.5"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="description">Description/Sub-category *</Label>
-              <Textarea
-                id="description"
-                value={timeLogData.description}
-                onChange={(e) => setTimeLogData({...timeLogData, description: e.target.value})}
-                placeholder="Describe what you worked on in detail..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={handleAddTimeLog} disabled={loading}>
-                {loading ? 'Adding...' : 'Add Time Log'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowTimeLogForm(false)}>
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Create Task Form */}
       {showCreateTaskForm && session?.user?.role === 'approver' && (
@@ -740,7 +600,7 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(user => (
-                      <SelectItem key={user.id} value={user.name}>
+                      <SelectItem key={user.id} value={user.id}>
                         {user.name} ({user.email})
                       </SelectItem>
                     ))}
@@ -800,150 +660,7 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
         </Card>
       )}
 
-      {/* Status Update Form */}
-      {showUpdateForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Update Task Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="newStatus">New Status</Label>
-              <Select value={newStatus} onValueChange={(value) => setNewStatus(value as TaskStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Not Started">Not Started</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="On Hold">On Hold</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div>
-              <Label htmlFor="updateRemark">Update Remark *</Label>
-              <Textarea
-                id="updateRemark"
-                value={updateRemark}
-                onChange={(e) => setUpdateRemark(e.target.value)}
-                placeholder="Explain the status change or provide updates..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={handleStatusUpdate} disabled={loading}>
-                {loading ? 'Updating...' : 'Update Status'}
-              </Button>
-              <Button variant="outline" onClick={handleAddRemark} disabled={loading}>
-                {loading ? 'Adding...' : 'Add Remark Only'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowUpdateForm(false)}>
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Time Logs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Timer className="h-4 w-4" />
-            Time Logs ({getTotalHours()} hours total)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {timeLogs.length > 0 ? (
-            <div className="space-y-6">
-              {timeLogs.map((log, index) => (
-                <div key={log.id} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Timer className="h-3 w-3 text-blue-600" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{log.userName}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {log.taskType}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {log.hoursSpent}h
-                          </Badge>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(log.date)}
-                        </span>
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {log.description}
-                      </p>
-                      
-                      <span className="text-xs text-muted-foreground">
-                        Logged on {formatDateTime(log.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Comments Section */}
-                  <div className="ml-11 space-y-3">
-                    {/* Existing Comments */}
-                    {timeLogComments[log.id] && timeLogComments[log.id].length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-medium text-gray-700">Comments:</h4>
-                        {timeLogComments[log.id].map((comment) => (
-                          <div key={comment.id} className="bg-white rounded p-2 border-l-2 border-blue-200">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium">{comment.userName}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDateTime(comment.createdAt)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-600">{comment.comment}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add Comment */}
-                    <div className="flex gap-2">
-                      <Textarea
-                        placeholder="Add a comment..."
-                        value={commentText[log.id] || ''}
-                        onChange={(e) => setCommentText(prev => ({
-                          ...prev,
-                          [log.id]: e.target.value
-                        }))}
-                        className="flex-1 text-sm"
-                        rows={2}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleAddComment(log.id)}
-                        className="self-end"
-                        disabled={!commentText[log.id]?.trim()}
-                      >
-                        <Send className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No time logs yet
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Additional Information */}
       {(task.bottlenecks || task.ragTakeaway || task.remarks) && (
@@ -984,6 +701,14 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
           )}
         </div>
       )}
+
+      {/* Action Items */}
+      <TaskActionItems 
+        taskId={taskId}
+        currentUserId={session?.user?.id}
+        currentUserName={session?.user?.name}
+        isReadOnly={false}
+      />
 
       {/* Task Updates History */}
       <Card>

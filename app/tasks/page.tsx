@@ -4,10 +4,8 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import TaskManager from '@/components/tasks/TaskManager';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
+import PageLayout from '@/components/layout/PageLayout';
 import { CheckSquare } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default async function TasksPage() {
   const session = await getServerSession(authOptions);
@@ -16,42 +14,16 @@ export default async function TasksPage() {
     redirect('/');
   }
 
-
   const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant={userRole} />
-      
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Page Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <CheckSquare className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground font-lato">Task Manager</h1>
-                  <p className="text-muted-foreground font-nunito mt-1">
-                    Track and manage tasks across different departments and projects
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Task Manager Component */}
-            <TaskManager />
-          </div>
-        </main>
-      </div>
-    </div>
+    <PageLayout
+      title="Project Manager"
+      description="Track and manage projects across different departments with action items and time tracking"
+      headerIcon={<CheckSquare className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
+      <TaskManager />
+    </PageLayout>
   );
 }

@@ -83,6 +83,15 @@ export function TaskForm({ task, departments, open, onSave, onCancel }: TaskForm
   const selectedDepartmentId = watch('departmentId');
   const selectedStatus = watch('status');
 
+  // Reset assigned persons when task changes
+  useEffect(() => {
+    if (task?.assignedTo) {
+      setAssignedPersons(task.assignedTo);
+    } else {
+      setAssignedPersons([]);
+    }
+  }, [task]);
+
   // Fetch users for assignment dropdown
   useEffect(() => {
     const fetchUsers = async () => {
@@ -103,9 +112,13 @@ export function TaskForm({ task, departments, open, onSave, onCancel }: TaskForm
   }, []);
 
   const addAssignedPerson = () => {
-    if (newPerson.trim() && !assignedPersons.includes(newPerson.trim())) {
-      setAssignedPersons([...assignedPersons, newPerson.trim()]);
-      setNewPerson('');
+    if (newPerson.trim()) {
+      // Find the user by ID and get their name
+      const selectedUser = users.find(user => user.id === newPerson.trim());
+      if (selectedUser && !assignedPersons.includes(selectedUser.name)) {
+        setAssignedPersons([...assignedPersons, selectedUser.name]);
+        setNewPerson('');
+      }
     }
   };
 
@@ -293,7 +306,7 @@ export function TaskForm({ task, departments, open, onSave, onCancel }: TaskForm
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(user => (
-                      <SelectItem key={user.id} value={user.name}>
+                      <SelectItem key={user.id} value={user.id}>
                         {user.name} ({user.email})
                       </SelectItem>
                     ))}
@@ -306,7 +319,7 @@ export function TaskForm({ task, departments, open, onSave, onCancel }: TaskForm
               {assignedPersons.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {assignedPersons.map((person, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    <Badge key={`${person}-${index}`} variant="secondary" className="flex items-center gap-1">
                       {person}
                       <X 
                         className="h-3 w-3 cursor-pointer" 

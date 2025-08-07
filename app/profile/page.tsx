@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Building, Calendar, Edit2, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import PersonalLogsSection from '@/components/profile/PersonalLogsSection';
 
 interface UserProfile {
   id: string;
@@ -329,6 +330,9 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Personal Activity Logs */}
+            <PersonalLogsSection />
 
             {/* Account Information */}
             <Card>
