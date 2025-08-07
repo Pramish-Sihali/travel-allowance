@@ -17,6 +17,7 @@ interface EventFormProps {
   open: boolean;
   onSave: () => void;
   onCancel: () => void;
+  selectedDate?: Date | null;
 }
 
 interface EventFormData {
@@ -47,7 +48,7 @@ const APPROVER_EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'announcement', label: 'Company Announcement' }
 ];
 
-export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
+export function EventForm({ event, open, onSave, onCancel, selectedDate }: EventFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -58,6 +59,27 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
   const availableEventTypes = isApprover 
     ? [...EMPLOYEE_EVENT_TYPES, ...APPROVER_EVENT_TYPES]
     : EMPLOYEE_EVENT_TYPES;
+
+  // Get default dates from either the event being edited or the selected date
+  const getDefaultStartDate = () => {
+    if (event?.startDate) {
+      return new Date(event.startDate).toISOString().split('T')[0];
+    }
+    if (selectedDate) {
+      return selectedDate.toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const getDefaultEndDate = () => {
+    if (event?.endDate) {
+      return new Date(event.endDate).toISOString().split('T')[0];
+    }
+    if (selectedDate) {
+      return selectedDate.toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  };
 
   const {
     register,
@@ -70,8 +92,8 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
     defaultValues: {
       title: event?.title || '',
       description: event?.description || '',
-      startDate: event?.startDate ? new Date(event.startDate).toISOString().split('T')[0] : '',
-      endDate: event?.endDate ? new Date(event.endDate).toISOString().split('T')[0] : '',
+      startDate: getDefaultStartDate(),
+      endDate: getDefaultEndDate(),
       eventType: event?.eventType || 'general',
       location: event?.location || '',
       maxAttendees: event?.maxAttendees || undefined
@@ -89,20 +111,47 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
       setValue('eventType', event.eventType);
       setValue('location', event.location || '');
       setValue('maxAttendees', event.maxAttendees || undefined);
+    } else if (selectedDate && !event) {
+      // When creating a new event with a selected date
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      setValue('startDate', dateStr);
+      setValue('endDate', dateStr);
     }
-  }, [event, setValue]);
+  }, [event, selectedDate, setValue]);
+
+  // Cleanup effect when modal opens/closes
+  useEffect(() => {
+    if (open) {
+      // Ensure body is not blocked when modal opens
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = '';
+      }
+    }
+    
+    return () => {
+      // Cleanup on unmount or when modal closes
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = '';
+      }
+    };
+  }, [open]);
 
   const onSubmit = async (data: EventFormData) => {
     setLoading(true);
     try {
+      // Fix date handling to ensure proper timezone handling
+      const startDate = new Date(data.startDate + 'T00:00:00');
+      const endDate = new Date(data.endDate + 'T23:59:59');
+      
       const eventData = {
         title: data.title,
         description: data.description,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate).toISOString(),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         eventType: data.eventType,
         location: data.location,
-        maxAttendees: data.maxAttendees
+        maxAttendees: data.maxAttendees,
+        isAllDay: true // Default to all-day events for now
       };
 
       const url = isEditing ? `/api/events/${event.id}` : '/api/events';
@@ -117,7 +166,17 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
       });
 
       if (response.ok) {
-        onSave();
+        // Reset form state first
+        reset();
+        // Ensure focus is returned to body and pointer events are restored
+        if (typeof document !== 'undefined') {
+          document.body.style.pointerEvents = '';
+          document.body.focus();
+        }
+        // Small delay to ensure cleanup, then call parent callback
+        setTimeout(() => {
+          onSave();
+        }, 100);
       } else {
         const errorData = await response.json();
         alert(errorData.error || 'Failed to save event');
@@ -162,10 +221,19 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // Small delay to ensure dialog closes properly
-      setTimeout(() => {
-        onCancel();
-      }, 100);
+      // Only close if not in the middle of an operation
+      if (!loading && !deleting) {
+        reset();
+        // Ensure focus is returned to body and pointer events are restored
+        if (typeof document !== 'undefined') {
+          document.body.style.pointerEvents = '';
+          document.body.focus();
+        }
+        // Small delay to ensure dialog closes properly
+        setTimeout(() => {
+          onCancel();
+        }, 50);
+      }
     }
   };
 
@@ -173,13 +241,21 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
     // Reset form state when canceling
     reset();
     
-    // Call parent cancel handler
-    onCancel();
+    // Ensure focus is returned to body and pointer events are restored
+    if (typeof document !== 'undefined') {
+      document.body.style.pointerEvents = '';
+      document.body.focus();
+    }
+    
+    // Call parent cancel handler with slight delay
+    setTimeout(() => {
+      onCancel();
+    }, 50);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
+      <DialogContent className="sm:max-w-md z-50">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Edit Event' : 'Add New Event'}
@@ -294,10 +370,18 @@ export function EventForm({ event, open, onSave, onCancel }: EventFormProps) {
               )}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleCancel}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleCancel}
+                disabled={loading || deleting}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading || deleting}
+              >
                 {loading ? 'Saving...' : isEditing ? 'Update Event' : 'Create Event'}
               </Button>
             </div>

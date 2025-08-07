@@ -28,7 +28,11 @@ export async function PATCH(
       completed_by,
       completed_at,
       deadline_notes,
-      actual_hours
+      actual_hours,
+      is_done,
+      toggled_by,
+      toggled_at,
+      completed_by_name
     } = data;
 
     if (!itemId) {
@@ -36,12 +40,19 @@ export async function PATCH(
     }
 
     // First verify the action item exists and user has access
-    const { data: existingItem, error: checkError } = await supabase
+    let checkQuery = supabase
       .from('meeting_minutes')
       .select('id, meeting_id, organization_id')
-      .eq('id', itemId)
-      .eq('organization_id', organizationId)
-      .single();
+      .eq('id', itemId);
+
+    // Only add organization filter if organizationId is valid
+    if (organizationId && organizationId !== 'undefined') {
+      checkQuery = checkQuery.eq('organization_id', organizationId);
+    } else {
+      checkQuery = checkQuery.is('organization_id', null);
+    }
+
+    const { data: existingItem, error: checkError } = await checkQuery.single();
 
     if (checkError || !existingItem) {
       return NextResponse.json({ error: 'Action item not found' }, { status: 404 });
@@ -89,11 +100,36 @@ export async function PATCH(
       updateData.actual_hours = actual_hours;
     }
 
-    const { data: updatedItem, error: updateError } = await supabase
+    if (is_done !== undefined) {
+      updateData.is_done = is_done;
+    }
+
+    if (toggled_by !== undefined) {
+      updateData.toggled_by = toggled_by;
+    }
+
+    if (toggled_at !== undefined) {
+      updateData.toggled_at = toggled_at;
+    }
+
+    if (completed_by_name !== undefined) {
+      updateData.completed_by_name = completed_by_name;
+    }
+
+    // Apply the update with proper organization filtering
+    let updateQuery = supabase
       .from('meeting_minutes')
       .update(updateData)
-      .eq('id', itemId)
-      .eq('organization_id', organizationId)
+      .eq('id', itemId);
+
+    // Only add organization filter if organizationId is valid
+    if (organizationId && organizationId !== 'undefined') {
+      updateQuery = updateQuery.eq('organization_id', organizationId);
+    } else {
+      updateQuery = updateQuery.is('organization_id', null);
+    }
+
+    const { data: updatedItem, error: updateError } = await updateQuery
       .select()
       .single();
 
@@ -102,11 +138,18 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update action item' }, { status: 500 });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       actionItem: updatedItem,
       message: 'Action item updated successfully'
     });
+
+    // Add cache-busting headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+
+    return response;
 
   } catch (error) {
     console.error('Error in action-items PATCH:', error);

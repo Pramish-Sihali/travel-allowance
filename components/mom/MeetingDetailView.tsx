@@ -12,16 +12,32 @@ import {
   MapPin, 
   Users, 
   Target,
-  CheckSquare,
   AlertCircle,
-  FileText,
   Phone,
   Mail,
   Building,
   ArrowRight,
-  Edit,
   Play
 } from 'lucide-react';
+import MeetingMinutesTable from './MeetingMinutesTable';
+
+interface MeetingMinute {
+  id?: string;
+  serialNo: number;
+  responsibility: string;
+  assignedToId: string;
+  assignedToName: string;
+  deadline: string;
+  remarks: string;
+  isDone: boolean;
+  flags: string;
+  toggledBy?: string;
+  toggledAt?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
 
 interface Meeting {
   id: string;
@@ -80,6 +96,45 @@ interface MeetingDetailViewProps {
   onStartFollowUp: () => void;
   userId?: string;
 }
+
+// Helper function to convert minutes format to table format
+const convertMinutesToTableFormat = (minutes: Array<{
+  id: string;
+  content: string;
+  responsibility?: string;
+  serial_no?: number;
+  is_action_item: boolean;
+  completion_status: string;
+  assigned_to?: string;
+  assigned_to_name?: string;
+  due_date?: string;
+  remarks?: string;
+  flags?: string;
+  is_done?: boolean;
+  toggled_by?: string;
+  toggled_at?: string;
+  created_by_name?: string;
+  updated_by_name?: string;
+  priority?: string;
+}>): MeetingMinute[] => {
+  return minutes.map((minute, index) => ({
+    id: minute.id,
+    serialNo: minute.serial_no || (index + 1),
+    responsibility: minute.responsibility || minute.content,
+    assignedToId: minute.assigned_to || '',
+    assignedToName: minute.assigned_to_name || '',
+    deadline: minute.due_date || '',
+    remarks: minute.remarks || '',
+    isDone: minute.is_done !== undefined ? minute.is_done : (minute.completion_status === 'completed'),
+    flags: minute.flags || (minute.priority ? `Priority: ${minute.priority}` : ''),
+    toggledBy: minute.toggled_by,
+    toggledAt: minute.toggled_at,
+    createdBy: minute.created_by_name,
+    updatedBy: minute.updated_by_name,
+    createdAt: '',
+    updatedAt: '',
+  }));
+};
 
 export default function MeetingDetailView({ 
   meeting, 
@@ -179,47 +234,6 @@ export default function MeetingDetailView({
     }
   };
 
-  const getActionItemStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const markActionItemComplete = async (minuteId: string) => {
-    try {
-      const response = await fetch(`/api/meetings/action-items/${minuteId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          completion_status: 'completed',
-          completed_by: userId,
-          completed_at: new Date().toISOString()
-        }),
-      });
-
-      if (response.ok) {
-        toast.success('Action item marked as completed');
-        fetchMeetingDetails();
-        onMeetingUpdated();
-      } else {
-        toast.error('Failed to update action item');
-      }
-    } catch (error) {
-      console.error('Error updating action item:', error);
-      toast.error('Failed to update action item');
-    }
-  };
 
   if (loading) {
     return (
@@ -246,11 +260,6 @@ export default function MeetingDetailView({
     );
   }
 
-  const hasActionItems = meetingDetails.minutes.some(minute => minute.is_action_item);
-  const completedActionItems = meetingDetails.minutes.filter(
-    minute => minute.is_action_item && minute.completion_status === 'completed'
-  ).length;
-  const totalActionItems = meetingDetails.minutes.filter(minute => minute.is_action_item).length;
 
   return (
     <div className="space-y-6">
@@ -272,7 +281,7 @@ export default function MeetingDetailView({
                 </Badge>
               </div>
             </div>
-            {hasActionItems && (
+            {meetingDetails.minutes.length > 0 && (
               <Button onClick={onStartFollowUp} variant="outline">
                 <Play className="h-4 w-4 mr-2" />
                 Manage Follow-ups
@@ -388,94 +397,14 @@ export default function MeetingDetailView({
 
       {/* Meeting Minutes */}
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Meeting Minutes & Action Items
-            </CardTitle>
-            {hasActionItems && (
-              <div className="text-sm text-muted-foreground">
-                {completedActionItems}/{totalActionItems} action items completed
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {meetingDetails.minutes.map((minute, index) => (
-              <div
-                key={minute.id}
-                className={`p-4 rounded-lg border-l-4 ${
-                  minute.is_action_item
-                    ? 'border-l-blue-500 bg-blue-50'
-                    : 'border-l-gray-300 bg-gray-50'
-                }`}
-              >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {minute.is_action_item ? (
-                        <CheckSquare className="h-4 w-4 text-blue-600" />
-                      ) : (
-                        <FileText className="h-4 w-4 text-gray-600" />
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {minute.is_action_item ? 'Action Item' : 'Minute'} #{index + 1}
-                      </span>
-                      {minute.is_action_item && (
-                        <Badge className={getActionItemStatusColor(minute.completion_status)}>
-                          {minute.completion_status.replace('_', ' ')}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <p className={`mb-3 ${
-                      minute.is_action_item && minute.completion_status === 'completed' 
-                        ? 'line-through text-muted-foreground' 
-                        : ''
-                    }`}>
-                      {minute.content}
-                    </p>
-
-                    {minute.is_action_item && (
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        {minute.assigned_to_name && (
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3" />
-                            <span>Assigned to: {minute.assigned_to_name}</span>
-                          </div>
-                        )}
-                        {minute.due_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Due: {formatDate(minute.due_date)}</span>
-                          </div>
-                        )}
-                        {minute.priority && (
-                          <div className="flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            <span>Priority: {minute.priority}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {minute.is_action_item && minute.completion_status !== 'completed' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => markActionItemComplete(minute.id)}
-                    >
-                      <CheckSquare className="h-4 w-4 mr-1" />
-                      Mark Complete
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+        <CardContent className="pt-6">
+          <MeetingMinutesTable
+            meetingMinutes={convertMinutesToTableFormat(meetingDetails.minutes)}
+            onMinutesChange={() => {}} // Read-only in view mode
+            isReadOnly={true}
+            currentUserId={userId}
+            currentUserName={meetingDetails.meeting.assigned_to_name}
+          />
         </CardContent>
       </Card>
     </div>

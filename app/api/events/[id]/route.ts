@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -12,15 +12,16 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     const { id } = await params;
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('events')
       .select('*')
       .eq('id', id)
+      .eq('organization_id', session.user.organizationId)
       .single();
 
     if (error) {
@@ -66,12 +67,12 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     // Get user information and event details for permission check
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('role, name')
       .eq('id', session.user.id)
@@ -84,10 +85,11 @@ export async function PUT(
     const { id } = await params;
     
     // Get the event to check ownership and type
-    const { data: eventData, error: eventError } = await supabase
+    const { data: eventData, error: eventError } = await supabaseAdmin
       .from('events')
       .select('created_by, event_type')
       .eq('id', id)
+      .eq('organization_id', session.user.organizationId)
       .single();
 
     if (eventError || !eventData) {
@@ -132,10 +134,11 @@ export async function PUT(
       max_attendees: maxAttendees || null,
       updated_at: new Date().toISOString()
     };
-    const { data: updatedEvent, error } = await supabase
+    const { data: updatedEvent, error } = await supabaseAdmin
       .from('events')
       .update(updateData)
       .eq('id', id)
+      .eq('organization_id', session.user.organizationId)
       .select()
       .single();
 
@@ -182,12 +185,12 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     // Get user information and event details for permission check
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('role')
       .eq('id', session.user.id)
@@ -200,10 +203,11 @@ export async function DELETE(
     const { id } = await params;
     
     // Get the event to check ownership
-    const { data: eventData, error: eventError } = await supabase
+    const { data: eventData, error: eventError } = await supabaseAdmin
       .from('events')
       .select('created_by')
       .eq('id', id)
+      .eq('organization_id', session.user.organizationId)
       .single();
 
     if (eventError || !eventData) {
@@ -218,10 +222,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('events')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', session.user.organizationId);
 
     if (error) {
       console.error('Error deleting event:', error);

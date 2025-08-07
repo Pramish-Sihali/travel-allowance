@@ -37,10 +37,21 @@ export async function GET(request: NextRequest) {
         minutes:meeting_minutes(
           id,
           content,
+          responsibility,
+          serial_no,
           is_action_item,
           completion_status,
           due_date,
-          assigned_to_name
+          assigned_to_name,
+          assigned_to,
+          remarks,
+          flags,
+          is_done,
+          toggled_by,
+          toggled_at,
+          created_by_name,
+          updated_by_name,
+          priority
         )
       `)
       .or(`created_by.eq.${employeeId},assigned_to.eq.${employeeId}`);
@@ -170,9 +181,16 @@ export async function POST(request: NextRequest) {
     } = data;
 
     // Validate required fields
-    if (!title || !meetingType || !locationType || !locationDetails || !meetingDate || !meetingMinutes) {
+    if (!title || !meetingType || !locationType || !locationDetails || !meetingDate) {
       return NextResponse.json({ 
         error: 'Missing required fields' 
+      }, { status: 400 });
+    }
+
+    // Validate meeting minutes
+    if (!meetingMinutes || !Array.isArray(meetingMinutes) || meetingMinutes.length === 0) {
+      return NextResponse.json({ 
+        error: 'Meeting minutes are required' 
       }, { status: 400 });
     }
 
@@ -286,17 +304,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process and save meeting minutes as bullet points
-    const minutesList = meetingMinutes
-      .split('\n')
-      .filter((line: string) => line.trim() !== '')
-      .map((line: string, index: number) => ({
-        meeting_id: meeting.id,
-        content: line.trim(),
-        minute_order: index + 1,
-        is_action_item: false, // For now, all are regular minutes. Can be enhanced later
-        organization_id: organizationId && organizationId !== 'undefined' ? organizationId : null
-      }));
+    // Process and save meeting minutes from table format
+    const minutesList = meetingMinutes.map((minute: any) => ({
+      meeting_id: meeting.id,
+      content: minute.responsibility, // Keep for backward compatibility
+      responsibility: minute.responsibility,
+      serial_no: minute.serialNo || 1,
+      minute_order: minute.serialNo || 1,
+      is_action_item: true, // All table entries are action items
+      assigned_to: minute.assignedToId || null,
+      assigned_to_name: minute.assignedToName,
+      due_date: minute.deadline || null,
+      due_time: null, // Can be enhanced later
+      priority: 'medium', // Default priority
+      completion_status: minute.isDone ? 'completed' : 'pending',
+      completion_percentage: minute.isDone ? 100 : 0,
+      estimated_hours: null,
+      actual_hours: null,
+      deadline_notes: minute.remarks, // Keep for backward compatibility
+      remarks: minute.remarks,
+      flags: minute.flags || '',
+      is_done: minute.isDone,
+      toggled_by: minute.toggledBy || null,
+      toggled_at: minute.toggledAt || (minute.isDone ? new Date().toISOString() : null),
+      reminder_sent: false,
+      completed_at: minute.isDone ? new Date().toISOString() : null,
+      completed_by_name: minute.toggledBy || null,
+      created_by_name: createdByName,
+      updated_by_name: createdByName,
+      organization_id: organizationId && organizationId !== 'undefined' ? organizationId : null
+    }));
 
     if (minutesList.length > 0) {
       const { error: minutesError } = await supabaseAdmin

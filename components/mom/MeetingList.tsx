@@ -16,9 +16,9 @@ import {
   CheckSquare,
   Filter,
   RefreshCw,
-  Eye,
-  Edit
+  Eye
 } from 'lucide-react';
+import MeetingDetailView from './MeetingDetailView';
 // Using built-in Date functions instead of date-fns
 
 interface Meeting {
@@ -56,6 +56,8 @@ export default function MeetingList({ meetings, loading, onMeetingUpdated, onRef
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [showDetailView, setShowDetailView] = useState(false);
 
   // Filter and sort meetings
   const filteredMeetings = meetings
@@ -191,6 +193,21 @@ export default function MeetingList({ meetings, loading, onMeetingUpdated, onRef
     const today = new Date();
     today.setHours(23, 59, 59, 999); // End of today
     return deadlineDate < today;
+  };
+
+  const handleViewDetails = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setShowDetailView(true);
+  };
+
+  const handleCloseDetailView = () => {
+    setSelectedMeeting(null);
+    setShowDetailView(false);
+  };
+
+  const handleFollowUp = () => {
+    // This could trigger follow-up functionality if needed
+    console.log('Follow-up functionality');
   };
 
   if (loading) {
@@ -479,18 +496,45 @@ export default function MeetingList({ meetings, loading, onMeetingUpdated, onRef
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => handleViewDetails(meeting)}
+                    >
                       <Eye className="h-4 w-4 mr-1" />
                       View Details
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Meeting Detail View Modal/Overlay */}
+      {showDetailView && selectedMeeting && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Meeting Details</h2>
+              <Button variant="outline" size="sm" onClick={handleCloseDetailView}>
+                ✕
+              </Button>
+            </div>
+            <div className="p-4">
+              <MeetingDetailView
+                meeting={selectedMeeting}
+                onMeetingUpdated={() => {
+                  onMeetingUpdated();
+                  handleCloseDetailView();
+                }}
+                onStartFollowUp={handleFollowUp}
+                userId={selectedMeeting.assigned_to_name}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

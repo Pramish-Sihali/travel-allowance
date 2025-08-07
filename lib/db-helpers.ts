@@ -10,12 +10,14 @@ export async function getEmployeesForGroupTravel(organizationId?: string) {
     let query = supabase
       .from('users')
       .select('id, name, email, department, designation')
-      .eq('role', 'employee')
       .order('name', { ascending: true });
     
-    // Add organization filter if provided
-    if (organizationId) {
+    // Add organization filter if provided and valid
+    if (organizationId && organizationId !== 'undefined') {
       query = query.eq('organization_id', organizationId);
+    } else {
+      // If no organization or undefined, get users with null organization_id
+      query = query.is('organization_id', null);
     }
     
     const { data, error } = await query;

@@ -26,8 +26,26 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Auto-formatting textarea component
-import AutoFormatTextarea from './AutoFormatTextarea';
+// Meeting minutes table component
+import MeetingMinutesTable from './MeetingMinutesTable';
+
+interface MeetingMinute {
+  id?: string;
+  serialNo: number;
+  responsibility: string;
+  assignedToId: string;
+  assignedToName: string;
+  deadline: string;
+  remarks: string;
+  isDone: boolean;
+  flags: string;
+  toggledBy?: string;
+  toggledAt?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
 
 const meetingFormSchema = z.object({
   title: z.string().min(1, 'Meeting title is required'),
@@ -48,7 +66,7 @@ const meetingFormSchema = z.object({
   deadlineDate: z.string().optional(),
   deadlineTime: z.string().optional(),
   priority: z.string().default('medium'),
-  meetingMinutes: z.string().min(1, 'Meeting minutes are required'),
+  // Meeting minutes will be handled separately as an array
 });
 
 type MeetingFormData = z.infer<typeof meetingFormSchema>;
@@ -99,6 +117,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
   const [internalAttendees, setInternalAttendees] = useState<InternalAttendee[]>([]);
   const [externalAttendees, setExternalAttendees] = useState<ExternalAttendee[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
+  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
 
   const form = useForm({
@@ -225,7 +244,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
   };
 
   const addExternalAttendee = (name: string, email: string, organization: string) => {
-    if (name.trim() && email.trim()) {
+    if (name.trim()) {
       const newAttendee = { name: name.trim(), email: email.trim(), organization: organization.trim() };
       setExternalAttendees([...externalAttendees, newAttendee]);
     }
@@ -239,6 +258,25 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
     try {
       setLoading(true);
 
+      // Validate that at least one meeting minute is added
+      if (meetingMinutes.length === 0) {
+        toast.error("Please add at least one meeting minute or action item.");
+        setLoading(false);
+        return;
+      }
+
+      // Validate that all required fields in meeting minutes are filled
+      const invalidMinutes = meetingMinutes.filter(minute => 
+        !minute.responsibility.trim() || 
+        (!minute.assignedToId && !minute.assignedToName)
+      );
+
+      if (invalidMinutes.length > 0) {
+        toast.error("Please ensure all meeting minutes have responsibility and assigned person filled.");
+        setLoading(false);
+        return;
+      }
+
       const meetingData = {
         ...data,
         createdBy: userId,
@@ -246,6 +284,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
         internalAttendees,
         externalAttendees,
         currentLocation,
+        meetingMinutes,
       };
 
       const response = await fetch('/api/meetings', {
@@ -264,6 +303,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
         setInternalAttendees([]);
         setExternalAttendees([]);
         setCurrentLocation(null);
+        setMeetingMinutes([]);
         
         onMeetingCreated();
       } else {
@@ -713,29 +753,13 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
 
           {/* Meeting Minutes */}
           <Card>
-            <CardHeader>
-              <CardTitle>Meeting Minutes *</CardTitle>
-              <CardDescription>
-                Type your meeting minutes. Each new line will be automatically formatted as a bullet point.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="meetingMinutes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <AutoFormatTextarea
-                        placeholder="Enter meeting minutes here. Press Enter to create new bullet points..."
-                        value={field.value}
-                        onChange={field.onChange}
-                        rows={8}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <CardContent className="pt-6">
+              <MeetingMinutesTable
+                meetingMinutes={meetingMinutes}
+                onMinutesChange={setMeetingMinutes}
+                isReadOnly={false}
+                currentUserId={userId}
+                currentUserName={userName}
               />
             </CardContent>
           </Card>
@@ -747,7 +771,13 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName }
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => form.reset()}
+                  onClick={() => {
+                    form.reset();
+                    setInternalAttendees([]);
+                    setExternalAttendees([]);
+                    setCurrentLocation(null);
+                    setMeetingMinutes([]);
+                  }}
                   disabled={loading}
                 >
                   Reset Form
@@ -781,7 +811,7 @@ function ExternalAttendeeForm({ onAdd }: { onAdd: (name: string, email: string, 
   const [organization, setOrganization] = useState('');
 
   const handleAdd = () => {
-    if (name.trim() && email.trim()) {
+    if (name.trim()) {
       onAdd(name, email, organization);
       setName('');
       setEmail('');
@@ -797,7 +827,7 @@ function ExternalAttendeeForm({ onAdd }: { onAdd: (name: string, email: string, 
         onChange={(e) => setName(e.target.value)}
       />
       <Input
-        placeholder="Email"
+        placeholder="Email (optional)"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}

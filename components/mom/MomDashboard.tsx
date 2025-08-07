@@ -20,7 +20,6 @@ import {
   Filter,
   RefreshCw,
   Eye,
-  Edit,
   ArrowRight
 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -75,7 +74,7 @@ export default function MomDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'create' | 'view' | 'edit' | 'followup'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'create' | 'view' | 'followup'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -116,10 +115,6 @@ export default function MomDashboard() {
     setViewMode('view');
   };
 
-  const handleEditMeeting = (meeting: Meeting) => {
-    setSelectedMeeting(meeting);
-    setViewMode('edit');
-  };
 
   const handleBackToList = () => {
     setViewMode('list');
@@ -282,10 +277,6 @@ export default function MomDashboard() {
             <p className="text-muted-foreground mt-1">{selectedMeeting.title}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleEditMeeting(selectedMeeting)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Meeting
-            </Button>
             <Button variant="outline" onClick={handleBackToList}>
               <ArrowRight className="h-4 w-4 mr-2" />
               Back to Meetings
@@ -653,18 +644,11 @@ export default function MomDashboard() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1"
+                        className="w-full"
                         onClick={() => handleViewMeeting(meeting)}
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View Details
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEditMeeting(meeting)}
-                      >
-                        <Edit className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>

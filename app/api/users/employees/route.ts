@@ -8,15 +8,16 @@ export async function GET(request: NextRequest) {
   try {
     // Check if user is authenticated
     const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized - No organization found' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
     const { searchParams } = new URL(request.url);
     const forAttendance = searchParams.get('forAttendance');
+    const organizationId = session.user.organizationId;
     
     // If it's for attendance sheet, return all users from same organization (only for approvers)
     if (forAttendance === 'true') {
@@ -28,15 +29,15 @@ export async function GET(request: NextRequest) {
       }
       
       // Fetch all employees from same organization for attendance tracking
-      const employees = await getEmployeesForGroupTravel(session.user.organizationId);
+      const employees = await getEmployeesForGroupTravel(organizationId);
       return NextResponse.json(employees);
     }
     
-    // For group travel, fetch employees from same organization excluding current user
-    const employees = await getEmployeesForGroupTravel(session.user.organizationId);
-    const filteredEmployees = employees.filter(emp => emp.id !== session.user.id);
+    // For meeting minutes and general use, fetch all users from same organization
+    const employees = await getEmployeesForGroupTravel(organizationId);
+    // Don't filter out current user for meeting assignments
     
-    return NextResponse.json(filteredEmployees);
+    return NextResponse.json(employees);
   } catch (error) {
     console.error('Error fetching employees:', error);
     return NextResponse.json(

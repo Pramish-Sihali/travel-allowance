@@ -112,11 +112,13 @@ export default function CompanyCalendar() {
     });
   };
 
-  const handleEventSaved = () => {
-    fetchEvents();
+  const handleEventSaved = async () => {
     setShowEventForm(false);
     setShowHallBookingForm(false);
     setSelectedEvent(null);
+    setSelectedDate(null);
+    // Refresh events after closing modal
+    await fetchEvents();
   };
 
   const handleEventEdit = (event: Event) => {
@@ -128,6 +130,8 @@ export default function CompanyCalendar() {
     if (day) {
       const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       setSelectedDate(clickedDate);
+      // Optionally, you could auto-open the event form when a date is clicked
+      // setShowEventForm(true);
     }
   };
 
@@ -170,7 +174,10 @@ export default function CompanyCalendar() {
                     <Building className="h-4 w-4 mr-2" />
                     Quick Hall Booking
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowEventForm(true)}>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedEvent(null);
+                    setShowEventForm(true);
+                  }}>
                     <Plus className="h-4 w-4 mr-2" />
                     Custom Event
                   </DropdownMenuItem>
@@ -317,10 +324,12 @@ export default function CompanyCalendar() {
       <EventForm
         event={selectedEvent}
         open={showEventForm}
+        selectedDate={selectedDate}
         onSave={handleEventSaved}
         onCancel={() => {
           setShowEventForm(false);
           setSelectedEvent(null);
+          setSelectedDate(null);
         }}
       />
 
