@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('events')
       .select('*')
       .eq('organization_id', session.user.organizationId)
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user information
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('role, name')
       .eq('id', session.user.id)
@@ -80,11 +80,16 @@ export async function POST(request: NextRequest) {
     // Define event types that require approver role
     const approverOnlyEvents = ['company_meeting', 'training', 'holiday', 'deadline', 'announcement'];
     
-    // Check permissions based on event type
+    // Check permissions based on event type - allow employees to create general events
     if (approverOnlyEvents.includes(eventType) && !['approver', 'admin'].includes(userData.role)) {
       return NextResponse.json({ 
         error: `Only approvers can create ${eventType.replace('_', ' ')} events` 
       }, { status: 403 });
+    }
+    
+    // Allow all authenticated users to create general events
+    if (!eventType || eventType === 'general') {
+      // General events can be created by any authenticated user
     }
 
     // Validate required fields
@@ -115,7 +120,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    const { data: newEvent, error } = await supabase
+    const { data: newEvent, error } = await supabaseAdmin
       .from('events')
       .insert([insertData])
       .select()

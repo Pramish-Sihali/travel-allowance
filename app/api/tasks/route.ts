@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Raw tasks data:', tasksData?.length || 0, 'tasks found');
+    console.log('Organization ID from session:', session.user.organizationId);
+    console.log('User ID from session:', session.user.id);
+    console.log('Department filter applied:', department);
 
     // Then get departments from same organization
     const { data: departmentsData, error: deptError } = await supabaseAdmin

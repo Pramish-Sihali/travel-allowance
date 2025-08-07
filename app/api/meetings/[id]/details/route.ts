@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +21,7 @@ export async function GET(
     }
 
     // Fetch meeting basic info
-    let meetingQuery = supabase
+    let meetingQuery = supabaseAdmin
       .from('meetings')
       .select('*')
       .eq('id', meetingId);
@@ -44,7 +39,7 @@ export async function GET(
     }
 
     // Fetch attendees
-    let attendeesQuery = supabase
+    let attendeesQuery = supabaseAdmin
       .from('meeting_attendees')
       .select(`
         id,
@@ -66,7 +61,7 @@ export async function GET(
     const { data: attendees, error: attendeesError } = await attendeesQuery;
 
     // Fetch meeting minutes
-    let minutesQuery = supabase
+    let minutesQuery = supabaseAdmin
       .from('meeting_minutes')
       .select(`
         id,
@@ -91,27 +86,41 @@ export async function GET(
 
     const { data: minutes, error: minutesError } = await minutesQuery.order('minute_order');
 
-    // Fetch related task info if exists
+    // Fetch related task info if exists with organization filter
     let task = null;
     if (meeting.task_id) {
-      const { data: taskData } = await supabase
+      let taskQuery = supabaseAdmin
         .from('tasks')
-        .select('title, status')
-        .eq('id', meeting.task_id)
-        .single();
+        .select('title, status, organization_id')
+        .eq('id', meeting.task_id);
+
+      // Apply organization filter
+      if (organizationId && organizationId !== 'undefined') {
+        taskQuery = taskQuery.eq('organization_id', organizationId);
+      } else {
+        taskQuery = taskQuery.is('organization_id', null);
+      }
       
+      const { data: taskData } = await taskQuery.single();
       task = taskData;
     }
 
-    // Fetch related client info if exists
+    // Fetch related client info if exists with organization filter
     let client = null;
     if (meeting.client_id) {
-      const { data: clientData } = await supabase
+      let clientQuery = supabaseAdmin
         .from('clients')
-        .select('name, company')
-        .eq('id', meeting.client_id)
-        .single();
+        .select('name, company, organization_id')
+        .eq('id', meeting.client_id);
+
+      // Apply organization filter
+      if (organizationId && organizationId !== 'undefined') {
+        clientQuery = clientQuery.eq('organization_id', organizationId);
+      } else {
+        clientQuery = clientQuery.is('organization_id', null);
+      }
       
+      const { data: clientData } = await clientQuery.single();
       client = clientData;
     }
 

@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch meetings with related data
-    let query = supabase
+    let query = supabaseAdmin
       .from('meetings')
       .select(`
         *,
@@ -184,7 +179,7 @@ export async function POST(request: NextRequest) {
     // Handle new client creation if needed
     let finalClientId = clientId;
     if (meetingType === 'external' && newClientName && !clientId) {
-      const { data: newClient, error: clientError } = await supabase
+      const { data: newClient, error: clientError } = await supabaseAdmin
         .from('clients')
         .insert({
           name: newClientName,
@@ -205,7 +200,7 @@ export async function POST(request: NextRequest) {
     // Get assigned user name if assignedTo is provided
     let assignedToName = null;
     if (assignedTo) {
-      const { data: assignedUser } = await supabase
+      const { data: assignedUser } = await supabaseAdmin
         .from('users')
         .select('name')
         .eq('id', assignedTo)
@@ -215,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create meeting record
-    const { data: meeting, error: meetingError } = await supabase
+    const { data: meeting, error: meetingError } = await supabaseAdmin
       .from('meetings')
       .insert({
         title,
@@ -259,7 +254,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId && organizationId !== 'undefined' ? organizationId : null
       }));
 
-      const { error: attendeesError } = await supabase
+      const { error: attendeesError } = await supabaseAdmin
         .from('meeting_attendees')
         .insert(internalAttendeesData);
 
@@ -281,7 +276,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId && organizationId !== 'undefined' ? organizationId : null
       }));
 
-      const { error: externalAttendeesError } = await supabase
+      const { error: externalAttendeesError } = await supabaseAdmin
         .from('meeting_attendees')
         .insert(externalAttendeesData);
 
@@ -304,7 +299,7 @@ export async function POST(request: NextRequest) {
       }));
 
     if (minutesList.length > 0) {
-      const { error: minutesError } = await supabase
+      const { error: minutesError } = await supabaseAdmin
         .from('meeting_minutes')
         .insert(minutesList);
 
@@ -316,7 +311,7 @@ export async function POST(request: NextRequest) {
 
     // Create deadline assignment if assigned to someone
     if (assignedTo && deadlineDate) {
-      const { error: assignmentError } = await supabase
+      const { error: assignmentError } = await supabaseAdmin
         .from('meeting_deadline_assignments')
         .insert({
           meeting_id: meeting.id,
