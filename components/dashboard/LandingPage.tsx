@@ -7,6 +7,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import AttendancePanel from '@/components/attendance/AttendancePanel';
 import CalendarOfTheDay from '@/components/dashboard/CalendarOfTheDay';
 import FollowUpManager from '@/components/mom/FollowUpManager';
+import UserTasksSection from '@/components/dashboard/UserTasksSection';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckSquare, Clock, Calendar } from 'lucide-react';
@@ -59,68 +60,6 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
     fetchMeetings();
   };
 
-  // New Log Component for when no follow-up tasks exist
-  const NewLogComponent = () => (
-    <Card className="mb-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Plus className="h-5 w-5 text-primary" />
-          <span>Quick Actions</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Link href="/tasks" className="block">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <CheckSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm">View Tasks</h4>
-                    <p className="text-xs text-muted-foreground">Manage your tasks</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/calendar" className="block">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm">Calendar</h4>
-                    <p className="text-xs text-muted-foreground">View schedule</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/attendance-sheet" className="block">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/50 hover:border-primary/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm">Attendance</h4>
-                    <p className="text-xs text-muted-foreground">View records</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -156,20 +95,24 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
               />
             )}
 
+            {/* User's Assigned Tasks */}
+            {session?.user?.id && (
+              <UserTasksSection 
+                userId={session.user.id} 
+                userName={session.user.name || 'User'} 
+              />
+            )}
+
             {/* Calendar of the Day Component */}
             <CalendarOfTheDay userId={session?.user?.id} />
 
-            {/* Follow-Up Manager or New Log Component */}
-            {!loading && (
-              hasFollowUpTasks ? (
-                <FollowUpManager 
-                  meetings={meetings} 
-                  onFollowUpUpdated={handleFollowUpUpdated}
-                  userId={session?.user?.id}
-                />
-              ) : (
-                <NewLogComponent />
-              )
+            {/* Follow-Up Manager */}
+            {!loading && hasFollowUpTasks && (
+              <FollowUpManager 
+                meetings={meetings} 
+                onFollowUpUpdated={handleFollowUpUpdated}
+                userId={session?.user?.id}
+              />
             )}
 
             {loading && (

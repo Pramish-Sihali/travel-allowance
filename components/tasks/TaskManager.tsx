@@ -171,6 +171,14 @@ export default function TaskManager() {
     ).length
   };
 
+  // Calculate overall progress percentage
+  const overallProgress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+  // Handle stats card clicks
+  const handleStatsClick = (filterType: string) => {
+    setSelectedStatus(filterType);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -188,9 +196,34 @@ export default function TaskManager() {
 
   return (
     <div className="space-y-6">
+      {/* Overall Progress Bar */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">Overall Project Progress</h3>
+              <span className="text-2xl font-bold text-primary">{overallProgress}%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-3">
+              <div 
+                className="bg-primary h-3 rounded-full transition-all duration-500 ease-in-out"
+                style={{ width: `${overallProgress}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{stats.completed} completed</span>
+              <span>{stats.total} total tasks</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+          onClick={() => handleStatsClick('all')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -204,7 +237,10 @@ export default function TaskManager() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+          onClick={() => handleStatsClick('Not Started')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -218,7 +254,10 @@ export default function TaskManager() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+          onClick={() => handleStatsClick('In Progress')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -232,7 +271,10 @@ export default function TaskManager() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+          onClick={() => handleStatsClick('Completed')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -246,7 +288,14 @@ export default function TaskManager() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+          onClick={() => {
+            // For overdue, we'll keep the current filter but the user can see overdue tasks
+            setSelectedStatus('all');
+            // You could add a separate overdue filter if needed
+          }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>

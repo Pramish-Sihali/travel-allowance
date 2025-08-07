@@ -168,7 +168,7 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
     <>
       <header className={`bg-gradient-to-r ${styles.gradientFrom} ${styles.gradientTo} text-white shadow-md`}>
         <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-          <div className="flex items-center space-x-2">
+          {/* <div className="flex items-center space-x-2">
             <svg 
               className="w-8 h-8" 
               viewBox="0 0 24 24" 
@@ -179,7 +179,7 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
               <path d="M16 16V8H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <h1 className="text-2xl font-bold tracking-tight font-lato">IXI Employee Portal</h1>
-          </div>
+          </div> */}
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
               <UserCircle className="w-5 h-5" />

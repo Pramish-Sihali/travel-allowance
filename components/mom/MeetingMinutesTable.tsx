@@ -16,8 +16,10 @@ import {
   AlertCircle,
   User,
   Flag,
-  Trash2
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface User {
   id: string;
@@ -178,13 +180,14 @@ export default function MeetingMinutesTable({
               <TableHead className="min-w-[150px]">Remarks</TableHead>
               <TableHead className="w-24">Status</TableHead>
               <TableHead className="min-w-[100px]">Flags</TableHead>
+              <TableHead className="w-24">Task</TableHead>
               {!isReadOnly && <TableHead className="w-16">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {meetingMinutes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isReadOnly ? 7 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={isReadOnly ? 8 : 9} className="text-center py-8 text-muted-foreground">
                   No meeting minutes added yet. Click "Add Item" to start.
                 </TableCell>
               </TableRow>
@@ -310,6 +313,21 @@ export default function MeetingMinutesTable({
                         placeholder="Add flags (comma-separated)..."
                         className="w-full"
                       />
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {minute.assignedToId && (
+                      <Link href={`/tasks?assignedTo=${minute.assignedToId}`}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </Link>
                     )}
                   </TableCell>
                   

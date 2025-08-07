@@ -12,7 +12,11 @@ import {
   ChevronLeft, 
   ChevronRight,
   Menu,
-  X
+  X,
+  MapPin,
+  Mountain,
+  FileText,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -40,10 +44,34 @@ export default function Sidebar({ userRole = 'employee' }: SidebarProps) {
       roles: ['employee', 'approver', 'checker', 'admin']
     },
     {
+      name: 'Travel Requests',
+      href: '/requests',
+      icon: MapPin,
+      roles: ['employee', 'approver', 'checker', 'admin']
+    },
+    {
+      name: 'Valley Requests',
+      href: '/valley-requests',
+      icon: Mountain,
+      roles: ['employee', 'approver', 'checker', 'admin']
+    },
+    {
+      name: 'Leave Requests',
+      href: '/leave-requests',
+      icon: FileText,
+      roles: ['employee', 'approver', 'checker', 'admin']
+    },
+    {
+      name: 'Expenses',
+      href: '/expenses',
+      icon: DollarSign,
+      roles: ['employee', 'approver', 'checker', 'admin']
+    },
+    {
       name: 'Attendance',
       href: '/attendance-sheet',
       icon: Clock,
-      roles: ['employee', 'approver', 'checker', 'admin']
+      roles: ['approver', 'checker', 'admin']
     },
     {
       name: 'Calendar',

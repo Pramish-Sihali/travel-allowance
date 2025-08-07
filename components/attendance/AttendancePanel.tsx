@@ -385,22 +385,32 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
           )}
 
           {todayStatus !== null && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Your attendance has been marked for today.
-              </p>
-              {todayStatus === 'present' && (
-                <div className="flex items-center gap-2 text-green-700 text-sm">
-                  <CheckCircle className="h-4 w-4" />
-                  You are marked present today
-                </div>
-              )}
-              {todayStatus === 'leave' && (
-                <div className="flex items-center gap-2 text-red-700 text-sm">
-                  <XCircle className="h-4 w-4" />
-                  You are on leave today
-                </div>
-              )}
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                {todayStatus === 'present' && (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">Present</span>
+                  </>
+                )}
+                {todayStatus === 'leave' && (
+                  <>
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-700">On Leave</span>
+                  </>
+                )}
+                <span className="text-xs text-muted-foreground ml-2">
+                  {new Date().toLocaleDateString()}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-6 px-2"
+                onClick={() => window.location.href = '/attendance-sheet'}
+              >
+                View Sheet
+              </Button>
             </div>
           )}
 
