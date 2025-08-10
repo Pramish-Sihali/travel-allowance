@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import NotificationsPanel from '@/components/dashboard/NotificationsPanel';
 import FinanceCommentsList from '@/components/dashboard/FinanceCommentsList';
 import AttendancePanel from '@/components/attendance/AttendancePanel';
+import MeetingActionItems from '@/components/dashboard/MeetingActionItems';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -600,6 +601,10 @@ export default function EmployeeDashboard() {
                             <span className="absolute h-2 w-2 top-1 right-1 bg-red-500 rounded-full"></span>
                           )}
                         </TabsTrigger>
+                        <TabsTrigger value="meeting-actions" className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span>Meeting Actions</span>
+                        </TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="current">
@@ -642,6 +647,12 @@ export default function EmployeeDashboard() {
                         <FinanceCommentsList 
                           requests={requestsWithComments}
                           loading={loading}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="meeting-actions">
+                        <MeetingActionItems 
+                          employeeId={employeeId}
                         />
                       </TabsContent>
                       

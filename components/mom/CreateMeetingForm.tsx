@@ -106,9 +106,11 @@ interface CreateMeetingFormProps {
   onMeetingCreated: () => void;
   userId?: string;
   userName?: string;
+  editMode?: boolean;
+  existingMeeting?: any;
 }
 
-export default function CreateMeetingForm({ onMeetingCreated, userId, userName }: CreateMeetingFormProps) {
+export default function CreateMeetingForm({ onMeetingCreated, userId, userName, editMode = false, existingMeeting }: CreateMeetingFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);

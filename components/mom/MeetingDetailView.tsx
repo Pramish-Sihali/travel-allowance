@@ -17,7 +17,8 @@ import {
   Mail,
   Building,
   ArrowRight,
-  Play
+  Play,
+  Edit
 } from 'lucide-react';
 import MeetingMinutesTable from './MeetingMinutesTable';
 
@@ -94,6 +95,7 @@ interface MeetingDetailViewProps {
   meeting: Meeting;
   onMeetingUpdated: () => void;
   onStartFollowUp: () => void;
+  onEditMeeting?: () => void;
   userId?: string;
 }
 
@@ -140,10 +142,12 @@ export default function MeetingDetailView({
   meeting, 
   onMeetingUpdated, 
   onStartFollowUp,
+  onEditMeeting,
   userId 
 }: MeetingDetailViewProps) {
   const { toast } = useToast();
   const [meetingDetails, setMeetingDetails] = useState<MeetingDetails | null>(null);
+  const [fullMeetingData, setFullMeetingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -157,6 +161,7 @@ export default function MeetingDetailView({
       if (response.ok) {
         const data = await response.json();
         setMeetingDetails(data);
+        setFullMeetingData(data.meeting); // Store full meeting data with created_by
       } else {
         toast.error('Failed to load meeting details');
       }
@@ -234,6 +239,9 @@ export default function MeetingDetailView({
     }
   };
 
+  // Check if current user is the meeting creator
+  const isCreator = fullMeetingData?.created_by === userId;
+
 
   if (loading) {
     return (
@@ -281,12 +289,20 @@ export default function MeetingDetailView({
                 </Badge>
               </div>
             </div>
-            {meetingDetails.minutes.length > 0 && (
-              <Button onClick={onStartFollowUp} variant="outline">
-                <Play className="h-4 w-4 mr-2" />
-                Manage Follow-ups
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {isCreator && onEditMeeting && (
+                <Button onClick={onEditMeeting} variant="outline">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Meeting
+                </Button>
+              )}
+              {meetingDetails.minutes.length > 0 && (
+                <Button onClick={onStartFollowUp} variant="outline">
+                  <Play className="h-4 w-4 mr-2" />
+                  Manage Follow-ups
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

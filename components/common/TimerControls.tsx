@@ -43,7 +43,7 @@ export default function TimerControls({
 
   const handleStart = () => {
     if (!description.trim()) return;
-    startTimer(description, taskId, isPersonal);
+    startTimer(description, taskId, undefined, isPersonal);
   };
 
   const handleStop = async () => {

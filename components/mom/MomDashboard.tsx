@@ -74,7 +74,7 @@ export default function MomDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'create' | 'view' | 'followup'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'create' | 'view' | 'edit' | 'followup'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -112,6 +112,17 @@ export default function MomDashboard() {
 
   const handleViewMeeting = (meeting: Meeting) => {
     setSelectedMeeting(meeting);
+    setViewMode('view');
+  };
+
+  const handleEditMeeting = () => {
+    setViewMode('edit');
+  };
+
+  const handleMeetingUpdated = () => {
+    // Refresh data when a meeting is updated
+    fetchMeetingsData();
+    // Return to view mode
     setViewMode('view');
   };
 
@@ -297,7 +308,34 @@ export default function MomDashboard() {
           onStartFollowUp={() => {
             setViewMode('followup');
           }}
+          onEditMeeting={handleEditMeeting}
           userId={session?.user?.id}
+        />
+      </div>
+    );
+  }
+
+  // Show edit meeting form
+  if (viewMode === 'edit' && selectedMeeting) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Edit Meeting</h1>
+            <p className="text-muted-foreground mt-1">Modify meeting details and action items: {selectedMeeting.title}</p>
+          </div>
+          <Button variant="outline" onClick={() => setViewMode('view')}>
+            <ArrowRight className="h-4 w-4 mr-2" />
+            Back to Meeting
+          </Button>
+        </div>
+        
+        <CreateMeetingForm 
+          onMeetingCreated={handleMeetingUpdated}
+          userId={session?.user?.id}
+          userName={session?.user?.name || undefined}
+          editMode={true}
+          existingMeeting={selectedMeeting}
         />
       </div>
     );

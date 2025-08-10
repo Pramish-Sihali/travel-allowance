@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 export interface TimeLog {
   id?: string;
   taskId?: string;
+  meetingActionItemId?: string;
   userId: string;
   description: string;
   startTime: Date;
@@ -21,7 +22,7 @@ export interface UseTimeTrackerReturn {
   isPaused: boolean;
   elapsedTime: number;
   breakTime: number;
-  startTimer: (description: string, taskId?: string, isPersonal?: boolean) => void;
+  startTimer: (description: string, taskId?: string, meetingActionItemId?: string, isPersonal?: boolean) => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
   stopTimer: () => Promise<TimeLog | null>;
@@ -52,12 +53,13 @@ export const useTimeTracker = (userId: string): UseTimeTrackerReturn => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  const startTimer = useCallback((description: string, taskId?: string, isPersonal = false) => {
+  const startTimer = useCallback((description: string, taskId?: string, meetingActionItemId?: string, isPersonal = false) => {
     const now = new Date();
     const newLog: TimeLog = {
       userId,
       description,
       taskId,
+      meetingActionItemId,
       startTime: now,
       breakDuration: 0,
       totalDuration: 0,
@@ -150,6 +152,7 @@ export const useTimeTracker = (userId: string): UseTimeTrackerReturn => {
         },
         body: JSON.stringify({
           taskId: finalLog.taskId,
+          meetingActionItemId: finalLog.meetingActionItemId,
           description: finalLog.description,
           startTime: finalLog.startTime.toISOString(),
           endTime: finalLog.endTime?.toISOString() || now.toISOString(),

@@ -16,7 +16,8 @@ import {
   MapPin,
   Mountain,
   FileText,
-  DollarSign
+  DollarSign,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -76,6 +77,12 @@ export default function Sidebar({ userRole = 'employee' }: SidebarProps) {
       name: 'Calendar',
       href: '/calendar',
       icon: Calendar,
+      roles: ['employee', 'approver', 'checker', 'admin']
+    },
+    {
+      name: 'Meeting Minutes',
+      href: '/mom',
+      icon: Users,
       roles: ['employee', 'approver', 'checker', 'admin']
     },
     {

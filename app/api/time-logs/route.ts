@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       taskId,
+      meetingActionItemId,
       description,
       startTime,
       endTime,
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: session.user.id,
         task_id: taskId || null,
+        meeting_action_item_id: meetingActionItemId || null,
         description,
         start_time: startTime,
         end_time: endTime,
@@ -162,6 +164,42 @@ export async function POST(req: NextRequest) {
           });
       } catch (updateError) {
         console.error('Error creating task update:', updateError);
+        // Don't fail the time log creation if update fails
+      }
+    }
+
+    // Update meeting action item status and add time tracking info
+    if (meetingActionItemId && !isPersonal) {
+      try {
+        // Update the meeting action item to reflect time spent
+        await supabase
+          .from('meeting_minutes')
+          .update({
+            actual_hours: (totalDuration / 3600), // Convert seconds to hours
+            updated_at: new Date().toISOString(),
+            updated_by_name: session.user.name
+          })
+          .eq('id', meetingActionItemId);
+
+        // Optionally update status to 'in_progress' if it was 'pending'
+        const { data: actionItem } = await supabase
+          .from('meeting_minutes')
+          .select('completion_status')
+          .eq('id', meetingActionItemId)
+          .single();
+
+        if (actionItem && actionItem.completion_status === 'pending') {
+          await supabase
+            .from('meeting_minutes')
+            .update({ 
+              completion_status: 'in_progress',
+              started_at: new Date().toISOString(),
+              started_by: session.user.id
+            })
+            .eq('id', meetingActionItemId);
+        }
+      } catch (updateError) {
+        console.error('Error updating meeting action item:', updateError);
         // Don't fail the time log creation if update fails
       }
     }

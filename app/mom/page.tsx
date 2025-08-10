@@ -1,23 +1,30 @@
-'use client';
-
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import Header from '@/components/layout/Header';
+import { authOptions } from '@/lib/auth';
 import MomDashboard from '@/components/mom/MomDashboard';
+import PageLayout from '@/components/layout/PageLayout';
+import { Users } from 'lucide-react';
 
-export default function MomPage() {
+export default async function MomPage() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    redirect('/');
+  }
+
+  const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header variant="employee" />
-      
-      <main className="flex-grow p-6">
-        <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-          <MomDashboard />
-        </Suspense>
-      </main>
-      
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} Company Name. All rights reserved.</p>
-      </footer>
-    </div>
+    <PageLayout
+      title="Meeting Minutes"
+      description="Create, manage, and track meeting minutes with action items and follow-ups"
+      headerIcon={<Users className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
+      <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+        <MomDashboard />
+      </Suspense>
+    </PageLayout>
   );
 }
