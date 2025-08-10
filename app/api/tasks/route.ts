@@ -85,8 +85,78 @@ export async function GET(request: NextRequest) {
       updatedAt: task.updated_at
     }));
 
-    console.log('Returning tasks:', tasks.length, 'tasks');
-    return NextResponse.json(tasks);
+    // Now fetch meeting action items assigned to the current user and convert them to task format
+    const { data: meetingActionItems, error: actionItemsError } = await supabaseAdmin
+      .from('meeting_minutes')
+      .select(`
+        id,
+        content,
+        responsibility,
+        assigned_to,
+        assigned_to_name,
+        due_date,
+        priority,
+        completion_status,
+        is_done,
+        created_at,
+        updated_at,
+        created_by_name,
+        meeting:meetings!meeting_minutes_meeting_id_fkey (
+          id,
+          title,
+          meeting_date,
+          meeting_type,
+          created_by_name
+        )
+      `)
+      .eq('is_action_item', true)
+      .eq('assigned_to', session.user.id)
+      .eq('organization_id', session.user.organizationId)
+      .order('created_at', { ascending: false });
+
+    // Convert meeting action items to task format
+    const meetingTasks = (meetingActionItems || []).map(item => {
+      const meeting = Array.isArray(item.meeting) ? item.meeting[0] : item.meeting;
+      return {
+        id: `meeting-${item.id}`,
+        title: `[Meeting] ${item.responsibility || item.content}`,
+        description: `From meeting: ${meeting?.title || 'Unknown Meeting'} (${new Date(meeting?.meeting_date || '').toLocaleDateString()})`,
+      departmentId: 'meeting-actions',
+      departmentName: 'Meeting Actions',
+      assignedTo: [item.assigned_to_name || 'Unknown'],
+      assignedUserIds: [item.assigned_to],
+      status: item.completion_status === 'completed' ? 'Completed' : 
+              item.completion_status === 'in_progress' ? 'In Progress' : 'Not Started',
+      priority: item.priority === 'urgent' ? 'Critical' :
+                item.priority === 'high' ? 'High' :
+                item.priority === 'low' ? 'Low' : 'Medium',
+      ragStatus: item.is_done ? 'Green' : 
+                 item.completion_status === 'in_progress' ? 'Amber' : 'Unrated',
+      dueDate: item.due_date,
+      startDate: null,
+      completionDate: item.is_done ? item.updated_at?.split('T')[0] : null,
+      bottlenecks: null,
+      ragTakeaway: null,
+        remarks: `Meeting Action Item from: ${meeting?.title || 'Unknown Meeting'}`,
+        createdBy: null,
+        createdByName: item.created_by_name,
+        lastUpdatedBy: null,
+        lastUpdatedByName: null,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
+        // Add special fields to identify this as a meeting action item
+        isMeetingActionItem: true,
+        meetingActionItemId: item.id,
+        meetingId: meeting?.id,
+        meetingTitle: meeting?.title
+      };
+    });
+
+    // Combine regular tasks and meeting action items
+    const allTasks = [...tasks, ...meetingTasks];
+
+    console.log('Returning tasks:', tasks.length, 'regular tasks and', meetingTasks.length, 'meeting action items');
+    return NextResponse.json(allTasks);
   } catch (error) {
     console.error('Exception in GET /api/tasks:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -243,6 +243,11 @@ export interface Task {
   lastUpdatedByName?: string;
   createdAt: string;
   updatedAt: string;
+  // Meeting action item fields (optional - only present for meeting action items)
+  isMeetingActionItem?: boolean;
+  meetingActionItemId?: string;
+  meetingId?: string;
+  meetingTitle?: string;
 }
 
 export interface TaskUpdate {

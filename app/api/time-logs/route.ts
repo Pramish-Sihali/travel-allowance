@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
     const transformedData = data?.map(log => ({
       id: log.id,
       taskId: log.task_id,
+      meetingActionItemId: log.meeting_action_item_id,
       userId: log.user_id,
       description: log.description,
       startTime: log.start_time,
@@ -62,16 +63,21 @@ export async function GET(req: NextRequest) {
       totalDuration: log.total_duration,
       breakDuration: log.break_duration || 0,
       isPersonal: log.is_personal,
-      taskTitle: log.task_id ? `Task ${log.task_id}` : null, // Simple fallback since we can't join
+      taskTitle: log.task_id ? `Task ${log.task_id}` : (log.meeting_action_item_id ? `Meeting Action Item ${log.meeting_action_item_id}` : null),
       createdAt: log.created_at
     })) || [];
 
-    // If we have task_ids and it's not personal logs, try to get task titles separately
+    // If we have task_ids or meeting_action_item_ids and it's not personal logs, try to get titles separately
     if (!personal && transformedData.length > 0) {
       const taskIds = transformedData
         .map(log => log.taskId)
         .filter(id => id !== null);
       
+      const meetingActionItemIds = transformedData
+        .map(log => log.meetingActionItemId)
+        .filter(id => id !== null);
+      
+      // Fetch task titles
       if (taskIds.length > 0) {
         try {
           const { data: taskData } = await supabase
@@ -92,6 +98,30 @@ export async function GET(req: NextRequest) {
           }
         } catch (taskError) {
           console.log('Could not fetch task titles, using fallback');
+        }
+      }
+
+      // Fetch meeting action item titles
+      if (meetingActionItemIds.length > 0) {
+        try {
+          const { data: meetingActionItemData } = await supabase
+            .from('meeting_minutes')
+            .select('id, content, responsibility')
+            .in('id', meetingActionItemIds);
+          
+          if (meetingActionItemData) {
+            // Map meeting action item titles back to the logs
+            transformedData.forEach(log => {
+              if (log.meetingActionItemId) {
+                const actionItem = meetingActionItemData.find(t => t.id === log.meetingActionItemId);
+                if (actionItem) {
+                  log.taskTitle = `[Meeting] ${actionItem.responsibility || actionItem.content}`;
+                }
+              }
+            });
+          }
+        } catch (meetingError) {
+          console.log('Could not fetch meeting action item titles, using fallback');
         }
       }
     }

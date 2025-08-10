@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Edit, Calendar, Users, AlertTriangle, CheckCircle, MoreVertical } from 'lucide-react';
+import { Edit, Calendar, Users, AlertTriangle, CheckCircle, MoreVertical, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Task, TaskStatus, TaskPriority, RagStatus } from '@/types';
+import { useTimeTracker } from '@/hooks/useTimeTracker';
+import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 
 interface TaskTableProps {
   tasks: Task[];
@@ -27,6 +30,8 @@ export function TaskTable({
   priorityColors, 
   ragColors 
 }: TaskTableProps) {
+  const { data: session } = useSession();
+  const { startTimer, currentLog, isRunning } = useTimeTracker(session?.user?.id || '');
   const [sortField, setSortField] = useState<keyof Task>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -70,6 +75,22 @@ export function TaskTable({
     return task.dueDate && 
            new Date(task.dueDate) < new Date() && 
            task.status !== 'Completed';
+  };
+
+  const handleStartTimer = async (task: Task) => {
+    try {
+      if (task.isMeetingActionItem) {
+        // For meeting action items, pass the meeting action item ID as the third parameter
+        startTimer(task.title, undefined, task.meetingActionItemId, false);
+      } else {
+        // For regular tasks, use the task ID as the second parameter
+        startTimer(task.title, task.id, undefined, false);
+      }
+      toast.success('Timer started successfully!');
+    } catch (error) {
+      console.error('Error starting timer:', error);
+      toast.error('Failed to start timer');
+    }
   };
 
   if (tasks.length === 0) {
@@ -231,6 +252,16 @@ export function TaskTable({
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Task
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartTimer(task);
+                      }}
+                      disabled={isRunning}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {isRunning ? 'Timer Running' : 'Start Timer'}
                     </DropdownMenuItem>
                     {task.status !== 'Completed' && onMarkAsDone && (
                       <DropdownMenuItem
