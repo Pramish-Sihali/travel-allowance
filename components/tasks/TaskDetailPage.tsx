@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Calendar, Users, AlertCircle, Clock, MessageSquare, Edit, Plus, User, Send } from 'lucide-react';
+import { Calendar, Users, AlertCircle, Clock, MessageSquare, Edit, Plus, User, Send, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Task, TaskUpdate, TaskStatus, TaskPriority, RagStatus } from '@/types';
+
+interface TimeLog {
+  id: string;
+  hoursSpent: number;
+}
 import { toast } from 'sonner';
 import TaskActionItems from './TaskActionItems';
 
@@ -49,6 +54,19 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [timeLogs, setTimeLogs] = useState<any[]>([]);
+  const [timeLogComments, setTimeLogComments] = useState<{[key: string]: any[]}>({});
+  const [commentText, setCommentText] = useState<{[key: string]: string}>({});
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [showTimeLogForm, setShowTimeLogForm] = useState(false);
+  const [newStatus, setNewStatus] = useState<TaskStatus>('Not Started');
+  const [updateRemark, setUpdateRemark] = useState('');
+  const [timeLogData, setTimeLogData] = useState({
+    taskType: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    hoursSpent: ''
+  });
   // Create task form state
   const [createTaskData, setCreateTaskData] = useState({
     title: '',
@@ -63,6 +81,7 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
       fetchTaskDetails();
       fetchTaskUpdates();
       fetchUsers();
+      fetchTimeLogs();
     }
   }, [taskId]);
 
@@ -706,7 +725,7 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
       <TaskActionItems 
         taskId={taskId}
         currentUserId={session?.user?.id}
-        currentUserName={session?.user?.name}
+        currentUserName={session?.user?.name || undefined}
         isReadOnly={false}
       />
 
