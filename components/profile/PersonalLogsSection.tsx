@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   User, 
   Clock, 
@@ -18,6 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import TimerControls from '@/components/common/TimerControls';
+import ProjectTimeTracker from '@/components/common/ProjectTimeTracker';
 import LogEntry from '@/components/common/LogEntry';
 
 interface PersonalLog {
@@ -39,7 +39,9 @@ interface PersonalLogsSectionProps {
 export default function PersonalLogsSection({ className = "" }: PersonalLogsSectionProps) {
   const { data: session } = useSession();
   const [personalLogs, setPersonalLogs] = useState<PersonalLog[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<PersonalLog[]>([]);
+  const [projectLogs, setProjectLogs] = useState<any[]>([]);
+  const [filteredPersonalLogs, setFilteredPersonalLogs] = useState<PersonalLog[]>([]);
+  const [filteredProjectLogs, setFilteredProjectLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
@@ -58,17 +60,17 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
   useEffect(() => {
     if (userId) {
       fetchPersonalLogs();
+      fetchProjectLogs();
     }
   }, [userId]);
 
   useEffect(() => {
     filterLogsByDateRange();
     calculateStats();
-  }, [personalLogs, dateRange, selectedDate]);
+  }, [personalLogs, projectLogs, dateRange, selectedDate]);
 
   const fetchPersonalLogs = async () => {
     try {
-      setLoading(true);
       const response = await fetch(`/api/time-logs?userId=${userId}&personal=true`);
       if (response.ok) {
         const data = await response.json();
@@ -76,6 +78,19 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
       }
     } catch (error) {
       console.error('Error fetching personal logs:', error);
+    }
+  };
+
+  const fetchProjectLogs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/time-logs?userId=${userId}&personal=false`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjectLogs(data);
+      }
+    } catch (error) {
+      console.error('Error fetching project logs:', error);
     } finally {
       setLoading(false);
     }
@@ -111,12 +126,18 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
         break;
     }
 
-    const filtered = personalLogs.filter(log => {
+    const filteredPersonal = personalLogs.filter(log => {
       const logDate = new Date(log.startTime);
       return logDate >= startDate && logDate <= endDate;
     });
 
-    setFilteredLogs(filtered);
+    const filteredProject = projectLogs.filter(log => {
+      const logDate = new Date(log.startTime);
+      return logDate >= startDate && logDate <= endDate;
+    });
+
+    setFilteredPersonalLogs(filteredPersonal);
+    setFilteredProjectLogs(filteredProject);
   };
 
   const calculateStats = () => {
@@ -132,18 +153,20 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
     
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const totalTime = filteredLogs.reduce((sum, log) => sum + log.totalDuration, 0);
-    const totalBreakTime = filteredLogs.reduce((sum, log) => sum + (log.breakDuration || 0), 0);
-    const totalSessions = filteredLogs.length;
+    const allLogs = [...filteredPersonalLogs, ...filteredProjectLogs];
+    const totalTime = allLogs.reduce((sum, log) => sum + log.totalDuration, 0);
+    const totalBreakTime = allLogs.reduce((sum, log) => sum + (log.breakDuration || 0), 0);
+    const totalSessions = allLogs.length;
     const averageSessionTime = totalSessions > 0 ? totalTime / totalSessions : 0;
 
-    const weeklyLogs = personalLogs.filter(log => {
+    const allPersonalLogs = [...personalLogs, ...projectLogs];
+    const weeklyLogs = allPersonalLogs.filter(log => {
       const logDate = new Date(log.startTime);
       return logDate >= weekStart && logDate <= weekEnd;
     });
     const weeklyTotal = weeklyLogs.reduce((sum, log) => sum + log.totalDuration, 0);
 
-    const monthlyLogs = personalLogs.filter(log => {
+    const monthlyLogs = allPersonalLogs.filter(log => {
       const logDate = new Date(log.startTime);
       return logDate >= monthStart;
     });
@@ -171,6 +194,7 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
 
   const handleTimerComplete = () => {
     fetchPersonalLogs(); // Refresh logs when new one is added
+    fetchProjectLogs(); // Also refresh project logs
   };
 
   const groupLogsByDate = (logs: PersonalLog[]) => {
@@ -209,7 +233,7 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`space-y-8 ${className}`}>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -261,61 +285,72 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Project Time Tracker Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Project Time Tracker
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProjectTimeTracker onTimerComplete={handleTimerComplete} />
+        </CardContent>
+      </Card>
+
+      {/* Personal Time Tracker Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Personal Activity Logs
+            Personal Time Tracker
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="logs" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="logs" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Activity Logs
-              </TabsTrigger>
-              <TabsTrigger value="timer" className="flex items-center gap-2">
-                <Timer className="h-4 w-4" />
-                Time Tracker
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Analytics
-              </TabsTrigger>
-            </TabsList>
+          <TimerControls
+            isPersonal={true}
+            onTimerComplete={handleTimerComplete}
+          />
+        </CardContent>
+      </Card>
 
-            {/* Activity Logs Tab */}
-            <TabsContent value="logs" className="space-y-4">
-              {/* Date Range Filter */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">View:</span>
-                {(['today', 'week', 'month', 'all'] as const).map((range) => (
-                  <Badge
-                    key={range}
-                    variant={dateRange === range ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setDateRange(range)}
-                  >
-                    {range.charAt(0).toUpperCase() + range.slice(1)}
-                  </Badge>
-                ))}
-                <Badge variant="outline" className="ml-2">
-                  {filteredLogs.length} entries
-                </Badge>
-              </div>
+      {/* Project Time Logs Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Project Time Logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">View:</span>
+            {(['today', 'week', 'month', 'all'] as const).map((range) => (
+              <Badge
+                key={range}
+                variant={dateRange === range ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setDateRange(range)}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </Badge>
+            ))}
+            <Badge variant="outline" className="ml-2">
+              {filteredProjectLogs.length} entries
+            </Badge>
+          </div>
 
-              {/* Logs Display */}
-              {filteredLogs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No personal logs found for this period</p>
-                  <p className="text-xs">Use the time tracker to log your activities</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {groupLogsByDate(filteredLogs).map(({ date, logs }) => (
+          {/* Logs Display */}
+          {filteredProjectLogs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">No project logs found for this period</p>
+              <p className="text-xs">Use the project time tracker to log your work</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groupLogsByDate(filteredProjectLogs).map(({ date, logs }) => (
                     <div key={date} className="space-y-3">
                       <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -346,7 +381,7 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
                               timestamp: log.endTime,
                               duration: log.totalDuration,
                               breakDuration: log.breakDuration,
-                              type: 'personal'
+                              type: 'time_log'
                             }}
                             compact={true}
                           />
@@ -354,29 +389,88 @@ export default function PersonalLogsSection({ className = "" }: PersonalLogsSect
                       </div>
                     </div>
                   ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Personal Logs Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Personal Activity Logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">View:</span>
+            {(['today', 'week', 'month', 'all'] as const).map((range) => (
+              <Badge
+                key={range}
+                variant={dateRange === range ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setDateRange(range)}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </Badge>
+            ))}
+            <Badge variant="outline" className="ml-2">
+              {filteredPersonalLogs.length} entries
+            </Badge>
+          </div>
+
+          {/* Logs Display */}
+          {filteredPersonalLogs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">No personal logs found for this period</p>
+              <p className="text-xs">Use the personal time tracker to log your activities</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groupLogsByDate(filteredPersonalLogs).map(({ date, logs }) => (
+                <div key={date} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-medium text-sm">
+                      {new Date(date).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </h3>
+                    <Badge variant="outline" className="text-xs">
+                      {logs.length} sessions
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {formatDuration(logs.reduce((sum, log) => sum + log.totalDuration, 0))} total
+                    </Badge>
+                  </div>
+                  <div className="ml-6 space-y-2">
+                    {logs.map((log) => (
+                      <LogEntry
+                        key={log.id}
+                        log={{
+                          id: log.id,
+                          userId: log.userId,
+                          userName: userName || 'You',
+                          description: log.description,
+                          timestamp: log.endTime,
+                          duration: log.totalDuration,
+                          breakDuration: log.breakDuration,
+                          type: 'personal'
+                        }}
+                        compact={true}
+                      />
+                    ))}
+                  </div>
                 </div>
-              )}
-            </TabsContent>
-
-            {/* Timer Tab */}
-            <TabsContent value="timer" className="space-y-4">
-              <div className="max-w-md mx-auto">
-                <TimerControls
-                  isPersonal={true}
-                  onTimerComplete={handleTimerComplete}
-                />
-              </div>
-            </TabsContent>
-
-            {/* Analytics Tab */}
-            <TabsContent value="analytics" className="space-y-4">
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Analytics feature coming soon</p>
-                <p className="text-xs">Detailed insights and charts will be available here</p>
-              </div>
-            </TabsContent>
-          </Tabs>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

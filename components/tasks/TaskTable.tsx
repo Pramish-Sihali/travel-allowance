@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Edit, Calendar, Users, AlertTriangle, CheckCircle, MoreVertical, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,31 @@ export function TaskTable({
   const { startTimer, currentLog, isRunning } = useTimeTracker(session?.user?.id || '');
   const [sortField, setSortField] = useState<keyof Task>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [taskActionItems, setTaskActionItems] = useState<{[key: string]: any[]}>({});
+
+  useEffect(() => {
+    // Fetch action items for each task
+    tasks.forEach(task => {
+      if (!task.isMeetingActionItem) { // Only fetch for regular tasks
+        fetchTaskActionItems(task.id);
+      }
+    });
+  }, [tasks]);
+
+  const fetchTaskActionItems = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/action-items`);
+      if (response.ok) {
+        const data = await response.json();
+        setTaskActionItems(prev => ({
+          ...prev,
+          [taskId]: data
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching task action items:', error);
+    }
+  };
 
   const handleSort = (field: keyof Task) => {
     if (sortField === field) {
@@ -159,6 +184,7 @@ export function TaskTable({
                 <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
               )}
             </TableHead>
+            <TableHead>Action Items</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -224,6 +250,46 @@ export function TaskTable({
                 </div>
               </TableCell>
               <TableCell>
+                {/* Action Items Column */}
+                <div className="space-y-1">
+                  {task.isMeetingActionItem ? (
+                    <Badge variant="outline" className="text-xs">
+                      Meeting Action Item
+                    </Badge>
+                  ) : (
+                    <>
+                      {taskActionItems[task.id] && taskActionItems[task.id].length > 0 ? (
+                        <div className="space-y-1">
+                          {taskActionItems[task.id].slice(0, 2).map((actionItem: any, index: number) => (
+                            <div key={index} className="text-xs">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  actionItem.status === 'Completed'
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : actionItem.status === 'In Progress'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-gray-50 text-gray-700 border-gray-200'
+                                }
+                              >
+                                {actionItem.title || actionItem.description}
+                              </Badge>
+                            </div>
+                          ))}
+                          {taskActionItems[task.id].length > 2 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{taskActionItems[task.id].length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No action items</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -243,15 +309,6 @@ export function TaskTable({
                       }}
                     >
                       View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTaskEdit(task);
-                      }}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Task
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={(e) => {

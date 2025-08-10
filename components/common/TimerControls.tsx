@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Pause, Square, RotateCcw, Clock, Coffee } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Clock, Coffee, User } from 'lucide-react';
 import { useTimeTracker } from '@/hooks/useTimeTracker';
 import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 
 interface TimerControlsProps {
   taskId?: string;
@@ -25,7 +27,8 @@ export default function TimerControls({
   className = "" 
 }: TimerControlsProps) {
   const { data: session } = useSession();
-  const [description, setDescription] = useState(taskTitle || '');
+  const [title, setTitle] = useState(taskTitle || '');
+  const [description, setDescription] = useState('');
   
   const {
     currentLog,
@@ -42,8 +45,21 @@ export default function TimerControls({
   } = useTimeTracker(session?.user?.id || '');
 
   const handleStart = () => {
-    if (!description.trim()) return;
-    startTimer(description, taskId, undefined, isPersonal);
+    if (isPersonal) {
+      if (!title.trim()) {
+        toast.error('Please enter a title');
+        return;
+      }
+      if (!description.trim()) {
+        toast.error('Please enter a description');
+        return;
+      }
+      const finalDescription = `${title} - ${description}`;
+      startTimer(finalDescription, taskId, undefined, isPersonal);
+    } else {
+      if (!description.trim()) return;
+      startTimer(description, taskId, undefined, isPersonal);
+    }
   };
 
   const handleStop = async () => {
@@ -51,28 +67,63 @@ export default function TimerControls({
     if (completedLog && onTimerComplete) {
       onTimerComplete(completedLog);
     }
+    // Reset form after stopping for personal logs
+    if (isPersonal) {
+      setTitle('');
+      setDescription('');
+      toast.success('Personal activity logged successfully!');
+    }
   };
 
   const isActive = currentLog !== null;
-  const showControls = isActive || !isPersonal; // Always show for project tasks
+  const canStart = isPersonal ? (title.trim() && description.trim()) : description.trim();
 
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <Clock className="h-5 w-5 text-primary" />
-          {isPersonal ? 'Personal Time Log' : 'Project Time Tracker'}
+          <User className="h-5 w-5 text-primary" />
+          Personal Time Tracker
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Description Input */}
-        {!isActive && (
+        {/* Title and Description Inputs for Personal */}
+        {!isActive && isPersonal && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="What are you working on?"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                Description <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                placeholder="Describe your activity in detail..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Description Input for non-personal */}
+        {!isActive && !isPersonal && (
           <div>
             <label className="text-sm font-medium text-muted-foreground">
-              {isPersonal ? 'Activity Description' : 'Task Description'}
+              Task Description
             </label>
             <Input
-              placeholder={isPersonal ? "What are you working on?" : "Describe your work..."}
+              placeholder="Describe your work..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isActive}
@@ -114,18 +165,17 @@ export default function TimerControls({
         )}
 
         {/* Control Buttons */}
-        {showControls && (
-          <div className="flex gap-2 justify-center">
-            {!isActive ? (
-              <Button
-                onClick={handleStart}
-                disabled={!description.trim()}
-                className="flex items-center gap-2"
-              >
-                <Play className="h-4 w-4" />
-                Start
-              </Button>
-            ) : (
+        <div className="flex gap-2 justify-center">
+          {!isActive ? (
+            <Button
+              onClick={handleStart}
+              disabled={!canStart}
+              className="flex items-center gap-2"
+            >
+              <Play className="h-4 w-4" />
+              Start Timer
+            </Button>
+          ) : (
               <>
                 {isRunning ? (
                   <Button
@@ -156,7 +206,13 @@ export default function TimerControls({
                 </Button>
 
                 <Button
-                  onClick={resetTimer}
+                  onClick={() => {
+                    resetTimer();
+                    if (isPersonal) {
+                      setTitle('');
+                      setDescription('');
+                    }
+                  }}
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9"
@@ -165,13 +221,12 @@ export default function TimerControls({
                 </Button>
               </>
             )}
-          </div>
-        )}
+        </div>
 
-        {/* Today's Summary (Optional) */}
+        {/* Help Text */}
         {isPersonal && !isActive && (
           <div className="text-center text-sm text-muted-foreground">
-            <p>Track your personal activities and work progress</p>
+            <p>Track your personal activities - both title and description are required</p>
           </div>
         )}
       </CardContent>

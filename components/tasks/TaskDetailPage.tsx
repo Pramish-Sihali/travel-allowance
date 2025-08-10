@@ -59,8 +59,21 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
   const [commentText, setCommentText] = useState<{[key: string]: string}>({});
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [showTimeLogForm, setShowTimeLogForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [newStatus, setNewStatus] = useState<TaskStatus>('Not Started');
   const [updateRemark, setUpdateRemark] = useState('');
+  const [editTaskData, setEditTaskData] = useState({
+    title: '',
+    description: '',
+    status: 'Not Started' as TaskStatus,
+    priority: 'Medium' as TaskPriority,
+    ragStatus: 'Unrated' as RagStatus,
+    startDate: '',
+    dueDate: '',
+    bottlenecks: '',
+    ragTakeaway: '',
+    remarks: ''
+  });
   const [timeLogData, setTimeLogData] = useState({
     taskType: '',
     description: '',
@@ -103,6 +116,19 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
       if (response.ok) {
         const data = await response.json();
         setTask(data);
+        // Populate edit form with current task data
+        setEditTaskData({
+          title: data.title || '',
+          description: data.description || '',
+          status: data.status || 'Not Started',
+          priority: data.priority || 'Medium',
+          ragStatus: data.ragStatus || 'Unrated',
+          startDate: data.startDate || '',
+          dueDate: data.dueDate || '',
+          bottlenecks: data.bottlenecks || '',
+          ragTakeaway: data.ragTakeaway || '',
+          remarks: data.remarks || ''
+        });
       }
     } catch (error) {
       console.error('Error fetching task details:', error);
@@ -310,6 +336,43 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
     }
   };
 
+  const handleEditTask = async () => {
+    if (!editTaskData.title.trim()) {
+      toast.error('Please enter a task title');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...task,
+          ...editTaskData,
+          updateRemark: 'Task details updated'
+        })
+      });
+
+      if (response.ok) {
+        setShowEditForm(false);
+        fetchTaskDetails();
+        fetchTaskUpdates();
+        toast.success('Task updated successfully');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to update task');
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateTask = async () => {
     if (!createTaskData.title || !createTaskData.assignedTo) {
       toast.error('Please fill in required fields');
@@ -433,6 +496,14 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
                     Overdue
                   </Badge>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowEditForm(true)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Task
+                </Button>
                 {session?.user?.role === 'approver' && (
                   <Button 
                     variant="outline" 
@@ -469,6 +540,159 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Task Form */}
+      {showEditForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Edit Task Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="editTitle">Task Title *</Label>
+                <Input
+                  id="editTitle"
+                  value={editTaskData.title}
+                  onChange={(e) => setEditTaskData({...editTaskData, title: e.target.value})}
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editStatus">Status</Label>
+                <Select 
+                  value={editTaskData.status} 
+                  onValueChange={(value) => setEditTaskData({...editTaskData, status: value as TaskStatus})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Started">Not Started</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="On Hold">On Hold</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="editPriority">Priority</Label>
+                <Select 
+                  value={editTaskData.priority} 
+                  onValueChange={(value) => setEditTaskData({...editTaskData, priority: value as TaskPriority})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="editRagStatus">RAG Status</Label>
+                <Select 
+                  value={editTaskData.ragStatus} 
+                  onValueChange={(value) => setEditTaskData({...editTaskData, ragStatus: value as RagStatus})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Red">Red</SelectItem>
+                    <SelectItem value="Amber">Amber</SelectItem>
+                    <SelectItem value="Green">Green</SelectItem>
+                    <SelectItem value="Unrated">Unrated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="editStartDate">Start Date</Label>
+                <Input
+                  id="editStartDate"
+                  type="date"
+                  value={editTaskData.startDate}
+                  onChange={(e) => setEditTaskData({...editTaskData, startDate: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editDueDate">Due Date</Label>
+                <Input
+                  id="editDueDate"
+                  type="date"
+                  value={editTaskData.dueDate}
+                  onChange={(e) => setEditTaskData({...editTaskData, dueDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="editDescription">Description</Label>
+              <Textarea
+                id="editDescription"
+                value={editTaskData.description}
+                onChange={(e) => setEditTaskData({...editTaskData, description: e.target.value})}
+                placeholder="Describe the task..."
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="editBottlenecks">Bottlenecks</Label>
+              <Textarea
+                id="editBottlenecks"
+                value={editTaskData.bottlenecks}
+                onChange={(e) => setEditTaskData({...editTaskData, bottlenecks: e.target.value})}
+                placeholder="Describe any bottlenecks or blockers..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="editRagTakeaway">RAG Takeaway</Label>
+              <Textarea
+                id="editRagTakeaway"
+                value={editTaskData.ragTakeaway}
+                onChange={(e) => setEditTaskData({...editTaskData, ragTakeaway: e.target.value})}
+                placeholder="RAG status explanation and takeaways..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="editRemarks">Remarks</Label>
+              <Textarea
+                id="editRemarks"
+                value={editTaskData.remarks}
+                onChange={(e) => setEditTaskData({...editTaskData, remarks: e.target.value})}
+                placeholder="Additional remarks or notes..."
+                rows={2}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleEditTask} disabled={loading}>
+                {loading ? 'Updating...' : 'Update Task'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowEditForm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Task Information Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

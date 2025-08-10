@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TaskForm } from './TaskForm';
 import { TaskTable } from './TaskTable';
 import { TaskDetails } from './TaskDetails';
@@ -40,6 +41,7 @@ export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userActionItems, setUserActionItems] = useState<any[]>([]);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
@@ -56,6 +58,7 @@ export default function TaskManager() {
     if (isAuthenticated) {
       fetchTasks();
       fetchDepartments();
+      fetchUserActionItems();
     }
   }, [isAuthenticated, selectedDepartment]);
 
@@ -94,6 +97,22 @@ export default function TaskManager() {
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchUserActionItems = async () => {
+    try {
+      const response = await fetch('/api/meetings/action-items');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter action items assigned to current user
+        const userItems = data.filter((item: any) => 
+          item.assigned_to === session?.user?.id
+        );
+        setUserActionItems(userItems);
+      }
+    } catch (error) {
+      console.error('Error fetching action items:', error);
     }
   };
 
@@ -309,6 +328,113 @@ export default function TaskManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Action Items Table */}
+      {userActionItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              My Action Items ({userActionItems.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action Item</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Type</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userActionItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {item.responsibility || item.content}
+                          </div>
+                          {item.responsibility && item.content && (
+                            <div className="text-sm text-muted-foreground">
+                              {item.content}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {item.meeting_title ? (
+                            <div>
+                              <div className="font-medium">{item.meeting_title}</div>
+                              <div className="text-muted-foreground">Meeting</div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium">{item.task_title || 'Task'}</div>
+                              <div className="text-muted-foreground">Task</div>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            item.priority === 'urgent' || item.priority === 'high'
+                              ? 'bg-red-100 text-red-800'
+                              : item.priority === 'medium'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }
+                        >
+                          {item.priority || 'Medium'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            item.completion_status === 'completed'
+                              ? 'bg-green-100 text-green-800'
+                              : item.completion_status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {item.completion_status === 'completed' ? 'Completed' :
+                           item.completion_status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.due_date ? (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span className="text-sm">
+                              {new Date(item.due_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No due date</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {item.meeting_title ? 'Meeting Action' : 'Task Action'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content */}
       <Card>

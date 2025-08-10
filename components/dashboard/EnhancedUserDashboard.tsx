@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import ProjectCard from '@/components/common/ProjectCard';
 import TimerControls from '@/components/common/TimerControls';
+import ProjectTimeTracker from '@/components/common/ProjectTimeTracker';
 import LogEntry from '@/components/common/LogEntry';
 
 interface Project {
@@ -313,7 +314,7 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Project Time Tracker</h3>
-                  <TimerControls
+                  <ProjectTimeTracker
                     onTimerComplete={handleTimerComplete}
                   />
                 </div>
