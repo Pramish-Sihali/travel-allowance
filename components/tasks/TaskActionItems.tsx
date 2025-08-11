@@ -191,7 +191,8 @@ export default function TaskActionItems({
         updatedItems[index] = savedItem;
         setActionItems(updatedItems);
       } else {
-        alert('Failed to save action item');
+        const errorData = await response.json();
+        alert(`Failed to save action item: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error saving action item:', error);
@@ -212,7 +213,8 @@ export default function TaskActionItems({
         });
 
         if (!response.ok) {
-          alert('Failed to delete action item');
+          const errorData = await response.json();
+          alert(`Failed to delete action item: ${errorData.error || 'Unknown error'}`);
           return;
         }
       } catch (error) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PUT(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function PUT(
     const { actionId } = await params;
     const body = await request.json();
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('task_action_items')
       .update({
         serial_no: body.serialNo,
@@ -77,7 +77,7 @@ export async function DELETE(
 
     const { actionId } = await params;
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('task_action_items')
       .delete()
       .eq('id', actionId);

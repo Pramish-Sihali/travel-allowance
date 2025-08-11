@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -15,11 +15,11 @@ export async function GET(
 
     const taskId = (await params).id;
 
-    const { data, error } = await supabase
-      .from('meeting_minutes')
+    const { data, error } = await supabaseAdmin
+      .from('task_action_items')
       .select('*')
       .eq('task_id', taskId)
-      .eq('is_action_item', true)
+      .eq('organization_id', session.user.organizationId)
       .order('serial_no', { ascending: true });
 
     if (error) {
@@ -31,17 +31,17 @@ export async function GET(
     const transformedData = data?.map(item => ({
       id: item.id,
       serialNo: item.serial_no,
-      title: item.responsibility || item.content, // Use responsibility or content as title
-      description: item.content || '',
-      assignedToId: item.assigned_to,
+      title: item.title,
+      description: item.description || '',
+      assignedToId: item.assigned_to_id,
       assignedToName: item.assigned_to_name,
       priority: item.priority,
-      status: item.completion_status || 'pending',
+      status: item.status,
       dueDate: item.due_date || '',
-      remarks: item.deadline_notes || '',
-      createdBy: item.created_by_name,
+      remarks: item.remarks || '',
+      createdBy: item.created_by,
       createdAt: item.created_at,
-      updatedBy: item.updated_by_name,
+      updatedBy: item.updated_by,
       updatedAt: item.updated_at
     })) || [];
 
@@ -65,22 +65,27 @@ export async function POST(
     const taskId = (await params).id;
     const body = await request.json();
 
-    const { data, error } = await supabase
-      .from('meeting_minutes')
+    // Validate required fields
+    if (!body.title || !body.assignedToId) {
+      return NextResponse.json({ error: 'Title and assignee are required' }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('task_action_items')
       .insert({
         task_id: taskId,
-        serial_no: body.serialNo,
-        content: body.description || body.title,
-        responsibility: body.title,
-        assigned_to: body.assignedToId,
+        organization_id: session.user.organizationId,
+        serial_no: body.serialNo || 1,
+        title: body.title,
+        description: body.description || '',
+        assigned_to_id: body.assignedToId,
         assigned_to_name: body.assignedToName,
-        priority: body.priority,
-        completion_status: body.status || 'pending',
-        due_date: body.dueDate,
-        deadline_notes: body.remarks,
-        is_action_item: true,
-        created_by_name: session.user.name,
-        organization_id: session.user.organizationId
+        priority: body.priority || 'Medium',
+        status: body.status || 'Not Started',
+        due_date: body.dueDate || null,
+        remarks: body.remarks || '',
+        created_by: session.user.name || session.user.email || 'Unknown',
+        updated_by: session.user.name || session.user.email || 'Unknown'
       })
       .select()
       .single();
@@ -94,17 +99,17 @@ export async function POST(
     const transformedData = {
       id: data.id,
       serialNo: data.serial_no,
-      title: data.responsibility || data.content,
-      description: data.content || '',
-      assignedToId: data.assigned_to,
+      title: data.title,
+      description: data.description || '',
+      assignedToId: data.assigned_to_id,
       assignedToName: data.assigned_to_name,
       priority: data.priority,
-      status: data.completion_status || 'pending',
+      status: data.status,
       dueDate: data.due_date || '',
-      remarks: data.deadline_notes || '',
-      createdBy: data.created_by_name,
+      remarks: data.remarks || '',
+      createdBy: data.created_by,
       createdAt: data.created_at,
-      updatedBy: data.updated_by_name,
+      updatedBy: data.updated_by,
       updatedAt: data.updated_at
     };
 
