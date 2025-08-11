@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 interface TimerControlsProps {
   taskId?: string;
   taskTitle?: string;
+  meetingActionItemId?: string;
   isPersonal?: boolean;
   onTimerComplete?: (timeLog: any) => void;
   className?: string;
@@ -22,6 +23,7 @@ interface TimerControlsProps {
 export default function TimerControls({ 
   taskId, 
   taskTitle, 
+  meetingActionItemId,
   isPersonal = false, 
   onTimerComplete,
   className = "" 
@@ -55,10 +57,10 @@ export default function TimerControls({
         return;
       }
       const finalDescription = `${title} - ${description}`;
-      startTimer(finalDescription, taskId, undefined, isPersonal);
+      startTimer(finalDescription, taskId, meetingActionItemId, isPersonal);
     } else {
       if (!description.trim()) return;
-      startTimer(description, taskId, undefined, isPersonal);
+      startTimer(description, taskId, meetingActionItemId, isPersonal);
     }
   };
 

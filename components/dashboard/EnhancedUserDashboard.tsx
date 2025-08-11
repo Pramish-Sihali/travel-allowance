@@ -22,6 +22,7 @@ import ProjectCard from '@/components/common/ProjectCard';
 import TimerControls from '@/components/common/TimerControls';
 import ProjectTimeTracker from '@/components/common/ProjectTimeTracker';
 import LogEntry from '@/components/common/LogEntry';
+import ActionItemsSection from '@/components/dashboard/ActionItemsSection';
 
 interface Project {
   id: string;
@@ -193,6 +194,9 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Action Items Section - Show prominently at the top */}
+      <ActionItemsSection />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -251,7 +255,7 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="projects" className="flex items-center gap-2">
                 <CheckSquare className="h-4 w-4" />
-                My Projects
+                Project Details
               </TabsTrigger>
               <TabsTrigger value="timer" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
@@ -267,7 +271,7 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
               </TabsTrigger>
             </TabsList>
 
-            {/* My Active Projects Tab */}
+            {/* Project Details Tab */}
             <TabsContent value="projects" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">My Active Projects</h3>

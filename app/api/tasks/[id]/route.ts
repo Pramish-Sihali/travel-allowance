@@ -223,6 +223,111 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user information
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('role, name')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const { id } = await params;
+    
+    // Get the task to check permissions
+    const { data: taskData, error: taskError } = await supabaseAdmin
+      .from('tasks')
+      .select('created_by, status, assigned_user_ids, assigned_to')
+      .eq('id', id)
+      .single();
+
+    if (taskError || !taskData) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Check permissions: user can edit their own tasks, assigned tasks, or admins/approvers can edit any task
+    const isOwner = taskData.created_by === session.user.id;
+    const isAssigned = taskData.assigned_user_ids?.includes(session.user.id) || 
+                      taskData.assigned_to?.includes(session.user.name);
+    const isApprover = ['approver', 'admin'].includes(userData.role);
+    
+    if (!isOwner && !isAssigned && !isApprover) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { status, completionDate, updateRemark } = body;
+
+    const updateData: any = {
+      last_updated_by: session.user.id,
+      last_updated_by_name: userData.name,
+      updated_at: new Date().toISOString()
+    };
+
+    if (status) {
+      updateData.status = status;
+      if (status === 'Completed') {
+        updateData.completion_date = completionDate || new Date().toISOString().split('T')[0];
+      }
+    }
+
+    const { data: updatedTask, error } = await supabaseAdmin
+      .from('tasks')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating task:', error);
+      return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    }
+
+    // Create a task update record
+    if (taskData.status !== status || updateRemark) {
+      const updateRecord = {
+        task_id: id,
+        user_id: session.user.id,
+        update_type: taskData.status !== status ? 'status_change' : 'remark',
+        old_value: taskData.status !== status ? taskData.status : null,
+        new_value: taskData.status !== status ? status : null,
+        update_text: updateRemark || `Status changed from ${taskData.status} to ${status}`,
+        updated_by: session.user.id,
+        updated_by_name: userData.name,
+        organization_id: session.user.organizationId,
+        created_at: new Date().toISOString()
+      };
+
+      await supabaseAdmin
+        .from('task_updates')
+        .insert([updateRecord]);
+    }
+
+    return NextResponse.json({
+      id: updatedTask.id,
+      status: updatedTask.status,
+      completionDate: updatedTask.completion_date,
+      updatedAt: updatedTask.updated_at
+    });
+  } catch (error) {
+    console.error('Exception in PATCH /api/tasks/[id]:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

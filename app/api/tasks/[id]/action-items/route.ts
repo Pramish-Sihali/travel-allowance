@@ -16,9 +16,10 @@ export async function GET(
     const taskId = (await params).id;
 
     const { data, error } = await supabase
-      .from('task_action_items')
+      .from('meeting_minutes')
       .select('*')
       .eq('task_id', taskId)
+      .eq('is_action_item', true)
       .order('serial_no', { ascending: true });
 
     if (error) {
@@ -30,17 +31,17 @@ export async function GET(
     const transformedData = data?.map(item => ({
       id: item.id,
       serialNo: item.serial_no,
-      title: item.title,
-      description: item.description || '',
-      assignedToId: item.assigned_to_id,
+      title: item.responsibility || item.content, // Use responsibility or content as title
+      description: item.content || '',
+      assignedToId: item.assigned_to,
       assignedToName: item.assigned_to_name,
       priority: item.priority,
-      status: item.status,
+      status: item.completion_status || 'pending',
       dueDate: item.due_date || '',
-      remarks: item.remarks || '',
-      createdBy: item.created_by,
+      remarks: item.deadline_notes || '',
+      createdBy: item.created_by_name,
       createdAt: item.created_at,
-      updatedBy: item.updated_by,
+      updatedBy: item.updated_by_name,
       updatedAt: item.updated_at
     })) || [];
 
@@ -65,19 +66,20 @@ export async function POST(
     const body = await request.json();
 
     const { data, error } = await supabase
-      .from('task_action_items')
+      .from('meeting_minutes')
       .insert({
         task_id: taskId,
         serial_no: body.serialNo,
-        title: body.title,
-        description: body.description,
-        assigned_to_id: body.assignedToId,
+        content: body.description || body.title,
+        responsibility: body.title,
+        assigned_to: body.assignedToId,
         assigned_to_name: body.assignedToName,
         priority: body.priority,
-        status: body.status,
+        completion_status: body.status || 'pending',
         due_date: body.dueDate,
-        remarks: body.remarks,
-        created_by: session.user.name,
+        deadline_notes: body.remarks,
+        is_action_item: true,
+        created_by_name: session.user.name,
         organization_id: session.user.organizationId
       })
       .select()
@@ -92,17 +94,17 @@ export async function POST(
     const transformedData = {
       id: data.id,
       serialNo: data.serial_no,
-      title: data.title,
-      description: data.description || '',
-      assignedToId: data.assigned_to_id,
+      title: data.responsibility || data.content,
+      description: data.content || '',
+      assignedToId: data.assigned_to,
       assignedToName: data.assigned_to_name,
       priority: data.priority,
-      status: data.status,
+      status: data.completion_status || 'pending',
       dueDate: data.due_date || '',
-      remarks: data.remarks || '',
-      createdBy: data.created_by,
+      remarks: data.deadline_notes || '',
+      createdBy: data.created_by_name,
       createdAt: data.created_at,
-      updatedBy: data.updated_by,
+      updatedBy: data.updated_by_name,
       updatedAt: data.updated_at
     };
 
