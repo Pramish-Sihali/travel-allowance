@@ -18,32 +18,17 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from('task_action_items')
       .select('*')
-      .eq('task_id', taskId)
-      .eq('organization_id', session.user.organizationId)
-      .order('serial_no', { ascending: true });
+      .eq('taskid', taskId)
+      .eq('organizationid', session.user.organizationId)
+      .order('serialno', { ascending: true });
 
     if (error) {
       console.error('Error fetching action items:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform the data to match our interface
-    const transformedData = data?.map(item => ({
-      id: item.id,
-      serialNo: item.serial_no,
-      title: item.title,
-      description: item.description || '',
-      assignedToId: item.assigned_to_id,
-      assignedToName: item.assigned_to_name,
-      priority: item.priority,
-      status: item.status,
-      dueDate: item.due_date || '',
-      remarks: item.remarks || '',
-      createdBy: item.created_by,
-      createdAt: item.created_at,
-      updatedBy: item.updated_by,
-      updatedAt: item.updated_at
-    })) || [];
+    // No transformation needed - database now uses camelCase!
+    const transformedData = data || [];
 
     return NextResponse.json(transformedData);
   } catch (error) {
@@ -73,19 +58,19 @@ export async function POST(
     const { data, error } = await supabaseAdmin
       .from('task_action_items')
       .insert({
-        task_id: taskId,
-        organization_id: session.user.organizationId,
-        serial_no: body.serialNo || 1,
+        taskid: taskId,
+        organizationid: session.user.organizationId,
+        serialno: body.serialNo || 1,
         title: body.title,
         description: body.description || '',
-        assigned_to_id: body.assignedToId,
-        assigned_to_name: body.assignedToName,
+        assignedtoid: body.assignedToId,
+        assignedtoname: body.assignedToName,
         priority: body.priority || 'Medium',
         status: body.status || 'Not Started',
-        due_date: body.dueDate || null,
+        duedate: body.dueDate || null,
         remarks: body.remarks || '',
-        created_by: session.user.name || session.user.email || 'Unknown',
-        updated_by: session.user.name || session.user.email || 'Unknown'
+        createdby: session.user.name || session.user.email || 'Unknown',
+        updatedby: session.user.name || session.user.email || 'Unknown'
       })
       .select()
       .single();
@@ -95,23 +80,8 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform the response
-    const transformedData = {
-      id: data.id,
-      serialNo: data.serial_no,
-      title: data.title,
-      description: data.description || '',
-      assignedToId: data.assigned_to_id,
-      assignedToName: data.assigned_to_name,
-      priority: data.priority,
-      status: data.status,
-      dueDate: data.due_date || '',
-      remarks: data.remarks || '',
-      createdBy: data.created_by,
-      createdAt: data.created_at,
-      updatedBy: data.updated_by,
-      updatedAt: data.updated_at
-    };
+    // No transformation needed - database returns camelCase!
+    const transformedData = data;
 
     return NextResponse.json(transformedData, { status: 201 });
   } catch (error) {

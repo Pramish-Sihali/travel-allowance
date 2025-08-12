@@ -13,9 +13,9 @@ export async function PATCH(req: NextRequest) {
     // Mark all notifications as read for the current user
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', session.user.id)
-      .eq('is_read', false);
+      .update({ isread: true })
+      .eq('userid', session.user.id)
+      .eq('isread', false);
 
     if (error) {
       console.error('Error marking notifications as read:', error);

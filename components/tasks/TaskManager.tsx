@@ -105,14 +105,16 @@ export default function TaskManager() {
       const response = await fetch('/api/meetings/action-items');
       if (response.ok) {
         const data = await response.json();
-        // Filter action items assigned to current user
-        const userItems = data.filter((item: any) => 
-          item.assigned_to === session?.user?.id
+        // Extract actionItems array from response and filter
+        const actionItems = data.actionItems || [];
+        const userItems = actionItems.filter((item: any) => 
+          item.assignedto === session?.user?.id
         );
         setUserActionItems(userItems);
       }
     } catch (error) {
       console.error('Error fetching action items:', error);
+      setUserActionItems([]);
     }
   };
 

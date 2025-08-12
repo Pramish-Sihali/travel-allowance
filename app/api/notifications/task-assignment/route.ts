@@ -21,12 +21,12 @@ export async function POST(req: NextRequest) {
 
     // Create notifications for each assigned user
     const notifications = assignedUserIds.map(userId => ({
-      user_id: userId,
+      userid: userId,
       title: 'New Project Assignment',
       message: `You have been assigned to project: ${taskTitle}`,
       type: 'info',
       read: false,
-      organization_id: session.user.organizationId,
+      organizationid: session.user.organizationId,
       metadata: {
         taskId,
         projectId: taskId,

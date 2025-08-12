@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('time_logs')
       .select('*')
-      .eq('user_id', userId)
-      .eq('is_personal', personal)
-      .order('created_at', { ascending: false });
+      .eq('userid', userId)
+      .eq('ispersonal', personal)
+      .order('createdat', { ascending: false });
 
     if (date) {
       // Filter by specific date
@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
       endOfDay.setHours(23, 59, 59, 999);
       
       query = query
-        .gte('start_time', startOfDay.toISOString())
-        .lte('start_time', endOfDay.toISOString());
+        .gte('starttime', startOfDay.toISOString())
+        .lte('starttime', endOfDay.toISOString());
     }
 
     if (limit) {
@@ -51,30 +51,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform the data to match our interface
+    // No transformation needed - database now uses camelCase!
     const transformedData = data?.map(log => ({
-      id: log.id,
-      taskId: log.task_id,
-      meetingActionItemId: log.meeting_action_item_id,
-      userId: log.user_id,
-      description: log.description,
-      startTime: log.start_time,
-      endTime: log.end_time,
-      totalDuration: log.total_duration,
-      breakDuration: log.break_duration || 0,
-      isPersonal: log.is_personal,
-      taskTitle: log.task_id ? `Task ${log.task_id}` : (log.meeting_action_item_id ? `Meeting Action Item ${log.meeting_action_item_id}` : null),
-      createdAt: log.created_at
+      ...log,
+      taskTitle: log.taskid ? `Task ${log.taskid}` : (log.meetingactionitemid ? `Meeting Action Item ${log.meetingactionitemid}` : null)
     })) || [];
 
     // If we have task_ids or meeting_action_item_ids and it's not personal logs, try to get titles separately
     if (!personal && transformedData.length > 0) {
       const taskIds = transformedData
-        .map(log => log.taskId)
+        .map(log => log.taskid)
         .filter(id => id !== null);
       
       const meetingActionItemIds = transformedData
-        .map(log => log.meetingActionItemId)
+        .map(log => log.meetingactionitemid)
         .filter(id => id !== null);
       
       // Fetch task titles
@@ -88,8 +78,8 @@ export async function GET(req: NextRequest) {
           if (taskData) {
             // Map task titles back to the logs
             transformedData.forEach(log => {
-              if (log.taskId) {
-                const task = taskData.find(t => t.id === log.taskId);
+              if (log.taskid) {
+                const task = taskData.find(t => t.id === log.taskid);
                 if (task) {
                   log.taskTitle = task.title;
                 }
@@ -112,8 +102,8 @@ export async function GET(req: NextRequest) {
           if (meetingActionItemData) {
             // Map meeting action item titles back to the logs
             transformedData.forEach(log => {
-              if (log.meetingActionItemId) {
-                const actionItem = meetingActionItemData.find(t => t.id === log.meetingActionItemId);
+              if (log.meetingactionitemid) {
+                const actionItem = meetingActionItemData.find(t => t.id === log.meetingactionitemid);
                 if (actionItem) {
                   log.taskTitle = `[Meeting] ${actionItem.responsibility || actionItem.content}`;
                 }
@@ -161,16 +151,16 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('time_logs')
       .insert({
-        user_id: session.user.id,
-        task_id: taskId || null,
-        meeting_action_item_id: meetingActionItemId || null,
+        userid: session.user.id,
+        taskid: taskId || null,
+        meetingactionitemid: meetingActionItemId || null,
         description,
-        start_time: startTime,
-        end_time: endTime,
-        total_duration: totalDuration,
-        break_duration: breakDuration,
-        is_personal: isPersonal,
-        organization_id: session.user.organizationId
+        starttime: startTime,
+        endtime: endTime,
+        totalduration: totalDuration,
+        breakduration: breakDuration,
+        ispersonal: isPersonal,
+        organizationid: session.user.organizationId
       })
       .select()
       .single();
@@ -187,9 +177,9 @@ export async function POST(req: NextRequest) {
           .from('task_updates')
           .insert({
             task_id: taskId,
-            user_id: session.user.id,
-            update_text: `Logged ${Math.floor(totalDuration / 60)} minutes of work: ${description}`,
+            updated_by: session.user.id,
             update_type: 'time_log',
+            new_value: `Logged ${Math.floor(totalDuration / 60)} minutes of work: ${description}`,
             organization_id: session.user.organizationId
           });
       } catch (updateError) {
@@ -205,26 +195,24 @@ export async function POST(req: NextRequest) {
         await supabase
           .from('meeting_minutes')
           .update({
-            actual_hours: (totalDuration / 3600), // Convert seconds to hours
-            updated_at: new Date().toISOString(),
-            updated_by_name: session.user.name
+            actualhours: (totalDuration / 3600),
+            updatedat: new Date().toISOString(),
+            updatedbyname: session.user.name
           })
           .eq('id', meetingActionItemId);
 
         // Optionally update status to 'in_progress' if it was 'pending'
         const { data: actionItem } = await supabase
           .from('meeting_minutes')
-          .select('completion_status')
+          .select('completionstatus')
           .eq('id', meetingActionItemId)
           .single();
 
-        if (actionItem && actionItem.completion_status === 'pending') {
+        if (actionItem && actionItem.completionstatus === 'pending') {
           await supabase
             .from('meeting_minutes')
             .update({ 
-              completion_status: 'in_progress',
-              started_at: new Date().toISOString(),
-              started_by: session.user.id
+              completionstatus: 'in_progress'
             })
             .eq('id', meetingActionItemId);
         }
@@ -234,18 +222,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const transformedData = {
-      id: data.id,
-      taskId: data.task_id,
-      userId: data.user_id,
-      description: data.description,
-      startTime: data.start_time,
-      endTime: data.end_time,
-      totalDuration: data.total_duration,
-      breakDuration: data.break_duration,
-      isPersonal: data.is_personal,
-      createdAt: data.created_at
-    };
+    // No transformation needed - database returns camelCase!
+    const transformedData = data;
 
     return NextResponse.json(transformedData, { status: 201 });
   } catch (error) {

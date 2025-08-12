@@ -2,7 +2,7 @@
 -- This script safely creates the task_action_items table if it doesn't exist
 
 -- Create task_action_items table
-CREATE TABLE IF NOT EXISTS task_action_items (
+CREATE TABLE IF NOT EXISTS public.task_action_items (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     task_id UUID NOT NULL,
     organization_id UUID NOT NULL,
@@ -22,18 +22,18 @@ CREATE TABLE IF NOT EXISTS task_action_items (
 );
 
 -- Add comments
-COMMENT ON TABLE task_action_items IS 'Action items for tasks (similar to meeting minutes but for tasks)';
-COMMENT ON COLUMN task_action_items.task_id IS 'References tasks.id';
-COMMENT ON COLUMN task_action_items.assigned_to_id IS 'References users.id';
-COMMENT ON COLUMN task_action_items.serial_no IS 'Sequential number within the task';
+COMMENT ON TABLE public.task_action_items IS 'Action items for tasks (similar to meeting minutes but for tasks)';
+COMMENT ON COLUMN public.task_action_items.task_id IS 'References tasks.id';
+COMMENT ON COLUMN public.task_action_items.assigned_to_id IS 'References users.id';
+COMMENT ON COLUMN public.task_action_items.serial_no IS 'Sequential number within the task';
 
 -- Create indexes for performance (only if they don't exist)
-CREATE INDEX IF NOT EXISTS idx_task_action_items_task_id ON task_action_items(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_action_items_assigned_to_id ON task_action_items(assigned_to_id);
-CREATE INDEX IF NOT EXISTS idx_task_action_items_organization_id ON task_action_items(organization_id);
-CREATE INDEX IF NOT EXISTS idx_task_action_items_status ON task_action_items(status);
-CREATE INDEX IF NOT EXISTS idx_task_action_items_due_date ON task_action_items(due_date);
-CREATE INDEX IF NOT EXISTS idx_task_action_items_created_at ON task_action_items(created_at);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_task_id ON public.task_action_items(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_assigned_to_id ON public.task_action_items(assigned_to_id);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_organization_id ON public.task_action_items(organization_id);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_status ON public.task_action_items(status);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_due_date ON public.task_action_items(due_date);
+CREATE INDEX IF NOT EXISTS idx_task_action_items_created_at ON public.task_action_items(created_at);
 
 -- Create or replace updated_at trigger function
 CREATE OR REPLACE FUNCTION update_task_action_items_updated_at()
@@ -45,47 +45,47 @@ END;
 $$ LANGUAGE 'plpgsql';
 
 -- Drop and recreate trigger to ensure it exists
-DROP TRIGGER IF EXISTS task_action_items_updated_at_trigger ON task_action_items;
+DROP TRIGGER IF EXISTS task_action_items_updated_at_trigger ON public.task_action_items;
 CREATE TRIGGER task_action_items_updated_at_trigger
-    BEFORE UPDATE ON task_action_items
+    BEFORE UPDATE ON public.task_action_items
     FOR EACH ROW
     EXECUTE FUNCTION update_task_action_items_updated_at();
 
 -- Enable Row Level Security
-ALTER TABLE task_action_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_action_items ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Users can view task action items for their organization" ON task_action_items;
-DROP POLICY IF EXISTS "Users can insert task action items for their organization" ON task_action_items;
-DROP POLICY IF EXISTS "Users can update task action items for their organization" ON task_action_items;
-DROP POLICY IF EXISTS "Users can delete task action items for their organization" ON task_action_items;
+DROP POLICY IF EXISTS "Users can view task action items for their organization" ON public.task_action_items;
+DROP POLICY IF EXISTS "Users can insert task action items for their organization" ON public.task_action_items;
+DROP POLICY IF EXISTS "Users can update task action items for their organization" ON public.task_action_items;
+DROP POLICY IF EXISTS "Users can delete task action items for their organization" ON public.task_action_items;
 
 -- Create RLS policies
-CREATE POLICY "Users can view task action items for their organization" ON task_action_items
+CREATE POLICY "Users can view task action items for their organization" ON public.task_action_items
     FOR SELECT USING (
         organization_id IN (
-            SELECT organization_id FROM users WHERE id = auth.uid()
+            SELECT organization_id FROM public.users WHERE id = auth.uid()
         )
     );
 
-CREATE POLICY "Users can insert task action items for their organization" ON task_action_items
+CREATE POLICY "Users can insert task action items for their organization" ON public.task_action_items
     FOR INSERT WITH CHECK (
         organization_id IN (
-            SELECT organization_id FROM users WHERE id = auth.uid()
+            SELECT organization_id FROM public.users WHERE id = auth.uid()
         )
     );
 
-CREATE POLICY "Users can update task action items for their organization" ON task_action_items
+CREATE POLICY "Users can update task action items for their organization" ON public.task_action_items
     FOR UPDATE USING (
         organization_id IN (
-            SELECT organization_id FROM users WHERE id = auth.uid()
+            SELECT organization_id FROM public.users WHERE id = auth.uid()
         )
     );
 
-CREATE POLICY "Users can delete task action items for their organization" ON task_action_items
+CREATE POLICY "Users can delete task action items for their organization" ON public.task_action_items
     FOR DELETE USING (
         organization_id IN (
-            SELECT organization_id FROM users WHERE id = auth.uid()
+            SELECT organization_id FROM public.users WHERE id = auth.uid()
         )
     );
 

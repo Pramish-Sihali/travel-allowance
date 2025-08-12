@@ -14,10 +14,10 @@ export async function getEmployeesForGroupTravel(organizationId?: string) {
     
     // Add organization filter if provided and valid
     if (organizationId && organizationId !== 'undefined') {
-      query = query.eq('organization_id', organizationId);
+      query = query.eq('organizationid', organizationId);
     } else {
-      // If no organization or undefined, get users with null organization_id
-      query = query.is('organization_id', null);
+      // If no organization or undefined, get users with null organizationid
+      query = query.is('organizationid', null);
     }
     
     const { data, error } = await query;
@@ -48,7 +48,7 @@ export async function getUsersByIds(userIds: string[], organizationId?: string) 
     
     // Add organization filter if provided
     if (organizationId) {
-      query = query.eq('organization_id', organizationId);
+      query = query.eq('organizationid', organizationId);
     }
     
     const { data, error } = await query;
@@ -74,7 +74,7 @@ export async function getApproversForOrganization(organizationId: string) {
       .from('users')
       .select('id, name, email, department, designation')
       .eq('role', 'approver')
-      .eq('organization_id', organizationId)
+      .eq('organizationid', organizationId)
       .order('name', { ascending: true });
     
     if (error) {

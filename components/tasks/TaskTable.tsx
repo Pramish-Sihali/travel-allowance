@@ -206,15 +206,15 @@ export function TaskTable({
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
-                  {task.assignedTo.slice(0, 2).map((person, index) => (
+                  {(task.assignedTo || []).slice(0, 2).map((person, index) => (
                     <div key={index} className="flex items-center gap-1 text-sm">
                       <Users className="h-3 w-3" />
                       <span>{person}</span>
                     </div>
                   ))}
-                  {task.assignedTo.length > 2 && (
+                  {(task.assignedTo || []).length > 2 && (
                     <div className="text-xs text-muted-foreground">
-                      +{task.assignedTo.length - 2} more
+                      +{(task.assignedTo || []).length - 2} more
                     </div>
                   )}
                 </div>

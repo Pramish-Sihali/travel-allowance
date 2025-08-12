@@ -22,8 +22,8 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from('time_logs')
       .select('*')
-      .eq('task_id', taskId)
-      .order('created_at', { ascending: false });
+      .eq('taskid', taskId)
+      .order('createdat', { ascending: false });
 
     if (error) {
       console.error('Error fetching time logs:', error);
@@ -36,20 +36,20 @@ export async function GET(
     // Transform to camelCase and handle both old and new schema
     const timeLogs = data.map(log => ({
       id: log.id,
-      taskId: log.task_id,
-      userId: log.user_id,
-      userName: log.user_name || 'Unknown',
-      taskType: log.task_type || 'General',
+      taskId: log.taskid,
+      userId: log.userid,
+      userName: log.username || 'Unknown',
+      taskType: log.tasktype || 'General',
       description: log.description,
-      date: log.date || (log.start_time ? log.start_time.split('T')[0] : null),
-      startTime: log.start_time,
-      endTime: log.end_time,
-      totalDuration: log.total_duration,
-      breakDuration: log.break_duration,
-      hoursSpent: log.hours_spent || (log.total_duration ? Math.round((log.total_duration / 3600) * 100) / 100 : 0),
-      isPersonal: log.is_personal || false,
-      createdAt: log.created_at,
-      updatedAt: log.updated_at
+      date: log.date || (log.starttime ? log.starttime.split('T')[0] : null),
+      startTime: log.starttime,
+      endTime: log.endtime,
+      totalDuration: log.totalduration,
+      breakDuration: log.breakduration,
+      hoursSpent: log.hoursspent || (log.totalduration ? Math.round((log.totalduration / 3600) * 100) / 100 : 0),
+      isPersonal: log.ispersonal || false,
+      createdAt: log.createdat,
+      updatedAt: log.updatedat
     }));
 
     return NextResponse.json(timeLogs);
@@ -152,21 +152,21 @@ export async function POST(
 
     // Prepare insert data based on format
     let insertData: any = {
-      task_id: taskId,
-      user_id: session.user.id,
+      taskid: taskId,
+      userid: session.user.id,
       description,
-      organization_id: session.user.organizationId,
-      is_personal: isPersonal
+      organizationid: session.user.organizationId,
+      ispersonal: isPersonal
     };
 
     if (isNewFormat) {
       // New format - use start_time/end_time
       insertData = {
         ...insertData,
-        start_time: startTime,
-        end_time: endTime,
-        total_duration: totalDuration || 0,
-        break_duration: breakDuration || 0
+        starttime: startTime,
+        endtime: endTime,
+        totalduration: totalDuration || 0,
+        breakduration: breakDuration || 0
       };
     } else {
       // Old format - convert to new format
@@ -175,14 +175,14 @@ export async function POST(
       
       insertData = {
         ...insertData,
-        user_name: session.user.name || session.user.email,
-        task_type: taskType,
+        username: session.user.name || session.user.email,
+        tasktype: taskType,
         date: date,
-        hours_spent: hoursSpent,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        total_duration: Math.round(hoursSpent * 3600),
-        break_duration: 0
+        hoursspent: hoursSpent,
+        starttime: startDateTime.toISOString(),
+        endtime: endDateTime.toISOString(),
+        totalduration: Math.round(hoursSpent * 3600),
+        breakduration: 0
       };
     }
 
@@ -222,20 +222,20 @@ export async function POST(
     // Transform response to camelCase
     const timeLog = {
       id: data.id,
-      taskId: data.task_id,
-      userId: data.user_id,
-      userName: data.user_name || session.user.name || session.user.email,
-      taskType: data.task_type,
+      taskId: data.taskid,
+      userId: data.userid,
+      userName: data.username || session.user.name || session.user.email,
+      taskType: data.tasktype,
       description: data.description,
-      date: data.date || (data.start_time ? data.start_time.split('T')[0] : null),
-      startTime: data.start_time,
-      endTime: data.end_time,
-      totalDuration: data.total_duration,
-      breakDuration: data.break_duration,
-      hoursSpent: data.hours_spent || (data.total_duration ? Math.round((data.total_duration / 3600) * 100) / 100 : 0),
-      isPersonal: data.is_personal,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
+      date: data.date || (data.starttime ? data.starttime.split('T')[0] : null),
+      startTime: data.starttime,
+      endTime: data.endtime,
+      totalDuration: data.totalduration,
+      breakDuration: data.breakduration,
+      hoursSpent: data.hoursspent || (data.totalduration ? Math.round((data.totalduration / 3600) * 100) / 100 : 0),
+      isPersonal: data.ispersonal,
+      createdAt: data.createdat,
+      updatedAt: data.updatedat
     };
 
     return NextResponse.json(timeLog, { status: 201 });

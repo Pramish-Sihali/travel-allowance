@@ -90,8 +90,8 @@ export interface TravelRequest {
    
   
   // Processing flags
-  needs_financial_attention?: boolean;
-  is_urgent?: boolean;
+  needsFinancialAttention?: boolean;
+  isUrgent?: boolean;
   
   // Status and phase
   status: 'pending' | 'approved' | 'rejected' | 'travel_approved' | 'pending_verification' | 'rejected_by_checker';
@@ -101,8 +101,7 @@ export interface TravelRequest {
   approverId: string;
   approverComments?: string;
   checkerComments?: string;
-  finance_comments?: string; // Add this new field
-  financeComments ?: string; 
+  financeComments?: string; 
   
   // Valley-specific fields
   expenseDate?: string;
@@ -114,8 +113,8 @@ export interface TravelRequest {
   // Timestamps
   createdAt: string;
   updatedAt: string;
-  travel_details_approved_at?: string;
-  expenses_submitted_at?: string;
+  travelDetailsApprovedAt?: string;
+  expensesSubmittedAt?: string;
 }
 
 export interface ExpenseItem {
@@ -145,8 +144,11 @@ export interface Notification {
   userId: string;
   requestId?: string;
   message: string;
-  read: boolean; // Keep the original property name
+  isRead: boolean; // Updated to match database field name
   createdAt: string | Date;
+  requestType?: string;
+  organizationId?: string;
+  metadata?: any;
 }
 
 // Auth Types
@@ -260,6 +262,43 @@ export interface TaskUpdate {
   updatedBy?: string;
   updatedByName: string;
   createdAt: string;
+}
+
+// Time Tracking Types
+export interface TimeLog {
+  id: string;
+  userId: string;
+  taskId?: string;
+  organizationId: string;
+  taskType: 'Desk Research' | 'Field Visit' | 'Report Writing' | 'Interview/Consultation Meetings' | 'Visuals and Designing' | 'Data Analysis/Interpretation' | 'Finance/Administrative Tasks';
+  description: string;
+  date: string; // Simple date field
+  hoursSpent: number; // Simple numeric field for hours
+  userName: string; // Display name for user
+  createdAt: string;
+  updatedAt: string;
+  meetingActionItemId?: string;
+  // Note: No longer using startTime, endTime, totalDuration, breakDuration, isPersonal
+}
+
+// Task Action Items Types  
+export interface TaskActionItem {
+  id: string;
+  taskId: string;
+  organizationId: string;
+  serialNo: number;
+  title: string;
+  description?: string;
+  assignedToId: string;
+  assignedToName: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  dueDate?: string;
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt: string;
 }
 
 // Attendance Types

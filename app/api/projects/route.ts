@@ -23,6 +23,11 @@ export async function GET(request: NextRequest) {
       .from('projects')
       .select('id, name, description, active');
     
+    // Filter by organization
+    if (session.user.organizationId) {
+      query = query.eq('organizationid', session.user.organizationId);
+    }
+    
     // If not explicitly including inactive projects, filter for active only
     if (!includeInactive) {
       query = query.eq('active', true);

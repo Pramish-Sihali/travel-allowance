@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: false })
+        .eq('userid', targetUserId)
+        .order('createdat', { ascending: false })
         .range(offset, offset + limit - 1);
       
       if (error) {
@@ -66,18 +66,9 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      // Format data for frontend - convert snake_case to camelCase
-      const formattedData = data.map(item => ({
-        id: item.id,
-        userId: item.user_id,
-        requestId: item.request_id,
-        message: item.message,
-        read: item.read,
-        createdAt: item.created_at
-      }));
-      
-      console.log(`Found ${formattedData.length} notifications for user ${targetUserId} using direct query`);
-      return NextResponse.json(formattedData);
+      // No transformation needed - database now uses camelCase!
+      console.log(`Found ${data.length} notifications for user ${targetUserId} using direct query`);
+      return NextResponse.json(data);
     }
   } catch (error) {
     console.error('Error fetching notifications:', error);

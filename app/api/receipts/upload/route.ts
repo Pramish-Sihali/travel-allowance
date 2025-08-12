@@ -101,14 +101,14 @@ export async function POST(request: NextRequest) {
         // Insert receipt record for valley expense
         const receiptRecord = {
           id: uuidv4(),
-          expense_item_id: expenseItemId,
-          original_filename: file.name,
-          stored_filename: uniqueFilename,
-          file_type: file.type,
-          storage_path: storagePath,
-          public_url: publicUrl,
-          created_at: new Date().toISOString(),
-          request_type: 'in-valley'
+          expenseItemId: expenseItemId,
+          originalFilename: file.name,
+          storedFilename: uniqueFilename,
+          fileType: file.type,
+          storagePath: storagePath,
+          publicUrl: publicUrl,
+          createdAt: new Date().toISOString(),
+          requestType: 'in-valley'
         };
         
         console.log('Creating valley receipt record:', receiptRecord);

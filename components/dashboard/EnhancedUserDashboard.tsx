@@ -106,10 +106,12 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
         // Filter to only show projects assigned to this user that are not completed
         const userProjects = data.filter((project: Project) => 
           project.status !== 'Completed' && project.status !== 'Cancelled' &&
-          (project.assignedTo.some(assignee => 
-            assignee.toLowerCase().includes(userName?.toLowerCase() || '') ||
-            assignee.includes(userId || '')
-          ))
+          (project.assignedTo && Array.isArray(project.assignedTo) ? 
+            project.assignedTo.some(assignee => 
+              assignee.toLowerCase().includes(userName?.toLowerCase() || '') ||
+              assignee.includes(userId || '')
+            ) : false
+          )
         );
         setActiveProjects(userProjects);
       }

@@ -9,7 +9,16 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
+    console.log('Session debug:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      organizationId: session?.user?.organizationId,
+      userRole: session?.user?.role
+    });
+    
     if (!session?.user?.id || !session?.user?.organizationId) {
+      console.log('Auth failed - missing session or organizationId');
       return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
@@ -20,8 +29,8 @@ export async function GET(request: NextRequest) {
     const { data: tasksData, error: tasksError } = await supabaseAdmin
       .from('tasks')
       .select('*')
-      .eq('organization_id', session.user.organizationId)
-      .order('created_at', { ascending: false });
+      .eq('organizationid', session.user.organizationId)
+      .order('createdat', { ascending: false });
 
     if (tasksError) {
       console.error('Error fetching tasks:', tasksError);
@@ -37,7 +46,7 @@ export async function GET(request: NextRequest) {
     const { data: departmentsData, error: deptError } = await supabaseAdmin
       .from('departments')
       .select('*')
-      .eq('organization_id', session.user.organizationId);
+      .eq('organizationid', session.user.organizationId);
 
     if (deptError) {
       console.error('Error fetching departments:', deptError);
@@ -55,34 +64,16 @@ export async function GET(request: NextRequest) {
     if (department && department !== 'all') {
       const targetDept = departmentsData.find(d => d.name === department);
       if (targetDept) {
-        filteredTasks = tasksData.filter(task => task.department_id === targetDept.id);
+        filteredTasks = tasksData.filter(task => task.departmentid === targetDept.id);
       }
     }
 
-    // Convert snake_case to camelCase for frontend
+    // Transform and ensure proper data structure
     const tasks = (filteredTasks || []).map(task => ({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      departmentId: task.department_id,
-      departmentName: deptLookup[task.department_id]?.name || 'Unknown',
-      assignedTo: task.assigned_to || [],
-      assignedUserIds: task.assigned_user_ids || [],
-      status: task.status,
-      priority: task.priority,
-      ragStatus: task.rag_status,
-      dueDate: task.due_date,
-      startDate: task.start_date,
-      completionDate: task.completion_date,
-      bottlenecks: task.bottlenecks,
-      ragTakeaway: task.rag_takeaway,
-      remarks: task.remarks,
-      createdBy: task.created_by,
-      createdByName: task.created_by_name,
-      lastUpdatedBy: task.last_updated_by,
-      lastUpdatedByName: task.last_updated_by_name,
-      createdAt: task.created_at,
-      updatedAt: task.updated_at
+      ...task,
+      departmentName: deptLookup[task.departmentid]?.name || 'Unknown',
+      assignedTo: task.assignedto && Array.isArray(task.assignedto) ? task.assignedto : [],
+      assignedUserIds: task.assigneduserids && Array.isArray(task.assigneduserids) ? task.assigneduserids : []
     }));
 
     // Now fetch meeting action items assigned to the current user and convert them to task format
@@ -92,27 +83,27 @@ export async function GET(request: NextRequest) {
         id,
         content,
         responsibility,
-        assigned_to,
-        assigned_to_name,
-        due_date,
+        assignedto,
+        assignedtoname,
+        duedate,
         priority,
-        completion_status,
-        is_done,
-        created_at,
-        updated_at,
-        created_by_name,
+        completionstatus,
+        isdone,
+        createdat,
+        updatedat,
+        createdbyname,
         meeting:meetings!meeting_minutes_meeting_id_fkey (
           id,
           title,
-          meeting_date,
-          meeting_type,
-          created_by_name
+          meetingdate,
+          meetingtype,
+          createdbyname
         )
       `)
-      .eq('is_action_item', true)
-      .eq('assigned_to', session.user.id)
-      .eq('organization_id', session.user.organizationId)
-      .order('created_at', { ascending: false });
+      .eq('isactionitem', true)
+      .eq('assignedto', session.user.id)
+      .eq('organizationid', session.user.organizationId)
+      .order('createdat', { ascending: false });
 
     // Convert meeting action items to task format
     const meetingTasks = (meetingActionItems || []).map(item => {
@@ -120,30 +111,30 @@ export async function GET(request: NextRequest) {
       return {
         id: `meeting-${item.id}`,
         title: `[Meeting] ${item.responsibility || item.content}`,
-        description: `From meeting: ${meeting?.title || 'Unknown Meeting'} (${new Date(meeting?.meeting_date || '').toLocaleDateString()})`,
-      departmentId: 'meeting-actions',
+        description: `From meeting: ${meeting?.title || 'Unknown Meeting'} (${new Date(meeting?.meetingdate || '').toLocaleDateString()})`,
+      departmentid: 'meeting-actions',
       departmentName: 'Meeting Actions',
-      assignedTo: [item.assigned_to_name || 'Unknown'],
-      assignedUserIds: [item.assigned_to],
-      status: item.completion_status === 'completed' ? 'Completed' : 
-              item.completion_status === 'in_progress' ? 'In Progress' : 'Not Started',
+      assignedTo: [item.assignedtoname || 'Unknown'],
+      assignedUserIds: [item.assignedto],
+      status: item.completionstatus === 'completed' ? 'Completed' : 
+              item.completionstatus === 'in_progress' ? 'In Progress' : 'Not Started',
       priority: item.priority === 'urgent' ? 'Critical' :
                 item.priority === 'high' ? 'High' :
                 item.priority === 'low' ? 'Low' : 'Medium',
-      ragStatus: item.is_done ? 'Green' : 
-                 item.completion_status === 'in_progress' ? 'Amber' : 'Unrated',
-      dueDate: item.due_date,
+      ragStatus: item.isdone ? 'Green' : 
+                 item.completionstatus === 'in_progress' ? 'Amber' : 'Unrated',
+      dueDate: item.duedate,
       startDate: null,
-      completionDate: item.is_done ? item.updated_at?.split('T')[0] : null,
+      completionDate: item.isdone ? item.updatedat?.split('T')[0] : null,
       bottlenecks: null,
       ragTakeaway: null,
         remarks: `Meeting Action Item from: ${meeting?.title || 'Unknown Meeting'}`,
         createdBy: null,
-        createdByName: item.created_by_name,
+        createdByName: item.createdbyname,
         lastUpdatedBy: null,
         lastUpdatedByName: null,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
+        createdAt: item.createdat,
+        updatedAt: item.updatedat,
         // Add special fields to identify this as a meeting action item
         isMeetingActionItem: true,
         meetingActionItemId: item.id,
@@ -206,23 +197,23 @@ export async function POST(request: NextRequest) {
     const insertData = {
       title,
       description: description || '',
-      department_id: departmentId,
-      assigned_to: assignedTo || [],
+      departmentid: departmentId,
+      assignedto: assignedTo || [],
       status: status || 'Not Started',
       priority: priority || 'Medium',
-      rag_status: ragStatus || 'Unrated',
-      due_date: dueDate || null,
-      start_date: startDate || null,
+      ragstatus: ragStatus || 'Unrated',
+      duedate: dueDate || null,
+      startdate: startDate || null,
       bottlenecks: bottlenecks || '',
-      rag_takeaway: ragTakeaway || '',
+      ragtakeaway: ragTakeaway || '',
       remarks: remarks || '',
-      created_by: session.user.id,
-      created_by_name: userData.name,
-      last_updated_by: session.user.id,
-      last_updated_by_name: userData.name,
-      organization_id: session.user.organizationId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      createdby: session.user.id,
+      createdbyname: userData.name,
+      lastupdatedby: session.user.id,
+      lastupdatedbyname: userData.name,
+      organizationid: session.user.organizationId,
+      createdat: new Date().toISOString(),
+      updatedat: new Date().toISOString()
     };
 
     const { data: newTask, error } = await supabaseAdmin
@@ -230,7 +221,7 @@ export async function POST(request: NextRequest) {
       .insert([insertData])
       .select(`
         *,
-        departments:department_id (
+        departments:departmentid (
           id,
           name,
           description
@@ -243,30 +234,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
     }
 
-    // Convert to camelCase for response
+    // No transformation needed - database returns camelCase!
     const formattedTask = {
-      id: newTask.id,
-      title: newTask.title,
-      description: newTask.description,
-      departmentId: newTask.department_id,
-      departmentName: newTask.departments?.name,
-      assignedTo: newTask.assigned_to || [],
-      assignedUserIds: newTask.assigned_user_ids || [],
-      status: newTask.status,
-      priority: newTask.priority,
-      ragStatus: newTask.rag_status,
-      dueDate: newTask.due_date,
-      startDate: newTask.start_date,
-      completionDate: newTask.completion_date,
-      bottlenecks: newTask.bottlenecks,
-      ragTakeaway: newTask.rag_takeaway,
-      remarks: newTask.remarks,
-      createdBy: newTask.created_by,
-      createdByName: newTask.created_by_name,
-      lastUpdatedBy: newTask.last_updated_by,
-      lastUpdatedByName: newTask.last_updated_by_name,
-      createdAt: newTask.created_at,
-      updatedAt: newTask.updated_at
+      ...newTask,
+      departmentName: newTask.departments?.name
     };
 
     return NextResponse.json(formattedTask, { status: 201 });

@@ -19,17 +19,17 @@ export async function PUT(
     const { data, error } = await supabaseAdmin
       .from('task_action_items')
       .update({
-        serial_no: body.serialNo,
+        serialno: body.serialNo,
         title: body.title,
         description: body.description,
-        assigned_to_id: body.assignedToId,
-        assigned_to_name: body.assignedToName,
+        assignedtoid: body.assignedToId,
+        assignedtoname: body.assignedToName,
         priority: body.priority,
         status: body.status,
-        due_date: body.dueDate,
+        duedate: body.dueDate,
         remarks: body.remarks,
-        updated_by: session.user.name,
-        updated_at: new Date().toISOString()
+        updatedby: session.user.name,
+        updatedat: new Date().toISOString()
       })
       .eq('id', actionId)
       .select()
@@ -43,19 +43,19 @@ export async function PUT(
     // Transform the response
     const transformedData = {
       id: data.id,
-      serialNo: data.serial_no,
+      serialNo: data.serialno,
       title: data.title,
       description: data.description || '',
-      assignedToId: data.assigned_to_id,
-      assignedToName: data.assigned_to_name,
+      assignedToId: data.assignedtoid,
+      assignedToName: data.assignedtoname,
       priority: data.priority,
       status: data.status,
-      dueDate: data.due_date || '',
+      dueDate: data.duedate || '',
       remarks: data.remarks || '',
-      createdBy: data.created_by,
-      createdAt: data.created_at,
-      updatedBy: data.updated_by,
-      updatedAt: data.updated_at
+      createdBy: data.createdby,
+      createdAt: data.createdat,
+      updatedBy: data.updatedby,
+      updatedAt: data.updatedat
     };
 
     return NextResponse.json(transformedData);

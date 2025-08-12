@@ -21,42 +21,42 @@ export async function GET(request: NextRequest) {
         id,
         content,
         responsibility,
-        serial_no,
-        is_action_item,
-        completion_status,
-        assigned_to,
-        assigned_to_name,
-        due_date,
+        serialno,
+        isactionitem,
+        completionstatus,
+        assignedto,
+        assignedtoname,
+        duedate,
         priority,
         remarks,
         flags,
-        is_done,
-        created_at,
-        updated_at,
+        isdone,
+        createdat,
+        updatedat,
         meeting:meetings!meeting_minutes_meeting_id_fkey (
           id,
           title,
-          meeting_date,
-          meeting_time,
+          meetingdate,
+          meetingtime,
           location,
-          meeting_type,
+          meetingtype,
           priority,
-          created_by_name
+          createdbyname
         )
       `)
-      .eq('is_action_item', true)
-      .eq('assigned_to', employeeId);
+      .eq('isactionitem', true)
+      .eq('assignedto', employeeId);
 
     // Only add organization filter if organizationId is valid
     if (organizationId && organizationId !== 'undefined') {
-      query = query.eq('organization_id', organizationId);
+      query = query.eq('organizationid', organizationId);
     } else {
-      query = query.is('organization_id', null);
+      query = query.is('organizationid', null);
     }
 
     const { data: actionItems, error: actionItemsError } = await query
-      .order('due_date', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false });
+      .order('duedate', { ascending: true, nullsFirst: false })
+      .order('createdat', { ascending: false });
 
     if (actionItemsError) {
       console.error('Error fetching action items:', actionItemsError);
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
     // Calculate statistics
     const stats = {
       totalActionItems: actionItems?.length || 0,
-      pendingActionItems: actionItems?.filter(item => item.completion_status === 'pending').length || 0,
-      completedActionItems: actionItems?.filter(item => item.completion_status === 'completed').length || 0,
+      pendingActionItems: actionItems?.filter(item => item.completionstatus === 'pending').length || 0,
+      completedActionItems: actionItems?.filter(item => item.completionstatus === 'completed').length || 0,
       overdueActionItems: 0,
       dueTodayActionItems: 0
     };
@@ -77,8 +77,8 @@ export async function GET(request: NextRequest) {
     today.setHours(23, 59, 59, 999); // End of today
 
     actionItems?.forEach(item => {
-      if (item.due_date && item.completion_status !== 'completed') {
-        const dueDate = new Date(item.due_date);
+      if (item.duedate && item.completionstatus !== 'completed') {
+        const dueDate = new Date(item.duedate);
         
         // Count overdue items
         if (dueDate < currentDate) {
@@ -119,21 +119,19 @@ export async function PUT(request: NextRequest) {
 
     // Update the action item status
     const updateData: any = {
-      completion_status: status,
-      updated_at: new Date().toISOString()
+      completionstatus: status,
+      updatedat: new Date().toISOString()
     };
 
     if (status === 'completed') {
-      updateData.is_done = true;
-      updateData.completed_at = new Date().toISOString();
-      updateData.completed_by = session.user.id;
-      updateData.completed_by_name = session.user.name;
+      updateData.isdone = true;
+      updateData.completedat = new Date().toISOString();
+      updateData.completedby = session.user.id;
+      updateData.completedbyname = session.user.name;
     } else if (status === 'in_progress') {
-      updateData.is_done = false;
-      updateData.started_at = new Date().toISOString();
-      updateData.started_by = session.user.id;
+      updateData.isdone = false;
     } else if (status === 'pending') {
-      updateData.is_done = false;
+      updateData.isdone = false;
     }
 
     if (remarks) {

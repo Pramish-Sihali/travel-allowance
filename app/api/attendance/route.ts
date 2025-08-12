@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from('attendance')
       .select('*')
-      .eq('employee_id', employeeId)
-      .eq('organization_id', session.user.organizationId);
+      .eq('employeeid', employeeId)
+      .eq('organizationid', session.user.organizationId);
 
     if (date) {
       query = query.eq('date', date);
@@ -41,16 +41,16 @@ export async function GET(request: NextRequest) {
     
     const attendance = data.map((row: any) => ({
       id: row.id,
-      employeeId: row.employee_id,
-      employeeName: row.employee_name,
+      employeeId: row.employeeid,
+      employeeName: row.employeename,
       date: row.date,
       status: row.status,
-      leaveType: row.leave_type,
-      leaveReason: row.leave_reason,
+      leaveType: row.leavetype,
+      leaveReason: row.leavereason,
       approver: row.approver,
-      isAdvancedLeave: row.is_advanced_leave,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      isAdvancedLeave: row.isadvancedleave,
+      createdAt: row.createdat,
+      updatedAt: row.updatedat,
     }));
 
     return NextResponse.json(attendance);
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
     const { data: existingAttendance } = await supabaseAdmin
       .from('attendance')
       .select('id')
-      .eq('employee_id', employeeId)
+      .eq('employeeid', employeeId)
       .eq('date', date)
-      .eq('organization_id', session.user.organizationId);
+      .eq('organizationid', session.user.organizationId);
 
     if (existingAttendance && existingAttendance.length > 0) {
       // Update existing attendance
@@ -104,13 +104,13 @@ export async function POST(request: NextRequest) {
         .from('attendance')
         .update({
           status,
-          leave_type: leaveType,
-          leave_reason: leaveReason,
+          leavetype: leaveType,
+          leavereason: leaveReason,
           approver,
-          is_advanced_leave: isAdvancedLeave,
-          updated_at: new Date().toISOString()
+          isadvancedleave: isAdvancedLeave,
+          updatedat: new Date().toISOString()
         })
-        .eq('employee_id', employeeId)
+        .eq('employeeid', employeeId)
         .eq('date', date);
 
       if (error) {
@@ -125,15 +125,15 @@ export async function POST(request: NextRequest) {
       const { error } = await supabaseAdmin
         .from('attendance')
         .insert([{
-          employee_id: employeeId,
-          employee_name: employeeName,
+          employeeid: employeeId,
+          employeename: employeeName,
           status,
           date,
-          leave_type: leaveType,
-          leave_reason: leaveReason,
+          leavetype: leaveType,
+          leavereason: leaveReason,
           approver,
-          is_advanced_leave: isAdvancedLeave,
-          organization_id: session.user.organizationId
+          isadvancedleave: isAdvancedLeave,
+          organizationid: session.user.organizationId
         }]);
 
       if (error) {

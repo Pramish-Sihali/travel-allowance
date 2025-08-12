@@ -21,7 +21,7 @@ export async function GET(
       .from('tasks')
       .select(`
         *,
-        departments:department_id (
+        departments:departmentid (
           id,
           name,
           description
@@ -40,25 +40,25 @@ export async function GET(
       id: data.id,
       title: data.title,
       description: data.description,
-      departmentId: data.department_id,
+      departmentId: data.departmentid,
       departmentName: data.departments?.name,
-      assignedTo: data.assigned_to || [],
-      assignedUserIds: data.assigned_user_ids || [],
+      assignedTo: data.assignedto || [],
+      assignedUserIds: data.assigneduserids || [],
       status: data.status,
       priority: data.priority,
-      ragStatus: data.rag_status,
-      dueDate: data.due_date,
-      startDate: data.start_date,
-      completionDate: data.completion_date,
+      ragStatus: data.ragstatus,
+      dueDate: data.duedate,
+      startDate: data.startdate,
+      completionDate: data.completiondate,
       bottlenecks: data.bottlenecks,
-      ragTakeaway: data.rag_takeaway,
+      ragTakeaway: data.ragtakeaway,
       remarks: data.remarks,
-      createdBy: data.created_by,
-      createdByName: data.created_by_name,
-      lastUpdatedBy: data.last_updated_by,
-      lastUpdatedByName: data.last_updated_by_name,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
+      createdBy: data.createdby,
+      createdByName: data.createdbyname,
+      lastUpdatedBy: data.lastupdatedby,
+      lastUpdatedByName: data.lastupdatedbyname,
+      createdAt: data.createdat,
+      updatedAt: data.updatedat
     };
 
     return NextResponse.json(task);
@@ -95,7 +95,7 @@ export async function PUT(
     // Get the task to check permissions
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from('tasks')
-      .select('created_by, status')
+      .select('createdby, status')
       .eq('id', id)
       .single();
 
@@ -104,7 +104,7 @@ export async function PUT(
     }
 
     // Check permissions: user can edit their own tasks, or admins/approvers can edit any task
-    const isOwner = taskData.created_by === session.user.id;
+    const isOwner = taskData.createdby === session.user.id;
     const isApprover = ['approver', 'admin'].includes(userData.role);
     
     if (!isOwner && !isApprover) {
@@ -137,20 +137,20 @@ export async function PUT(
     const updateData = {
       title,
       description: description || '',
-      department_id: departmentId,
-      assigned_to: assignedTo || [],
+      departmentid: departmentId,
+      assignedto: assignedTo || [],
       status: status || 'Not Started',
       priority: priority || 'Medium',
-      rag_status: ragStatus || 'Unrated',
-      due_date: dueDate || null,
-      start_date: startDate || null,
-      completion_date: status === 'Completed' ? (completionDate || new Date().toISOString().split('T')[0]) : null,
+      ragstatus: ragStatus || 'Unrated',
+      duedate: dueDate || null,
+      startdate: startDate || null,
+      completiondate: status === 'Completed' ? (completionDate || new Date().toISOString().split('T')[0]) : null,
       bottlenecks: bottlenecks || '',
-      rag_takeaway: ragTakeaway || '',
+      ragtakeaway: ragTakeaway || '',
       remarks: remarks || '',
-      last_updated_by: session.user.id,
-      last_updated_by_name: userData.name,
-      updated_at: new Date().toISOString()
+      lastupdatedby: session.user.id,
+      lastupdatedbyname: userData.name,
+      updatedat: new Date().toISOString()
     };
 
     const { data: updatedTask, error } = await supabaseAdmin
@@ -159,7 +159,7 @@ export async function PUT(
       .eq('id', id)
       .select(`
         *,
-        departments:department_id (
+        departments:departmentid (
           id,
           name,
           description

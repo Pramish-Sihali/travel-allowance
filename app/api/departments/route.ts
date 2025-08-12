@@ -9,15 +9,24 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
+    console.log('Departments API - Session debug:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      organizationId: session?.user?.organizationId,
+      userRole: session?.user?.role
+    });
+    
     if (!session?.user?.id || !session?.user?.organizationId) {
+      console.log('Departments API - Auth failed - missing session or organizationId');
       return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
     }
 
     const { data, error } = await supabaseAdmin
       .from('departments')
       .select('*')
-      .eq('is_active', true)
-      .eq('organization_id', session.user.organizationId)
+      .eq('isactive', true)
+      .eq('organizationid', session.user.organizationId)
       .order('name', { ascending: true });
 
     if (error) {
@@ -25,14 +34,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch departments' }, { status: 500 });
     }
 
-    // Convert snake_case to camelCase for frontend
+    // Data is already in camelCase from database
     const departments = data.map(dept => ({
       id: dept.id,
       name: dept.name,
       description: dept.description,
-      isActive: dept.is_active,
-      createdAt: dept.created_at,
-      updatedAt: dept.updated_at
+      isActive: dept.isactive,
+      createdAt: dept.createdat,
+      updatedAt: dept.updatedat
     }));
 
     return NextResponse.json(departments);

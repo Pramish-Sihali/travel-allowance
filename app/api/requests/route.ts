@@ -3,47 +3,29 @@ import { createTravelRequest, getAllTravelRequests, getTravelRequestsByEmployeeI
 import { TravelRequest } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const employeeId = searchParams.get('employeeId');
-    
   try {
-    console.log(`GET /api/requests - employeeId: ${employeeId || 'all'}`);
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const employeeId = searchParams.get('employeeId');
+      
+    console.log(`GET /api/requests - employeeId: ${employeeId || 'all'}, orgId: ${session.user.organizationId}`);
     
     let results;
     if (employeeId) {
       results = await getTravelRequestsByEmployeeId(employeeId);
-      
-      // Add proper transformation for finance_comments to financeComments
-      if (results && results.length > 0) {
-        results = results.map(req => {
-          // If finance_comments exists in the database result, add it to the transformed object
-          if (req.financeComments !== undefined) {
-            return {
-              ...req,
-              financeComments: req.financeComments
-            };
-          }
-          return req;
-        });
-      }
     } else {
-      results = await getAllTravelRequests();
-      
-      // Apply the same transformation for all requests
-      if (results && results.length > 0) {
-        results = results.map(req => {
-          if (req.financeComments !== undefined) {
-            return {
-              ...req,
-              financeComments: req.financeComments
-            };
-          }
-          return req;
-        });
-      }
+      results = await getAllTravelRequests(session.user.organizationId);
     }
+    // No transformation needed - database returns camelCase fields directly!
         
     return NextResponse.json(results);
   } catch (error: unknown) {
@@ -58,6 +40,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id || !session?.user?.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
+    }
+
     const body = await request.json();
     console.log('Request body:', body);
     
@@ -91,7 +79,8 @@ export async function POST(request: NextRequest) {
     // Ensure we have a valid UUID for employeeId
     const requestData = {
       ...body,
-      employeeId: body.employeeId && body.employeeId.trim() !== '' ? body.employeeId : uuidv4(),
+      employeeId: body.employeeId && body.employeeId.trim() !== '' ? body.employeeId : session.user.id,
+      organizationId: session.user.organizationId, // Add organization ID
       project: projectName, // Use the project name instead of UUID
       
       // Ensure emergency and advance request details are included
