@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getNotificationsByUserId } from '@/lib/db';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       console.error('Error using library function, falling back to direct query:', dbError);
       
       // Fallback to direct query if library function fails
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('notifications')
         .select('*')
         .eq('userid', targetUserId)

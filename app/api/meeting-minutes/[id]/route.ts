@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PATCH(
   request: NextRequest,
@@ -27,7 +27,7 @@ export async function PATCH(
     } = body;
 
     // Update the meeting action item
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meeting_minutes')
       .update({
         completion_status,
@@ -57,7 +57,7 @@ export async function PATCH(
       // Check if this action item is linked to a task
       if (data.task_id) {
         try {
-          await supabase
+          await supabaseAdmin
             .from('task_updates')
             .insert({
               task_id: data.task_id,

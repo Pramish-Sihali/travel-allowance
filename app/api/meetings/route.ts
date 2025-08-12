@@ -14,47 +14,14 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employeeId');
     const organizationId = session.user.organizationId;
 
-    if (!employeeId) {
-      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
-    }
+    console.log(`Fetching meetings for organizationId: ${organizationId}, employeeId: ${employeeId || 'all organizational meetings'}`);
 
-    // Fetch meetings with related data
+    // Fetch meetings with related data for the organization
     let query = supabaseAdmin
       .from('meetings')
       .select(`
-        *,
-        task:tasks(title, status),
-        client:clients(name, company),
-        assignedUser:users!meetings_assigned_to_fkey(name),
-        attendees:meeting_attendees(
-          id,
-          attendeename,
-          attendeeemail,
-          attendeeorganization,
-          attendeetype,
-          user:users(name, email)
-        ),
-        minutes:meeting_minutes(
-          id,
-          content,
-          responsibility,
-          serialno,
-          isactionitem,
-          completionstatus,
-          duedate,
-          assignedtoname,
-          assignedto,
-          remarks,
-          flags,
-          isdone,
-          toggledby,
-          toggledat,
-          createdbyname,
-          updatedbyname,
-          priority
-        )
-      `)
-      .or(`createdby.eq.${employeeId},assignedto.eq.${employeeId}`);
+        *
+      `);
 
     // Only add organization filter if organizationId is valid
     if (organizationId && organizationId !== 'undefined') {
@@ -69,6 +36,12 @@ export async function GET(request: NextRequest) {
     if (meetingsError) {
       console.error('Error fetching meetings:', meetingsError);
       return NextResponse.json({ error: 'Failed to fetch meetings' }, { status: 500 });
+    }
+
+    console.log(`Found ${meetings?.length || 0} meetings for organization ${organizationId}`);
+    if (meetings && meetings.length > 0) {
+      console.log('Meeting IDs found:', meetings.map(m => m.id));
+      console.log('Meeting org IDs:', meetings.map(m => m.organizationid));
     }
 
     // Calculate statistics
@@ -111,17 +84,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Format meetings data for frontend - no transformation needed!
+    // Format meetings data for frontend - simplified for now
     const formattedMeetings = meetings?.map(meeting => ({
       ...meeting,
-      taskTitle: meeting.task?.title,
-      clientName: meeting.client?.name,
-      clientCompany: meeting.client?.company,
-      attendeeCount: meeting.attendees?.length || 0,
-      actionItemsCount: meeting.minutes?.filter((m: any) => m.isactionitem).length || 0,
-      completedActionItems: meeting.minutes?.filter(
-        (m: any) => m.isactionitem && m.completionstatus === 'completed'
-      ).length || 0
+      action_items_count: 0, // Will fetch separately
+      completed_action_items: 0, // Will fetch separately
+      attendeeCount: 0 // Will fetch separately
     }));
 
     return NextResponse.json({

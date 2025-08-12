@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employeeId');
     const approverId = searchParams.get('approverId');
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('leave_requests')
       .select('*');
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get approver name
-    const { data: approverData } = await supabase
+    const { data: approverData } = await supabaseAdmin
       .from('users')
       .select('name')
       .eq('id', approverId)
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const approverName = approverData?.name || 'Unknown';
 
     // Insert leave request
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('leave_requests')
       .insert([{
         employee_id: employeeId,
@@ -130,7 +130,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('leave_requests')
       .update({ 
         status,

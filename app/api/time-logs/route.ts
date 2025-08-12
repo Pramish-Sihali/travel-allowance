@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('time_logs')
       .select('*')
       .eq('userid', userId)
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       // Fetch task titles
       if (taskIds.length > 0) {
         try {
-          const { data: taskData } = await supabase
+          const { data: taskData } = await supabaseAdmin
             .from('tasks')
             .select('id, title')
             .in('id', taskIds);
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
       // Fetch meeting action item titles
       if (meetingActionItemIds.length > 0) {
         try {
-          const { data: meetingActionItemData } = await supabase
+          const { data: meetingActionItemData } = await supabaseAdmin
             .from('meeting_minutes')
             .select('id, content, responsibility')
             .in('id', meetingActionItemIds);
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('time_logs')
       .insert({
         userid: session.user.id,
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     // If this is linked to a task, add an update to the task
     if (taskId && !isPersonal) {
       try {
-        await supabase
+        await supabaseAdmin
           .from('task_updates')
           .insert({
             task_id: taskId,
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     if (meetingActionItemId && !isPersonal) {
       try {
         // Update the meeting action item to reflect time spent
-        await supabase
+        await supabaseAdmin
           .from('meeting_minutes')
           .update({
             actualhours: (totalDuration / 3600),
@@ -202,14 +202,14 @@ export async function POST(req: NextRequest) {
           .eq('id', meetingActionItemId);
 
         // Optionally update status to 'in_progress' if it was 'pending'
-        const { data: actionItem } = await supabase
+        const { data: actionItem } = await supabaseAdmin
           .from('meeting_minutes')
           .select('completionstatus')
           .eq('id', meetingActionItemId)
           .single();
 
         if (actionItem && actionItem.completionstatus === 'pending') {
-          await supabase
+          await supabaseAdmin
             .from('meeting_minutes')
             .update({ 
               completionstatus: 'in_progress'

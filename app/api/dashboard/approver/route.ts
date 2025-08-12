@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -22,24 +22,28 @@ export async function GET(request: NextRequest) {
     }
 
     const approverId = session.user.id;
+    const organizationId = session.user.organizationId;
 
     // Fetch all requests assigned to this approver in parallel
     const [travelRequestsResponse, valleyRequestsResponse, usersResponse] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('travel_requests')
         .select('*')
         .eq('approver_id', approverId)
+        .eq('organizationid', organizationId)
         .order('created_at', { ascending: false }),
       
-      supabase
+      supabaseAdmin
         .from('valley_requests')
         .select('*')
         .eq('approver_id', approverId)
+        .eq('organizationid', organizationId)
         .order('created_at', { ascending: false }),
         
-      supabase
+      supabaseAdmin
         .from('users')
         .select('id, name, email, department')
+        .eq('organizationid', organizationId)
         .order('name', { ascending: true })
     ]);
 

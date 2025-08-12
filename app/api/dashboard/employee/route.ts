@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -16,25 +16,29 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId') || session.user.id;
+    const organizationId = session.user.organizationId;
 
     // Fetch travel requests and in-valley requests in parallel
     const [travelResponse, valleyResponse, notificationsResponse] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('travel_requests')
         .select('*')
         .eq('employee_id', employeeId)
+        .eq('organizationid', organizationId)
         .order('created_at', { ascending: false }),
       
-      supabase
+      supabaseAdmin
         .from('valley_requests')
         .select('*')
         .eq('employee_id', employeeId)
+        .eq('organizationid', organizationId)
         .order('created_at', { ascending: false }),
         
-      supabase
+      supabaseAdmin
         .from('notifications')
         .select('*')
         .eq('user_id', employeeId)
+        .eq('organizationid', organizationId)
         .order('created_at', { ascending: false })
         .limit(50) // Limit to latest 50 notifications
     ]);

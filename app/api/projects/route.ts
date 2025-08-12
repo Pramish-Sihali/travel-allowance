@@ -1,6 +1,6 @@
 // app/api/projects/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // By default, only fetch active projects
     const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true';
     
-    let query = supabase
+    let query = supabaseAdmin
       .from('projects')
       .select('id, name, description, active');
     

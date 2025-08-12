@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createTravelRequest, getAllTravelRequests, getTravelRequestsByEmployeeId } from '@/lib/db';
 import { TravelRequest } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (uuidPattern.test(body.project)) {
       try {
         console.log('Fetching project name for UUID:', body.project);
-        const { data: projectData, error: projectError } = await supabase
+        const { data: projectData, error: projectError } = await supabaseAdmin
           .from('projects')
           .select('name')
           .eq('id', body.project)
