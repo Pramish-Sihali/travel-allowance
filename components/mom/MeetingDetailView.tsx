@@ -43,6 +43,7 @@ interface MeetingMinute {
 interface Meeting {
   id: string;
   title: string;
+  description?: string;
   meeting_date: string;
   meeting_time?: string;
   meeting_type: 'internal' | 'external';
@@ -288,6 +289,23 @@ export default function MeetingDetailView({
                   {meeting.meeting_type} meeting
                 </Badge>
               </div>
+
+              {/* Meeting Description/Agenda */}
+              {meeting.description && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Meeting Agenda/Description:</h4>
+                  <div className="text-sm text-gray-600 whitespace-pre-wrap font-mono leading-relaxed">
+                    {meeting.description.split('\n').map((line, index) => (
+                      <div key={index}>
+                        {line.trim() && !line.startsWith('• ') && !line.startsWith('- ') && !line.startsWith('* ') 
+                          ? `• ${line.trim()}` 
+                          : line
+                        }
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               {isCreator && onEditMeeting && (

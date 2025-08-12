@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
 
     const {
       title,
+      description,
       taskId,
       meetingType,
       clientId,
@@ -188,6 +189,7 @@ export async function POST(request: NextRequest) {
       .from('meetings')
       .insert({
         title,
+        description: description || null,
         taskid: taskId || null,
         meetingtype: meetingType,
         clientid: finalClientId || null,

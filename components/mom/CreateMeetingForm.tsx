@@ -28,6 +28,7 @@ import {
 
 // Meeting minutes table component
 import MeetingMinutesTable from './MeetingMinutesTable';
+import AutoFormatTextarea from './AutoFormatTextarea';
 
 interface MeetingMinute {
   id?: string;
@@ -49,6 +50,7 @@ interface MeetingMinute {
 
 const meetingFormSchema = z.object({
   title: z.string().min(1, 'Meeting title is required'),
+  description: z.string().optional(),
   taskId: z.string().optional(),
   meetingType: z.enum(['internal', 'external'], {
     required_error: 'Please select meeting type'
@@ -340,6 +342,26 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
                     <FormLabel>Meeting Title *</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter meeting title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meeting Description/Agenda</FormLabel>
+                    <FormControl>
+                      <AutoFormatTextarea
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Enter meeting agenda, discussion points, or background information..."
+                        rows={8}
+                        className="w-full"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
