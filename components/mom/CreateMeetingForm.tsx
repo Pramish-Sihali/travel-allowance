@@ -104,6 +104,13 @@ interface ExternalAttendee {
   organization: string;
 }
 
+interface Absentee {
+  id: string;
+  name: string;
+  email: string;
+  reason?: string;
+}
+
 interface CreateMeetingFormProps {
   onMeetingCreated: () => void;
   userId?: string;
@@ -120,6 +127,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
   const [clients, setClients] = useState<Client[]>([]);
   const [internalAttendees, setInternalAttendees] = useState<InternalAttendee[]>([]);
   const [externalAttendees, setExternalAttendees] = useState<ExternalAttendee[]>([]);
+  const [absentees, setAbsentees] = useState<Absentee[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -127,8 +135,20 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
   const form = useForm({
     resolver: zodResolver(meetingFormSchema),
     defaultValues: {
+      title: '',
+      description: '',
+      taskId: '',
       meetingType: 'internal',
+      clientId: '',
+      newClientName: '',
       locationType: 'office',
+      locationDetails: '',
+      meetingDate: '',
+      meetingTime: '',
+      duration: '',
+      assignedTo: '',
+      deadlineDate: '',
+      deadlineTime: '',
       priority: 'medium',
     },
   });
@@ -258,6 +278,23 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
     setExternalAttendees(externalAttendees.filter((_, i) => i !== index));
   };
 
+  const addAbsentee = (userId: string, reason?: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user && !absentees.find(a => a.id === userId)) {
+      setAbsentees([...absentees, { ...user, reason: reason || '' }]);
+    }
+  };
+
+  const removeAbsentee = (userId: string) => {
+    setAbsentees(absentees.filter(a => a.id !== userId));
+  };
+
+  const updateAbsenteeReason = (userId: string, reason: string) => {
+    setAbsentees(absentees.map(a => 
+      a.id === userId ? { ...a, reason } : a
+    ));
+  };
+
   const onSubmit = async (data: MeetingFormData) => {
     try {
       setLoading(true);
@@ -287,6 +324,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
         createdByName: userName,
         internalAttendees,
         externalAttendees,
+        absentees,
         currentLocation,
         meetingMinutes,
       };
@@ -306,6 +344,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
         form.reset();
         setInternalAttendees([]);
         setExternalAttendees([]);
+        setAbsentees([]);
         setCurrentLocation(null);
         setMeetingMinutes([]);
         
@@ -680,6 +719,60 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
                   </div>
                 )}
               </div>
+
+              {/* Absentees */}
+              <div>
+                <Label className="text-sm font-medium">Absentees</Label>
+                <div className="text-xs text-muted-foreground mb-2">
+                  Record team members who were expected but could not attend
+                </div>
+                <Select onValueChange={(userId) => addAbsentee(userId)}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Add absentees" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[60]">
+                    {users
+                      .filter(user => 
+                        !absentees.find(a => a.id === user.id) && 
+                        !internalAttendees.find(a => a.id === user.id)
+                      )
+                      .map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                
+                {absentees.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {absentees.map((absentee) => (
+                      <div key={absentee.id} className="p-3 bg-red-50 border border-red-200 rounded">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-medium text-red-900">
+                            {absentee.name} ({absentee.email})
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAbsentee(absentee.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Input
+                          placeholder="Reason for absence (optional)"
+                          value={absentee.reason || ''}
+                          onChange={(e) => updateAbsenteeReason(absentee.id, e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -799,6 +892,7 @@ export default function CreateMeetingForm({ onMeetingCreated, userId, userName, 
                     form.reset();
                     setInternalAttendees([]);
                     setExternalAttendees([]);
+                    setAbsentees([]);
                     setCurrentLocation(null);
                     setMeetingMinutes([]);
                   }}

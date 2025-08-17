@@ -23,15 +23,15 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('valley_requests')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('createdat', { ascending: false });
     
     // If employeeId is provided, filter by it
     if (employeeId) {
-      query = query.eq('employeeId', employeeId);
+      query = query.eq('employeeid', employeeId);
     } else if (session.user.role !== 'admin' && session.user.role !== 'approver' && session.user.role !== 'checker') {
       // If no employeeId is provided and user is not an admin, approver, or checker,
       // only return their own requests
-      query = query.eq('employeeId', session.user.id);
+      query = query.eq('employeeid', session.user.id);
     }
     
     const { data, error } = await query;
@@ -44,9 +44,45 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // No transformation needed - database now uses camelCase!
+    // Transform database snake_case to camelCase
+    const transformedData = data.map(request => ({
+      id: request.id,
+      employeeId: request.employeeid,
+      employeeName: request.employeename,
+      department: request.department,
+      designation: request.designation,
+      requestType: request.requesttype,
+      project: request.project,
+      purpose: request.purpose,
+      expenseDate: request.expensedate,
+      location: request.location,
+      description: request.description,
+      paymentMethod: request.paymentmethod,
+      meetingType: request.meetingtype,
+      meetingParticipants: request.meetingparticipants,
+      totalAmount: request.totalamount,
+      status: request.status,
+      approverComments: request.approvercomments,
+      checkerComments: request.checkercomments,
+      financeComments: request.financecomments,
+      travelDateFrom: request.traveldatefrom,
+      travelDateTo: request.traveldateto,
+      createdAt: request.createdat,
+      updatedAt: request.updatedat,
+      phase: request.phase,
+      travelDetailsApprovedAt: request.traveldetailsapprovedat,
+      expensesSubmittedAt: request.expensessubmittedat,
+      approverId: request.approverid,
+      emergencyReason: request.emergencyreason,
+      emergencyReasonOther: request.emergencyreasonother,
+      emergencyJustification: request.emergencyjustification,
+      emergencyAmount: request.emergencyamount,
+      needsFinancialAttention: request.needsfinancialattention,
+      isUrgent: request.isurgent,
+      organizationId: request.organizationid
+    }));
         
-    return NextResponse.json(data);
+    return NextResponse.json(transformedData);
   } catch (error: unknown) {
     console.error('Error fetching in-valley requests:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -77,29 +113,30 @@ export async function POST(request: NextRequest) {
       ? body.employeeId 
       : session.user.id || uuidv4();
     
-    // Create the request data - database now uses camelCase!
+    // Transform camelCase fields to database snake_case fields
     const requestData = {
       id: uuidv4(),
-      employeeId: employeeId,
-      employeeName: body.employeeName,
+      employeeid: employeeId,
+      employeename: body.employeeName,
       department: body.department,
       designation: body.designation,
-      requestType: 'in-valley',
+      requesttype: 'in-valley',
       project: body.project === 'other' ? body.projectOther : body.project,
       purpose: body.purposeType === 'other' ? body.purposeOther : body.purposeType,
-      expenseDate: body.expenseDate,
+      expensedate: body.expenseDate,
       location: body.location,
       description: body.description,
-      paymentMethod: body.paymentMethod === 'other' ? body.paymentMethodOther : body.paymentMethod,
-      meetingType: body.meetingType || null,
-      meetingParticipants: body.meetingParticipants || null,
-      totalAmount: body.totalAmount || 0,
+      paymentmethod: body.paymentMethod === 'other' ? body.paymentMethodOther : body.paymentMethod,
+      meetingtype: body.meetingType || null,
+      meetingparticipants: body.meetingParticipants || null,
+      totalamount: body.totalAmount || 0,
       status: 'pending',
-      travelDateFrom: body.expenseDate,
-      travelDateTo: body.expenseDate,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      approverId: body.approverId
+      traveldatefrom: body.expenseDate,
+      traveldateto: body.expenseDate,
+      createdat: new Date().toISOString(),
+      updatedat: new Date().toISOString(),
+      approverid: body.approverId,
+      organizationid: session.user.organizationId
     };
     
     console.log('Creating in-valley request:', requestData);
@@ -119,7 +156,31 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // No transformation needed - database returns camelCase directly!
+    // Transform database response back to camelCase
+    const transformedData = {
+      id: data.id,
+      employeeId: data.employeeid,
+      employeeName: data.employeename,
+      department: data.department,
+      designation: data.designation,
+      requestType: data.requesttype,
+      project: data.project,
+      purpose: data.purpose,
+      expenseDate: data.expensedate,
+      location: data.location,
+      description: data.description,
+      paymentMethod: data.paymentmethod,
+      meetingType: data.meetingtype,
+      meetingParticipants: data.meetingparticipants,
+      totalAmount: data.totalamount,
+      status: data.status,
+      travelDateFrom: data.traveldatefrom,
+      travelDateTo: data.traveldateto,
+      createdAt: data.createdat,
+      updatedAt: data.updatedat,
+      approverId: data.approverid,
+      organizationId: data.organizationid
+    };
     
     // Create notifications for the appropriate approvers
     try {
@@ -134,11 +195,11 @@ export async function POST(request: NextRequest) {
         for (const approver of approvers) {
           const approverNotification = {
             id: uuidv4(),
-            userId: approver.id,
-            requestId: data.id,
+            userid: approver.id,
+            requestid: data.id,
             message: `A new in-valley reimbursement request is waiting for your approval`,
-            isRead: false,
-            createdAt: new Date().toISOString()
+            isread: false,
+            createdat: new Date().toISOString()
           };
           
           await supabase
@@ -150,11 +211,11 @@ export async function POST(request: NextRequest) {
       // Create a notification for the employee
       const employeeNotification = {
         id: uuidv4(),
-        userId: employeeId,
-        requestId: data.id,
+        userid: employeeId,
+        requestid: data.id,
         message: `Your in-valley reimbursement request has been submitted and is awaiting approval`,
-        isRead: false,
-        createdAt: new Date().toISOString()
+        isread: false,
+        createdat: new Date().toISOString()
       };
       
       await supabase
@@ -165,7 +226,7 @@ export async function POST(request: NextRequest) {
       // Continue despite notification error
     }
     
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(transformedData, { status: 201 });
   } catch (error: unknown) {
     console.error('Error creating in-valley request:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

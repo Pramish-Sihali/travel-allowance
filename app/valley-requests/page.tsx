@@ -56,7 +56,7 @@ export default async function ValleyRequestsPage() {
                     View and track all your submitted in-valley requests
                   </p>
                   {userRole === 'employee' ? (
-                    <Link href="/employee/dashboard">
+                    <Link href="/employee/requests/in-valley">
                       <Button variant="outline" className="w-full">
                         View My Requests
                       </Button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AttendanceRecord, LeaveRequest, User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface AttendancePanelProps {
 }
 
 export default function AttendancePanel({ userId, userName }: AttendancePanelProps) {
+  const router = useRouter();
   const [todayStatus, setTodayStatus] = useState<'present' | 'leave' | null>(null);
   const [approvers, setApprovers] = useState<User[]>([]);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -250,7 +252,7 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[60]">
               <SelectItem value="sick">Sick Leave</SelectItem>
               <SelectItem value="personal">Personal Leave</SelectItem>
               <SelectItem value="vacation">Vacation</SelectItem>
@@ -293,7 +295,7 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
             <SelectTrigger>
               <SelectValue placeholder="Choose an approver" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[60]">
               {approvers.map((approver) => (
                 <SelectItem key={approver.id} value={approver.id}>
                   {approver.name} {approver.email ? `(${approver.email})` : ''}
@@ -407,7 +409,7 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
                 variant="ghost"
                 size="sm"
                 className="text-xs h-6 px-2"
-                onClick={() => window.location.href = '/attendance-sheet'}
+                onClick={() => router.push('/attendance-sheet')}
               >
                 View Sheet
               </Button>

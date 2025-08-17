@@ -51,20 +51,36 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // No transformation needed - database now uses camelCase!
+    // Transform database fields to camelCase for frontend compatibility
     const transformedData = data?.map(log => ({
-      ...log,
+      id: log.id,
+      userId: log.userid,
+      taskId: log.taskid,
+      organizationId: log.organizationid,
+      description: log.description,
+      startTime: log.starttime,
+      endTime: log.endtime,
+      totalDuration: log.totalduration,
+      breakDuration: log.breakduration || 0,
+      isPersonal: log.ispersonal,
+      createdAt: log.createdat,
+      updatedAt: log.updatedat,
+      meetingActionItemId: log.meetingactionitemid,
+      taskType: log.tasktype,
+      hoursSpent: log.hoursspent,
+      date: log.date,
+      userName: log.username,
       taskTitle: log.taskid ? `Task ${log.taskid}` : (log.meetingactionitemid ? `Meeting Action Item ${log.meetingactionitemid}` : null)
     })) || [];
 
     // If we have task_ids or meeting_action_item_ids and it's not personal logs, try to get titles separately
     if (!personal && transformedData.length > 0) {
       const taskIds = transformedData
-        .map(log => log.taskid)
+        .map(log => log.taskId)
         .filter(id => id !== null);
       
       const meetingActionItemIds = transformedData
-        .map(log => log.meetingactionitemid)
+        .map(log => log.meetingActionItemId)
         .filter(id => id !== null);
       
       // Fetch task titles
@@ -78,8 +94,8 @@ export async function GET(req: NextRequest) {
           if (taskData) {
             // Map task titles back to the logs
             transformedData.forEach(log => {
-              if (log.taskid) {
-                const task = taskData.find(t => t.id === log.taskid);
+              if (log.taskId) {
+                const task = taskData.find(t => t.id === log.taskId);
                 if (task) {
                   log.taskTitle = task.title;
                 }
@@ -102,8 +118,8 @@ export async function GET(req: NextRequest) {
           if (meetingActionItemData) {
             // Map meeting action item titles back to the logs
             transformedData.forEach(log => {
-              if (log.meetingactionitemid) {
-                const actionItem = meetingActionItemData.find(t => t.id === log.meetingactionitemid);
+              if (log.meetingActionItemId) {
+                const actionItem = meetingActionItemData.find(t => t.id === log.meetingActionItemId);
                 if (actionItem) {
                   log.taskTitle = `[Meeting] ${actionItem.responsibility || actionItem.content}`;
                 }
@@ -222,8 +238,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // No transformation needed - database returns camelCase!
-    const transformedData = data;
+    // Transform database fields to camelCase for frontend compatibility
+    const transformedData = {
+      id: data.id,
+      userId: data.userid,
+      taskId: data.taskid,
+      organizationId: data.organizationid,
+      description: data.description,
+      startTime: data.starttime,
+      endTime: data.endtime,
+      totalDuration: data.totalduration,
+      breakDuration: data.breakduration || 0,
+      isPersonal: data.ispersonal,
+      createdAt: data.createdat,
+      updatedAt: data.updatedat,
+      meetingActionItemId: data.meetingactionitemid,
+      taskType: data.tasktype,
+      hoursSpent: data.hoursspent,
+      date: data.date,
+      userName: data.username
+    };
 
     return NextResponse.json(transformedData, { status: 201 });
   } catch (error) {

@@ -56,7 +56,7 @@ export default async function RequestsPage() {
                     View and track all your submitted travel requests
                   </p>
                   {userRole === 'employee' ? (
-                    <Link href="/employee/dashboard">
+                    <Link href="/employee/requests">
                       <Button variant="outline" className="w-full">
                         View My Requests
                       </Button>

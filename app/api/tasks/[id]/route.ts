@@ -195,25 +195,25 @@ export async function PUT(
       id: updatedTask.id,
       title: updatedTask.title,
       description: updatedTask.description,
-      departmentId: updatedTask.department_id,
+      departmentId: updatedTask.departmentid,
       departmentName: updatedTask.departments?.name,
-      assignedTo: updatedTask.assigned_to || [],
-      assignedUserIds: updatedTask.assigned_user_ids || [],
+      assignedTo: updatedTask.assignedto || [],
+      assignedUserIds: updatedTask.assigneduserids || [],
       status: updatedTask.status,
       priority: updatedTask.priority,
-      ragStatus: updatedTask.rag_status,
-      dueDate: updatedTask.due_date,
-      startDate: updatedTask.start_date,
-      completionDate: updatedTask.completion_date,
+      ragStatus: updatedTask.ragstatus,
+      dueDate: updatedTask.duedate,
+      startDate: updatedTask.startdate,
+      completionDate: updatedTask.completiondate,
       bottlenecks: updatedTask.bottlenecks,
-      ragTakeaway: updatedTask.rag_takeaway,
+      ragTakeaway: updatedTask.ragtakeaway,
       remarks: updatedTask.remarks,
-      createdBy: updatedTask.created_by,
-      createdByName: updatedTask.created_by_name,
-      lastUpdatedBy: updatedTask.last_updated_by,
-      lastUpdatedByName: updatedTask.last_updated_by_name,
-      createdAt: updatedTask.created_at,
-      updatedAt: updatedTask.updated_at
+      createdBy: updatedTask.createdby,
+      createdByName: updatedTask.createdbyname,
+      lastUpdatedBy: updatedTask.lastupdatedby,
+      lastUpdatedByName: updatedTask.lastupdatedbyname,
+      createdAt: updatedTask.createdat,
+      updatedAt: updatedTask.updatedat
     };
 
     return NextResponse.json(formattedTask);
@@ -250,7 +250,7 @@ export async function PATCH(
     // Get the task to check permissions
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from('tasks')
-      .select('created_by, status, assigned_user_ids, assigned_to')
+      .select('createdby, status, assigneduserids, assignedto')
       .eq('id', id)
       .single();
 
@@ -259,9 +259,9 @@ export async function PATCH(
     }
 
     // Check permissions: user can edit their own tasks, assigned tasks, or admins/approvers can edit any task
-    const isOwner = taskData.created_by === session.user.id;
-    const isAssigned = taskData.assigned_user_ids?.includes(session.user.id) || 
-                      taskData.assigned_to?.includes(session.user.name);
+    const isOwner = taskData.createdby === session.user.id;
+    const isAssigned = taskData.assigneduserids?.includes(session.user.id) || 
+                      taskData.assignedto?.includes(session.user.name);
     const isApprover = ['approver', 'admin'].includes(userData.role);
     
     if (!isOwner && !isAssigned && !isApprover) {
@@ -272,15 +272,15 @@ export async function PATCH(
     const { status, completionDate, updateRemark } = body;
 
     const updateData: any = {
-      last_updated_by: session.user.id,
-      last_updated_by_name: userData.name,
-      updated_at: new Date().toISOString()
+      lastupdatedby: session.user.id,
+      lastupdatedbyname: userData.name,
+      updatedat: new Date().toISOString()
     };
 
     if (status) {
       updateData.status = status;
       if (status === 'Completed') {
-        updateData.completion_date = completionDate || new Date().toISOString().split('T')[0];
+        updateData.completiondate = completionDate || new Date().toISOString().split('T')[0];
       }
     }
 
@@ -319,8 +319,8 @@ export async function PATCH(
     return NextResponse.json({
       id: updatedTask.id,
       status: updatedTask.status,
-      completionDate: updatedTask.completion_date,
-      updatedAt: updatedTask.updated_at
+      completionDate: updatedTask.completiondate,
+      updatedAt: updatedTask.updatedat
     });
   } catch (error) {
     console.error('Exception in PATCH /api/tasks/[id]:', error);
@@ -355,7 +355,7 @@ export async function DELETE(
     // Get the task to check ownership
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from('tasks')
-      .select('created_by')
+      .select('createdby')
       .eq('id', id)
       .single();
 
@@ -364,7 +364,7 @@ export async function DELETE(
     }
 
     // Check permissions: user can delete their own tasks, or admins can delete any task
-    const isOwner = taskData.created_by === session.user.id;
+    const isOwner = taskData.createdby === session.user.id;
     const isAdmin = userData.role === 'admin';
     
     if (!isOwner && !isAdmin) {

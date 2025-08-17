@@ -66,7 +66,55 @@ export const getAllTravelRequests = async (organizationId?: string) => {
   
   const { data, error } = await query;
   if (error) return [];
-  return data; // Direct return - no transformation needed!
+  
+  // Transform database snake_case to camelCase
+  return data.map(request => ({
+    id: request.id,
+    employeeId: request.employeeid,
+    employeeName: request.employeename,
+    department: request.department,
+    designation: request.designation,
+    requestType: request.requesttype,
+    project: request.project,
+    projectOther: request.projectother,
+    purpose: request.purpose,
+    purposeType: request.purposetype,
+    purposeOther: request.purposeother,
+    location: request.location,
+    locationOther: request.locationother,
+    travelDateFrom: request.traveldatefrom,
+    travelDateTo: request.traveldateto,
+    transportMode: request.transportmode,
+    stationPickDrop: request.stationpickdrop,
+    localConveyance: request.localconveyance,
+    rideShareUsed: request.rideshareused,
+    ownVehicleReimbursement: request.ownvehiclereimbursement,
+    totalAmount: request.totalamount,
+    previousOutstandingAdvance: request.previousoutstandingadvance,
+    isGroupTravel: request.isgrouptravel,
+    isGroupCaptain: request.isgroupcaptain,
+    groupSize: request.groupsize,
+    groupMembers: request.groupmembers ? request.groupmembers.split(',') : null,
+    groupDescription: request.groupdescription,
+    estimatedAmount: request.estimatedamount,
+    advanceNotes: request.advancenotes,
+    emergencyReason: request.emergencyreason,
+    emergencyReasonOther: request.emergencyreasonother,
+    emergencyJustification: request.emergencyjustification,
+    emergencyAmount: request.emergencyamount,
+    needsFinancialAttention: request.needsfinancialattention,
+    isUrgent: request.isurgent,
+    status: request.status,
+    phase: request.phase,
+    approverId: request.approverid,
+    approverComments: request.approvercomments,
+    checkerComments: request.checkercomments,
+    financeComments: request.financecomments,
+    createdAt: request.createdat,
+    updatedAt: request.updatedat,
+    travelDetailsApprovedAt: request.traveldetailsapprovedat,
+    expensesSubmittedAt: request.expensessubmittedat
+  }));
 };
 
 export const getTravelRequestsByEmployeeId = async (employeeId: string) => {
@@ -77,7 +125,55 @@ export const getTravelRequestsByEmployeeId = async (employeeId: string) => {
     .order('createdat', { ascending: false });
   
   if (error) return [];
-  return data; // Direct return!
+  
+  // Transform database snake_case to camelCase
+  return data.map(request => ({
+    id: request.id,
+    employeeId: request.employeeid,
+    employeeName: request.employeename,
+    department: request.department,
+    designation: request.designation,
+    requestType: request.requesttype,
+    project: request.project,
+    projectOther: request.projectother,
+    purpose: request.purpose,
+    purposeType: request.purposetype,
+    purposeOther: request.purposeother,
+    location: request.location,
+    locationOther: request.locationother,
+    travelDateFrom: request.traveldatefrom,
+    travelDateTo: request.traveldateto,
+    transportMode: request.transportmode,
+    stationPickDrop: request.stationpickdrop,
+    localConveyance: request.localconveyance,
+    rideShareUsed: request.rideshareused,
+    ownVehicleReimbursement: request.ownvehiclereimbursement,
+    totalAmount: request.totalamount,
+    previousOutstandingAdvance: request.previousoutstandingadvance,
+    isGroupTravel: request.isgrouptravel,
+    isGroupCaptain: request.isgroupcaptain,
+    groupSize: request.groupsize,
+    groupMembers: request.groupmembers ? request.groupmembers.split(',') : null,
+    groupDescription: request.groupdescription,
+    estimatedAmount: request.estimatedamount,
+    advanceNotes: request.advancenotes,
+    emergencyReason: request.emergencyreason,
+    emergencyReasonOther: request.emergencyreasonother,
+    emergencyJustification: request.emergencyjustification,
+    emergencyAmount: request.emergencyamount,
+    needsFinancialAttention: request.needsfinancialattention,
+    isUrgent: request.isurgent,
+    status: request.status,
+    phase: request.phase,
+    approverId: request.approverid,
+    approverComments: request.approvercomments,
+    checkerComments: request.checkercomments,
+    financeComments: request.financecomments,
+    createdAt: request.createdat,
+    updatedAt: request.updatedat,
+    travelDetailsApprovedAt: request.traveldetailsapprovedat,
+    expensesSubmittedAt: request.expensessubmittedat
+  }));
 };
 
 export const getTravelRequestById = async (id: string): Promise<TravelRequest | null> => {
@@ -92,14 +188,98 @@ export const getTravelRequestById = async (id: string): Promise<TravelRequest | 
     return null;
   }
   
-  return data; // Direct return - fields already match!
+  // Transform database snake_case to camelCase
+  return {
+    id: data.id,
+    employeeId: data.employeeid,
+    employeeName: data.employeename,
+    department: data.department,
+    designation: data.designation,
+    requestType: data.requesttype,
+    project: data.project,
+    projectOther: data.projectother,
+    purpose: data.purpose,
+    purposeType: data.purposetype,
+    purposeOther: data.purposeother,
+    location: data.location,
+    locationOther: data.locationother,
+    travelDateFrom: data.traveldatefrom,
+    travelDateTo: data.traveldateto,
+    transportMode: data.transportmode,
+    stationPickDrop: data.stationpickdrop,
+    localConveyance: data.localconveyance,
+    rideShareUsed: data.rideshareused,
+    ownVehicleReimbursement: data.ownvehiclereimbursement,
+    totalAmount: data.totalamount,
+    previousOutstandingAdvance: data.previousoutstandingadvance,
+    isGroupTravel: data.isgrouptravel,
+    isGroupCaptain: data.isgroupcaptain,
+    groupSize: data.groupsize,
+    groupMembers: data.groupmembers ? data.groupmembers.split(',') : null,
+    groupDescription: data.groupdescription,
+    estimatedAmount: data.estimatedamount,
+    advanceNotes: data.advancenotes,
+    emergencyReason: data.emergencyreason,
+    emergencyReasonOther: data.emergencyreasonother,
+    emergencyJustification: data.emergencyjustification,
+    emergencyAmount: data.emergencyamount,
+    needsFinancialAttention: data.needsfinancialattention,
+    isUrgent: data.isurgent,
+    status: data.status,
+    phase: data.phase,
+    approverId: data.approverid,
+    approverComments: data.approvercomments,
+    checkerComments: data.checkercomments,
+    financeComments: data.financecomments,
+    createdAt: data.createdat,
+    updatedAt: data.updatedat,
+    travelDetailsApprovedAt: data.traveldetailsapprovedat,
+    expensesSubmittedAt: data.expensessubmittedat
+  };
 };
 
 export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'createdAt' | 'updatedAt'>): Promise<TravelRequest> => {
-  // No field transformation needed - just pass data directly!
+  // Transform camelCase fields to database snake_case fields
   const dbData = {
     id: uuidv4(),
-    ...data,
+    employeeid: data.employeeId,
+    employeename: data.employeeName,
+    department: data.department,
+    designation: data.designation,
+    requesttype: data.requestType,
+    project: data.project,
+    projectother: data.projectOther,
+    purpose: data.purpose,
+    purposetype: data.purposeType,
+    purposeother: data.purposeOther,
+    location: data.location,
+    locationother: data.locationOther,
+    traveldatefrom: data.travelDateFrom,
+    traveldateto: data.travelDateTo,
+    transportmode: data.transportMode,
+    stationpickdrop: data.stationPickDrop,
+    localconveyance: data.localConveyance,
+    rideshareused: data.rideShareUsed,
+    ownvehiclereimbursement: data.ownVehicleReimbursement,
+    totalamount: data.totalAmount,
+    previousoutstandingadvance: data.previousOutstandingAdvance,
+    isgrouptravel: data.isGroupTravel,
+    isgroupcaptain: data.isGroupCaptain,
+    groupsize: data.groupSize,
+    groupmembers: Array.isArray(data.groupMembers) ? data.groupMembers.join(',') : data.groupMembers,
+    groupdescription: data.groupDescription,
+    estimatedamount: data.estimatedAmount,
+    advancenotes: data.advanceNotes,
+    emergencyreason: data.emergencyReason,
+    emergencyreasonother: data.emergencyReasonOther,
+    emergencyjustification: data.emergencyJustification,
+    emergencyamount: data.emergencyAmount,
+    needsfinancialattention: data.needsFinancialAttention,
+    isurgent: data.isUrgent,
+    status: data.status || 'pending',
+    phase: data.phase || 1,
+    approverid: data.approverId,
+    organizationid: (data as any).organizationId,
     createdat: new Date().toISOString(),
     updatedat: new Date().toISOString()
   };
@@ -132,7 +312,56 @@ export const createTravelRequest = async (data: Omit<TravelRequest, 'id' | 'crea
     console.error('Error creating notifications:', notificationError);
   }
 
-  return newRequest; // Direct return!
+  // Transform the response back to camelCase
+  const transformedRequest = {
+    id: newRequest.id,
+    employeeId: newRequest.employeeid,
+    employeeName: newRequest.employeename,
+    department: newRequest.department,
+    designation: newRequest.designation,
+    requestType: newRequest.requesttype,
+    project: newRequest.project,
+    projectOther: newRequest.projectother,
+    purpose: newRequest.purpose,
+    purposeType: newRequest.purposetype,
+    purposeOther: newRequest.purposeother,
+    location: newRequest.location,
+    locationOther: newRequest.locationother,
+    travelDateFrom: newRequest.traveldatefrom,
+    travelDateTo: newRequest.traveldateto,
+    transportMode: newRequest.transportmode,
+    stationPickDrop: newRequest.stationpickdrop,
+    localConveyance: newRequest.localconveyance,
+    rideShareUsed: newRequest.rideshareused,
+    ownVehicleReimbursement: newRequest.ownvehiclereimbursement,
+    totalAmount: newRequest.totalamount,
+    previousOutstandingAdvance: newRequest.previousoutstandingadvance,
+    isGroupTravel: newRequest.isgrouptravel,
+    isGroupCaptain: newRequest.isgroupcaptain,
+    groupSize: newRequest.groupsize,
+    groupMembers: newRequest.groupmembers ? newRequest.groupmembers.split(',') : null,
+    groupDescription: newRequest.groupdescription,
+    estimatedAmount: newRequest.estimatedamount,
+    advanceNotes: newRequest.advancenotes,
+    emergencyReason: newRequest.emergencyreason,
+    emergencyReasonOther: newRequest.emergencyreasonother,
+    emergencyJustification: newRequest.emergencyjustification,
+    emergencyAmount: newRequest.emergencyamount,
+    needsFinancialAttention: newRequest.needsfinancialattention,
+    isUrgent: newRequest.isurgent,
+    status: newRequest.status,
+    phase: newRequest.phase,
+    approverId: newRequest.approverid,
+    approverComments: newRequest.approvercomments,
+    checkerComments: newRequest.checkercomments,
+    financeComments: newRequest.financecomments,
+    createdAt: newRequest.createdat,
+    updatedAt: newRequest.updatedat,
+    travelDetailsApprovedAt: newRequest.traveldetailsapprovedat,
+    expensesSubmittedAt: newRequest.expensessubmittedat
+  };
+
+  return transformedRequest;
 };
 
 export const updateTravelRequestStatus = async (id: string, status: TravelRequest['status'], additionalData = {}) => {
@@ -154,7 +383,54 @@ export const updateTravelRequestStatus = async (id: string, status: TravelReques
     return null;
   }
   
-  return updatedRequest; // Direct return!
+  // Transform database snake_case to camelCase
+  return {
+    id: updatedRequest.id,
+    employeeId: updatedRequest.employeeid,
+    employeeName: updatedRequest.employeename,
+    department: updatedRequest.department,
+    designation: updatedRequest.designation,
+    requestType: updatedRequest.requesttype,
+    project: updatedRequest.project,
+    projectOther: updatedRequest.projectother,
+    purpose: updatedRequest.purpose,
+    purposeType: updatedRequest.purposetype,
+    purposeOther: updatedRequest.purposeother,
+    location: updatedRequest.location,
+    locationOther: updatedRequest.locationother,
+    travelDateFrom: updatedRequest.traveldatefrom,
+    travelDateTo: updatedRequest.traveldateto,
+    transportMode: updatedRequest.transportmode,
+    stationPickDrop: updatedRequest.stationpickdrop,
+    localConveyance: updatedRequest.localconveyance,
+    rideShareUsed: updatedRequest.rideshareused,
+    ownVehicleReimbursement: updatedRequest.ownvehiclereimbursement,
+    totalAmount: updatedRequest.totalamount,
+    previousOutstandingAdvance: updatedRequest.previousoutstandingadvance,
+    isGroupTravel: updatedRequest.isgrouptravel,
+    isGroupCaptain: updatedRequest.isgroupcaptain,
+    groupSize: updatedRequest.groupsize,
+    groupMembers: updatedRequest.groupmembers ? updatedRequest.groupmembers.split(',') : null,
+    groupDescription: updatedRequest.groupdescription,
+    estimatedAmount: updatedRequest.estimatedamount,
+    advanceNotes: updatedRequest.advancenotes,
+    emergencyReason: updatedRequest.emergencyreason,
+    emergencyReasonOther: updatedRequest.emergencyreasonother,
+    emergencyJustification: updatedRequest.emergencyjustification,
+    emergencyAmount: updatedRequest.emergencyamount,
+    needsFinancialAttention: updatedRequest.needsfinancialattention,
+    isUrgent: updatedRequest.isurgent,
+    status: updatedRequest.status,
+    phase: updatedRequest.phase,
+    approverId: updatedRequest.approverid,
+    approverComments: updatedRequest.approvercomments,
+    checkerComments: updatedRequest.checkercomments,
+    financeComments: updatedRequest.financecomments,
+    createdAt: updatedRequest.createdat,
+    updatedAt: updatedRequest.updatedat,
+    travelDetailsApprovedAt: updatedRequest.traveldetailsapprovedat,
+    expensesSubmittedAt: updatedRequest.expensessubmittedat
+  };
 };
 
 // Notifications - SIMPLIFIED!
@@ -200,21 +476,42 @@ export const markNotificationAsRead = async (id: string) => {
   return updatedNotification; // Direct return!
 };
 
-// Expense Items - SIMPLIFIED!
+// Expense Items - With proper transformations!
 export const getExpenseItemsByRequestId = async (requestId: string) => {
   const { data, error } = await supabase
     .from('expense_items')
     .select('*')
-    .eq('requestid', requestId);
+    .eq('requestid', requestId)
+    .order('category', { ascending: true });
   
   if (error) return [];
-  return data; // Direct return!
+  
+  // Transform snake_case to camelCase
+  return data.map(item => ({
+    id: item.id,
+    requestId: item.requestid,
+    category: item.category,
+    amount: item.amount,
+    description: item.description,
+    status: item.status,
+    organizationId: item.organizationid
+  }));
 };
 
-export const createExpenseItem = async (data: Omit<ExpenseItem, 'id'>) => {
+export const createExpenseItem = async (data: any) => {
+  // Transform camelCase to snake_case for database
+  const dbData = {
+    requestid: data.requestId,
+    category: data.category,
+    amount: data.amount,
+    description: data.description || '',
+    status: data.status || 'pending',
+    organizationid: data.organizationId
+  };
+
   const { data: newItem, error } = await supabase
     .from('expense_items')
-    .insert([data])
+    .insert([dbData])
     .select()
     .single();
   
@@ -223,7 +520,16 @@ export const createExpenseItem = async (data: Omit<ExpenseItem, 'id'>) => {
     throw error;
   }
   
-  return newItem; // Direct return!
+  // Transform response back to camelCase
+  return {
+    id: newItem.id,
+    requestId: newItem.requestid,
+    category: newItem.category,
+    amount: newItem.amount,
+    description: newItem.description,
+    status: newItem.status,
+    organizationId: newItem.organizationid
+  };
 };
 
 // Project functions - SIMPLIFIED!
@@ -376,4 +682,68 @@ export const getUserOrganization = async (userId: string) => {
   
   if (error) return null;
   return data?.organizationid || null;
+};
+
+
+// Valley Expense Functions
+export const getValleyExpensesByRequestId = async (requestId: string) => {
+  const { data, error } = await supabase
+    .from('valley_expenses')
+    .select('*')
+    .eq('requestid', requestId)
+    .order('createdat', { ascending: false });
+  
+  if (error) return [];
+  
+  // Transform snake_case to camelCase
+  return data.map(expense => ({
+    id: expense.id,
+    requestId: expense.requestid,
+    category: expense.category,
+    amount: expense.amount,
+    description: expense.description,
+    createdAt: expense.createdat,
+    updatedAt: expense.updatedat,
+    status: expense.status,
+    organizationId: expense.organizationid
+  }));
+};
+
+export const createValleyExpense = async (data: any) => {
+  // Transform camelCase to snake_case for database
+  const dbData = {
+    id: data.id,
+    requestid: data.requestId,
+    category: data.category,
+    amount: data.amount,
+    description: data.description || '',
+    status: data.status || 'pending',
+    organizationid: (data as any).organizationId,
+    createdat: new Date().toISOString(),
+    updatedat: new Date().toISOString()
+  };
+
+  const { data: newExpense, error } = await supabase
+    .from('valley_expenses')
+    .insert([dbData])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating valley expense:', error);
+    throw error;
+  }
+  
+  // Transform response back to camelCase
+  return {
+    id: newExpense.id,
+    requestId: newExpense.requestid,
+    category: newExpense.category,
+    amount: newExpense.amount,
+    description: newExpense.description,
+    createdAt: newExpense.createdat,
+    updatedAt: newExpense.updatedat,
+    status: newExpense.status,
+    organizationId: newExpense.organizationid
+  };
 };

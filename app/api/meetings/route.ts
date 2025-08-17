@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
       meetingMinutes,
       internalAttendees,
       externalAttendees,
+      absentees,
       currentLocation,
       createdBy,
       createdByName
@@ -259,6 +260,28 @@ export async function POST(request: NextRequest) {
       if (externalAttendeesError) {
         console.error('Error adding external attendees:', externalAttendeesError);
         // Don't fail the entire operation for attendee errors
+      }
+    }
+
+    // Add absentees
+    if (absentees && absentees.length > 0) {
+      const absenteesData = absentees.map((absentee: any) => ({
+        meetingid: meeting.id,
+        userid: absentee.id,
+        attendeename: absentee.name,
+        attendeeemail: absentee.email,
+        attendeetype: 'absentee',
+        absenteereason: absentee.reason || null,
+        organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
+      }));
+
+      const { error: absenteesError } = await supabaseAdmin
+        .from('meeting_attendees')
+        .insert(absenteesData);
+
+      if (absenteesError) {
+        console.error('Error adding absentees:', absenteesError);
+        // Don't fail the entire operation for absentee errors
       }
     }
 
