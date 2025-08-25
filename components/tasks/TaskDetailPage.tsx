@@ -2,7 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Calendar, Users, AlertCircle, Clock, MessageSquare, Edit, Plus, User, Send, Timer } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { 
+  Calendar, 
+  Users, 
+  AlertCircle, 
+  Clock, 
+  MessageSquare, 
+  Edit, 
+  Plus, 
+  User, 
+  Timer, 
+  ArrowLeft,
+  Save,
+  X,
+  Target,
+  Zap,
+  TrendingUp,
+  BarChart3,
+  CheckSquare
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,13 +31,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Task, TaskUpdate, TaskStatus, TaskPriority, RagStatus } from '@/types';
+import { toast } from 'sonner';
+import TaskActionItems from './TaskActionItems';
+import Link from 'next/link';
 
 interface TimeLog {
   id: string;
   hoursSpent: number;
 }
-import { toast } from 'sonner';
-import TaskActionItems from './TaskActionItems';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   'Not Started': 'bg-gray-100 text-gray-800 border-gray-200',
@@ -49,17 +69,22 @@ interface TaskDetailPageProps {
 
 export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [updates, setUpdates] = useState<TaskUpdate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [timeLogs, setTimeLogs] = useState<any[]>([]);
   const [timeLogComments, setTimeLogComments] = useState<{[key: string]: any[]}>({});
   const [commentText, setCommentText] = useState<{[key: string]: string}>({});
+  
+  // Form visibility states
+  const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [showTimeLogForm, setShowTimeLogForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  
+  // Form data states
   const [newStatus, setNewStatus] = useState<TaskStatus>('Not Started');
   const [updateRemark, setUpdateRemark] = useState('');
   const [editTaskData, setEditTaskData] = useState({
@@ -80,7 +105,6 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
     date: new Date().toISOString().split('T')[0],
     hoursSpent: ''
   });
-  // Create task form state
   const [createTaskData, setCreateTaskData] = useState({
     title: '',
     description: '',
@@ -477,62 +501,82 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
                    task.status !== 'Completed';
 
   return (
-    <div className="space-y-6">
-      {/* Task Header */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
+    <div className="space-y-8">
+      {/* Navigation Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/tasks">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Projects
+            </Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowEditForm(true)}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Task
+          </Button>
+          {session?.user?.role === 'approver' && (
+            <Button 
+              size="sm"
+              onClick={() => setShowCreateTaskForm(!showCreateTaskForm)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Task
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Task Header Card */}
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-8">
+          <div className="space-y-6">
             <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">{task.title}</h2>
+              <div className="space-y-3 flex-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Target className="h-6 w-6 text-primary" />
+                  </div>
+                  <h1 className="text-3xl font-bold text-foreground">{task.title}</h1>
+                  {isOverdue && (
+                    <Badge variant="destructive" className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Overdue
+                    </Badge>
+                  )}
+                </div>
                 {task.description && (
-                  <p className="text-muted-foreground">{task.description}</p>
-                )}
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {isOverdue && (
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Overdue
-                  </Badge>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowEditForm(true)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Task
-                </Button>
-                {session?.user?.role === 'approver' && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowCreateTaskForm(!showCreateTaskForm)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Task
-                  </Button>
+                  <p className="text-muted-foreground text-lg leading-relaxed ml-11">
+                    {task.description}
+                  </p>
                 )}
               </div>
             </div>
 
-            {/* Status and Priority Badges */}
-            <div className="flex flex-wrap gap-2">
-              <Badge className={STATUS_COLORS[task.status]} variant="outline">
+            {/* Enhanced Status Bar */}
+            <div className="flex flex-wrap items-center gap-3 ml-11">
+              <Badge className={`${STATUS_COLORS[task.status]} px-3 py-1`} variant="outline">
                 {task.status}
               </Badge>
-              <Badge className={PRIORITY_COLORS[task.priority]} variant="outline">
+              <Badge className={`${PRIORITY_COLORS[task.priority]} px-3 py-1`} variant="outline">
+                <Zap className="h-3 w-3 mr-1" />
                 {task.priority} Priority
               </Badge>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${RAG_COLORS[task.ragStatus]}`} />
-                {task.ragStatus}
+              <Badge variant="outline" className="flex items-center gap-2 px-3 py-1">
+                <div className={`w-3 h-3 rounded-full ${RAG_COLORS[task.ragStatus]}`} />
+                {task.ragStatus} Status
               </Badge>
-              <Badge variant="outline">
+              <Badge variant="outline" className="px-3 py-1">
                 {task.departmentName}
               </Badge>
-              <Badge variant="outline" className="flex items-center gap-1">
+              <Badge variant="outline" className="flex items-center gap-2 px-3 py-1">
                 <Timer className="h-3 w-3" />
                 {getTotalHours()}h logged
               </Badge>
@@ -694,208 +738,234 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
         </Card>
       )}
 
-      {/* Task Information Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+      {/* Modern Information Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Timeline Card */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+              <Calendar className="h-5 w-5 text-primary" />
               Timeline
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Start Date:</span>
-              <span className="text-sm">{formatDate(task.startDate)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Due Date:</span>
-              <span className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : ''}`}>
-                {formatDate(task.dueDate)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Completed:</span>
-              <span className="text-sm">{formatDate(task.completionDate)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Created:</span>
-              <span className="text-sm">{formatDate(task.createdAt.split('T')[0])}</span>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <span className="text-sm font-medium text-muted-foreground">Start Date</span>
+                <span className="text-sm font-semibold">{formatDate(task.startDate)}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <span className="text-sm font-medium text-muted-foreground">Due Date</span>
+                <span className={`text-sm font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
+                  {formatDate(task.dueDate)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <span className="text-sm font-medium text-muted-foreground">Completed</span>
+                <span className="text-sm font-semibold">{formatDate(task.completionDate)}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <span className="text-sm font-medium text-muted-foreground">Created</span>
+                <span className="text-sm font-semibold">{formatDate(task.createdAt.split('T')[0])}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-4 w-4" />
+        {/* Team Card */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+              <Users className="h-5 w-5 text-primary" />
               Assigned Team
             </CardTitle>
           </CardHeader>
           <CardContent>
             {task.assignedTo.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {task.assignedTo.map((person, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
+                  <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-semibold">
                       {person.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-sm">{person}</span>
+                    <span className="font-medium">{person}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No one assigned</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Task Management Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Task Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Created By:</span>
-              <span className="text-sm">{(task as any).createdByName || session?.user?.name || 'Unknown'}</span>
-            </div>
-            {(task as any).approvedByName && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Approved By:</span>
-                  <span className="text-sm">{(task as any).approvedByName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Approved At:</span>
-                  <span className="text-sm">{formatDateTime((task as any).approvedAt)}</span>
-                </div>
-              </>
+              <p className="text-muted-foreground text-center py-8">No team members assigned</p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Activity Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Time Logs:</span>
-              <span className="text-sm">{timeLogs.length} entries</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Total Hours:</span>
-              <span className="text-sm">{getTotalHours()}h</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Updates:</span>
-              <span className="text-sm">{updates.length} updates</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Comments:</span>
-              <span className="text-sm">
-                {Object.values(timeLogComments).reduce((total, comments) => total + comments.length, 0)} comments
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-
-      {/* Create Task Form */}
-      {showCreateTaskForm && session?.user?.role === 'approver' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Create New Task
+        {/* Activity Stats Card */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Activity Stats
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="taskTitle">Task Title *</Label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100/50">
+                <span className="text-sm font-medium text-blue-700">Time Logs</span>
+                <span className="text-sm font-bold text-blue-800">{timeLogs.length} entries</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-50 to-green-100/50">
+                <span className="text-sm font-medium text-green-700">Total Hours</span>
+                <span className="text-sm font-bold text-green-800">{getTotalHours()}h</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-50 to-purple-100/50">
+                <span className="text-sm font-medium text-purple-700">Updates</span>
+                <span className="text-sm font-bold text-purple-800">{updates.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100/50">
+                <span className="text-sm font-medium text-orange-700">Comments</span>
+                <span className="text-sm font-bold text-orange-800">
+                  {Object.values(timeLogComments).reduce((total, comments) => total + comments.length, 0)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+
+      {/* Enhanced Create Task Form */}
+      {showCreateTaskForm && session?.user?.role === 'approver' && (
+        <Card className="border-0 shadow-xl bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardHeader className="pb-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl flex items-center gap-3 text-foreground">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Plus className="h-5 w-5 text-primary" />
+                </div>
+                Create New Task
+              </CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowCreateTaskForm(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="taskTitle" className="text-sm font-semibold">Task Title *</Label>
                 <Input
                   id="taskTitle"
                   value={createTaskData.title}
                   onChange={(e) => setCreateTaskData({...createTaskData, title: e.target.value})}
-                  placeholder="Enter task title"
+                  placeholder="Enter a clear, concise task title"
+                  className="h-11"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="assignTo">Assign To *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="assignTo" className="text-sm font-semibold">Assign To *</Label>
                 <Select 
                   value={createTaskData.assignedTo} 
                   onValueChange={(value) => setCreateTaskData({...createTaskData, assignedTo: value})}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select team member" />
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(user => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.email})
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                          {user.name} ({user.email})
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="taskPriority">Priority</Label>
+              <div className="space-y-2">
+                <Label htmlFor="taskPriority" className="text-sm font-semibold">Priority</Label>
                 <Select 
                   value={createTaskData.priority} 
                   onValueChange={(value) => setCreateTaskData({...createTaskData, priority: value as TaskPriority})}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Critical">Critical</SelectItem>
+                    <SelectItem value="Low">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        Low Priority
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Medium">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                        Medium Priority
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="High">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                        High Priority
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Critical">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        Critical Priority
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="taskDueDate">Due Date</Label>
+              <div className="space-y-2">
+                <Label htmlFor="taskDueDate" className="text-sm font-semibold">Due Date</Label>
                 <Input
                   id="taskDueDate"
                   type="date"
                   value={createTaskData.dueDate}
                   onChange={(e) => setCreateTaskData({...createTaskData, dueDate: e.target.value})}
+                  className="h-11"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="taskDescription">Description</Label>
+            <div className="space-y-2">
+              <Label htmlFor="taskDescription" className="text-sm font-semibold">Task Description</Label>
               <Textarea
                 id="taskDescription"
                 value={createTaskData.description}
                 onChange={(e) => setCreateTaskData({...createTaskData, description: e.target.value})}
-                placeholder="Describe the task..."
-                rows={3}
+                placeholder="Provide detailed information about the task objectives, requirements, and expected outcomes..."
+                rows={4}
+                className="resize-none"
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleCreateTask} disabled={loading}>
+            <div className="flex items-center gap-4 pt-4">
+              <Button 
+                onClick={handleCreateTask} 
+                disabled={loading}
+                className="px-8 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4 mr-2" />
                 {loading ? 'Creating...' : 'Create Task'}
               </Button>
-              <Button variant="outline" onClick={() => setShowCreateTaskForm(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCreateTaskForm(false)}
+                className="px-6 py-2"
+              >
                 Cancel
               </Button>
             </div>
@@ -905,110 +975,145 @@ export default function TaskDetailPage({ taskId }: TaskDetailPageProps) {
 
 
 
-      {/* Additional Information */}
+      {/* Additional Information Section */}
       {(task.bottlenecks || task.ragTakeaway || task.remarks) && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Additional Information</h3>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <TrendingUp className="h-5 w-5 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Additional Information</h2>
+          </div>
           
-          {task.bottlenecks && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base text-red-600">Bottlenecks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{task.bottlenecks}</p>
-              </CardContent>
-            </Card>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {task.bottlenecks && (
+              <Card className="border-0 shadow-md border-l-4 border-l-red-500">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg text-red-700 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
+                    Bottlenecks & Blockers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-700">{task.bottlenecks}</p>
+                </CardContent>
+              </Card>
+            )}
 
-          {task.ragTakeaway && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">RAG Takeaway</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{task.ragTakeaway}</p>
-              </CardContent>
-            </Card>
-          )}
+            {task.ragTakeaway && (
+              <Card className="border-0 shadow-md border-l-4 border-l-blue-500">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg text-blue-700 flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    RAG Status Takeaway
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-700">{task.ragTakeaway}</p>
+                </CardContent>
+              </Card>
+            )}
 
-          {task.remarks && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Remarks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{task.remarks}</p>
-              </CardContent>
-            </Card>
-          )}
+            {task.remarks && (
+              <Card className="border-0 shadow-md border-l-4 border-l-green-500 lg:col-span-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg text-green-700 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    General Remarks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-700">{task.remarks}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Action Items */}
-      <TaskActionItems 
-        taskId={taskId}
-        currentUserId={session?.user?.id}
-        currentUserName={session?.user?.name || undefined}
-        isReadOnly={false}
-      />
+      {/* Action Items Section */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <CheckSquare className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground">Action Items</h2>
+        </div>
+        
+        <TaskActionItems 
+          taskId={taskId}
+          currentUserId={session?.user?.id}
+          currentUserName={session?.user?.name || undefined}
+          isReadOnly={false}
+        />
+      </div>
 
-      {/* Task Updates History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Updates & History
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {updates.length > 0 ? (
-            <div className="space-y-4">
-              {updates.map((update, index) => (
-                <div key={update.id}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-3 w-3" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{update.updatedByName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateTime(update.createdAt)}
-                        </span>
+      {/* Task Updates & History */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Clock className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground">Updates & History</h2>
+        </div>
+
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-6">
+            {updates.length > 0 ? (
+              <div className="space-y-6">
+                {updates.map((update, index) => (
+                  <div key={update.id} className="relative">
+                    {index < updates.length - 1 && (
+                      <div className="absolute left-5 top-12 bottom-0 w-px bg-gradient-to-b from-primary/20 to-transparent" />
+                    )}
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                        <Clock className="h-4 w-4 text-primary-foreground" />
                       </div>
-                      
-                      {update.updateType === 'status_change' && (
-                        <div className="text-sm">
-                          Status changed from{' '}
-                          <Badge variant="outline" className="text-xs">
-                            {update.oldValue}
-                          </Badge>
-                          {' '}to{' '}
-                          <Badge variant="outline" className="text-xs">
-                            {update.newValue}
-                          </Badge>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-foreground">{update.updatedByName}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDateTime(update.createdAt)}
+                          </span>
                         </div>
-                      )}
-                      
-                      {update.remarks && (
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {update.remarks}
-                        </p>
-                      )}
+                        
+                        {update.updateType === 'status_change' && (
+                          <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                            <span className="text-sm">Status changed from </span>
+                            <Badge variant="outline" className="text-xs">
+                              {update.oldValue}
+                            </Badge>
+                            <span className="text-sm"> to </span>
+                            <Badge variant="outline" className="text-xs">
+                              {update.newValue}
+                            </Badge>
+                          </div>
+                        )}
+                        
+                        {update.remarks && (
+                          <div className="p-3 bg-muted/20 rounded-lg">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {update.remarks}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {index < updates.length - 1 && <Separator className="my-4" />}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No updates yet
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <MessageSquare className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-muted-foreground">No updates or history yet</p>
+                <p className="text-sm text-muted-foreground/60 mt-1">Task activities will appear here</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

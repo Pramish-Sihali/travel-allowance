@@ -8,6 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 import { 
   Plus,
   X, 
@@ -17,7 +26,10 @@ import {
   User,
   Flag,
   Trash2,
-  CheckSquare
+  CheckSquare,
+  Settings2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface User {
@@ -72,6 +84,18 @@ export default function TaskActionItems({
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    serialNo: true,
+    title: true,
+    assignedTo: true,
+    priority: true,
+    status: true,
+    dueDate: true,
+    remarks: false, // Hidden by default to save space
+    actions: true
+  });
 
   useEffect(() => {
     fetchActionItems();
@@ -239,231 +263,404 @@ export default function TaskActionItems({
     return new Date(dueDate) < new Date();
   };
 
+  const toggleColumnVisibility = (column: keyof typeof columnVisibility) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
+  const visibleColumnsCount = Object.values(columnVisibility).filter(Boolean).length;
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 shadow-md">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" />
+            <CheckSquare className="h-5 w-5 text-primary" />
             Action Items ({actionItems.length})
           </CardTitle>
-          {!isReadOnly && (
-            <Button onClick={addNewActionItem} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Action Item
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Column Visibility Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9">
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-xs font-medium">
+                  Toggle Columns
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.serialNo}
+                  onCheckedChange={() => toggleColumnVisibility('serialNo')}
+                >
+                  Serial No.
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.title}
+                  onCheckedChange={() => toggleColumnVisibility('title')}
+                >
+                  Title & Description
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.assignedTo}
+                  onCheckedChange={() => toggleColumnVisibility('assignedTo')}
+                >
+                  Assigned To
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.priority}
+                  onCheckedChange={() => toggleColumnVisibility('priority')}
+                >
+                  Priority
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.status}
+                  onCheckedChange={() => toggleColumnVisibility('status')}
+                >
+                  Status
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.dueDate}
+                  onCheckedChange={() => toggleColumnVisibility('dueDate')}
+                >
+                  Due Date
+                </DropdownMenuCheckboxItem>
+                
+                <DropdownMenuCheckboxItem
+                  checked={columnVisibility.remarks}
+                  onCheckedChange={() => toggleColumnVisibility('remarks')}
+                >
+                  Remarks
+                </DropdownMenuCheckboxItem>
+                
+                {!isReadOnly && (
+                  <DropdownMenuCheckboxItem
+                    checked={columnVisibility.actions}
+                    onCheckedChange={() => toggleColumnVisibility('actions')}
+                  >
+                    Actions
+                  </DropdownMenuCheckboxItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {!isReadOnly && (
+              <Button onClick={addNewActionItem} size="sm" className="h-9">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Action Item
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         {actionItems.length > 0 ? (
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Remarks</TableHead>
-                  {!isReadOnly && <TableHead className="w-32">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {actionItems.map((item, index) => (
-                  <TableRow key={index} className={item.status === 'Completed' ? 'bg-green-50' : ''}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{item.serialNo}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleStatus(index)}
-                          className="h-6 w-6 p-0"
-                          disabled={isReadOnly}
-                        >
-                          <Check 
-                            className={`h-4 w-4 ${
-                              item.status === 'Completed' 
-                                ? 'text-green-600' 
-                                : 'text-gray-400'
-                            }`} 
-                          />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {isReadOnly ? (
-                        <div>
-                          <div className="font-medium">{item.title}</div>
-                          {item.description && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {item.description}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Input
-                            value={item.title}
-                            onChange={(e) => updateActionItem(index, 'title', e.target.value)}
-                            placeholder="Action item title"
-                            className="text-sm"
-                          />
-                          <Textarea
-                            value={item.description}
-                            onChange={(e) => updateActionItem(index, 'description', e.target.value)}
-                            placeholder="Description (optional)"
-                            rows={2}
-                            className="text-sm"
-                          />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isReadOnly ? (
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{item.assignedToName}</span>
-                        </div>
-                      ) : (
-                        <Select 
-                          value={item.assignedToId} 
-                          onValueChange={(value) => updateActionItem(index, 'assignedToId', value)}
-                        >
-                          <SelectTrigger className="text-sm">
-                            <SelectValue placeholder="Select user" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {users.map(user => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name} ({user.email})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isReadOnly ? (
-                        <Badge className={PRIORITY_COLORS[item.priority]}>
-                          {item.priority}
-                        </Badge>
-                      ) : (
-                        <Select 
-                          value={item.priority} 
-                          onValueChange={(value) => updateActionItem(index, 'priority', value)}
-                        >
-                          <SelectTrigger className="text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge className={STATUS_COLORS[item.status]}>
-                          {item.status}
-                        </Badge>
-                        {!isReadOnly && item.status !== 'Completed' && (
-                          <Select 
-                            value={item.status} 
-                            onValueChange={(value) => updateActionItem(index, 'status', value)}
-                          >
-                            <SelectTrigger className="text-sm w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Not Started">Not Started</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {isReadOnly ? (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className={`text-sm ${
-                            isOverdue(item.dueDate, item.status) ? 'text-red-600 font-medium' : ''
-                          }`}>
-                            {formatDate(item.dueDate) || 'No due date'}
-                          </span>
-                          {isOverdue(item.dueDate, item.status) && (
-                            <AlertCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="date"
-                            value={item.dueDate}
-                            onChange={(e) => updateActionItem(index, 'dueDate', e.target.value)}
-                            className="text-sm"
-                          />
-                          {isOverdue(item.dueDate, item.status) && (
-                            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isReadOnly ? (
-                        <span className="text-sm text-muted-foreground">{item.remarks}</span>
-                      ) : (
-                        <Textarea
-                          value={item.remarks}
-                          onChange={(e) => updateActionItem(index, 'remarks', e.target.value)}
-                          placeholder="Remarks (optional)"
-                          rows={2}
-                          className="text-sm"
-                        />
-                      )}
-                    </TableCell>
-                    {!isReadOnly && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            onClick={() => saveActionItem(index)}
-                            size="sm"
-                            disabled={loading}
-                            className="h-8 px-2"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            onClick={() => deleteActionItem(index)}
-                            size="sm"
-                            variant="destructive"
-                            disabled={loading}
-                            className="h-8 px-2"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b bg-muted/30">
+                    {columnVisibility.serialNo && (
+                      <TableHead className="w-16 h-12 font-semibold">#</TableHead>
+                    )}
+                    {columnVisibility.title && (
+                      <TableHead className="min-w-[300px] h-12 font-semibold">Title & Description</TableHead>
+                    )}
+                    {columnVisibility.assignedTo && (
+                      <TableHead className="min-w-[160px] h-12 font-semibold">Assigned To</TableHead>
+                    )}
+                    {columnVisibility.priority && (
+                      <TableHead className="w-28 h-12 font-semibold">Priority</TableHead>
+                    )}
+                    {columnVisibility.status && (
+                      <TableHead className="w-32 h-12 font-semibold">Status</TableHead>
+                    )}
+                    {columnVisibility.dueDate && (
+                      <TableHead className="w-36 h-12 font-semibold">Due Date</TableHead>
+                    )}
+                    {columnVisibility.remarks && (
+                      <TableHead className="min-w-[200px] h-12 font-semibold">Remarks</TableHead>
+                    )}
+                    {!isReadOnly && columnVisibility.actions && (
+                      <TableHead className="w-32 h-12 font-semibold">Actions</TableHead>
                     )}
                   </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actionItems.map((item, index) => (
+                    <TableRow 
+                      key={index} 
+                      className={`border-b transition-colors hover:bg-muted/20 ${
+                        item.status === 'Completed' ? 'bg-green-50/50' : ''
+                      }`}
+                    >
+                      {columnVisibility.serialNo && (
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-foreground">{item.serialNo}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleStatus(index)}
+                              className="h-7 w-7 p-0 rounded-full hover:bg-primary/10"
+                              disabled={isReadOnly}
+                            >
+                              <Check 
+                                className={`h-4 w-4 ${
+                                  item.status === 'Completed' 
+                                    ? 'text-green-600' 
+                                    : 'text-gray-400'
+                                }`} 
+                              />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                      {columnVisibility.title && (
+                        <TableCell className="py-4">
+                          {isReadOnly ? (
+                            <div className="space-y-2">
+                              <div className="font-medium text-foreground leading-relaxed">{item.title}</div>
+                              {item.description && (
+                                <div className="text-sm text-muted-foreground leading-relaxed">
+                                  {item.description}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <Input
+                                value={item.title}
+                                onChange={(e) => updateActionItem(index, 'title', e.target.value)}
+                                placeholder="Action item title"
+                                className="h-9"
+                              />
+                              <Textarea
+                                value={item.description}
+                                onChange={(e) => updateActionItem(index, 'description', e.target.value)}
+                                placeholder="Description (optional)"
+                                rows={2}
+                                className="text-sm resize-none"
+                              />
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+
+                      {columnVisibility.assignedTo && (
+                        <TableCell className="py-4">
+                          {isReadOnly ? (
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground text-xs font-medium">
+                                {item.assignedToName.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-sm font-medium">{item.assignedToName}</span>
+                            </div>
+                          ) : (
+                            <Select 
+                              value={item.assignedToId} 
+                              onValueChange={(value) => updateActionItem(index, 'assignedToId', value)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select user" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {users.map(user => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
+                                        {user.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      {user.name} ({user.email})
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
+                      )}
+
+                      {columnVisibility.priority && (
+                        <TableCell className="py-4">
+                          {isReadOnly ? (
+                            <Badge className={`${PRIORITY_COLORS[item.priority]} px-3 py-1`}>
+                              <Flag className="h-3 w-3 mr-1" />
+                              {item.priority}
+                            </Badge>
+                          ) : (
+                            <Select 
+                              value={item.priority} 
+                              onValueChange={(value) => updateActionItem(index, 'priority', value)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Low">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                    Low
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="Medium">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                    Medium
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="High">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                    High
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="Critical">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                    Critical
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
+                      )}
+
+                      {columnVisibility.status && (
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-2">
+                            <Badge className={`${STATUS_COLORS[item.status]} px-3 py-1`}>
+                              {item.status}
+                            </Badge>
+                            {!isReadOnly && item.status !== 'Completed' && (
+                              <Select 
+                                value={item.status} 
+                                onValueChange={(value) => updateActionItem(index, 'status', value)}
+                              >
+                                <SelectTrigger className="h-9 w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Not Started">Not Started</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Completed">Completed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+
+                      {columnVisibility.dueDate && (
+                        <TableCell className="py-4">
+                          {isReadOnly ? (
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span className={`text-sm ${
+                                isOverdue(item.dueDate, item.status) ? 'text-red-600 font-medium' : ''
+                              }`}>
+                                {formatDate(item.dueDate) || 'No due date'}
+                              </span>
+                              {isOverdue(item.dueDate, item.status) && (
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="date"
+                                value={item.dueDate}
+                                onChange={(e) => updateActionItem(index, 'dueDate', e.target.value)}
+                                className="h-9"
+                              />
+                              {isOverdue(item.dueDate, item.status) && (
+                                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+
+                      {columnVisibility.remarks && (
+                        <TableCell className="py-4">
+                          {isReadOnly ? (
+                            <span className="text-sm text-muted-foreground leading-relaxed">
+                              {item.remarks || 'No remarks'}
+                            </span>
+                          ) : (
+                            <Textarea
+                              value={item.remarks}
+                              onChange={(e) => updateActionItem(index, 'remarks', e.target.value)}
+                              placeholder="Remarks (optional)"
+                              rows={2}
+                              className="text-sm resize-none"
+                            />
+                          )}
+                        </TableCell>
+                      )}
+
+                      {!isReadOnly && columnVisibility.actions && (
+                        <TableCell className="py-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => saveActionItem(index)}
+                              size="sm"
+                              disabled={loading}
+                              className="h-8 px-3"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              onClick={() => deleteActionItem(index)}
+                              size="sm"
+                              variant="destructive"
+                              disabled={loading}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                  </TableRow>
                 ))}
-              </TableBody>
-            </Table>
+                </TableBody>
+              </Table>
+            </div>
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No action items yet</p>
+          <div className="text-center py-12">
+            <CheckSquare className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+            <div className="space-y-2">
+              <p className="text-lg font-medium text-foreground">No action items yet</p>
+              <p className="text-sm text-muted-foreground">
+                {!isReadOnly 
+                  ? "Break down your task into actionable items to track progress" 
+                  : "Action items will appear here when added"
+                }
+              </p>
+            </div>
             {!isReadOnly && (
-              <p className="text-xs mt-1">Click "Add Action Item" to get started</p>
+              <Button 
+                onClick={addNewActionItem} 
+                className="mt-6"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Action Item
+              </Button>
             )}
           </div>
         )}

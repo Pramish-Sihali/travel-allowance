@@ -337,6 +337,11 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
     </DialogContent>
   );
 
+  // Don't render the card if attendance has been marked for today
+  if (todayStatus !== null) {
+    return null;
+  }
+
   return (
     <Card className="mb-6">
       <CardHeader className="pb-3">
@@ -356,65 +361,33 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
             </div>
           </div>
 
-          {todayStatus === null && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Mark your attendance for today
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={markPresent}
-                  disabled={loading}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Present
-                </Button>
-                <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
-                    >
-                      <UserX className="h-4 w-4 mr-2" />
-                      Leave
-                    </Button>
-                  </DialogTrigger>
-                  <LeaveDialog />
-                </Dialog>
-              </div>
-            </div>
-          )}
-
-          {todayStatus !== null && (
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-2">
-                {todayStatus === 'present' && (
-                  <>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-700">Present</span>
-                  </>
-                )}
-                {todayStatus === 'leave' && (
-                  <>
-                    <XCircle className="h-4 w-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-700">On Leave</span>
-                  </>
-                )}
-                <span className="text-xs text-muted-foreground ml-2">
-                  {new Date().toLocaleDateString()}
-                </span>
-              </div>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Mark your attendance for today
+            </p>
+            <div className="flex gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-6 px-2"
-                onClick={() => router.push('/attendance-sheet')}
+                onClick={markPresent}
+                disabled={loading}
+                className="flex-1 bg-green-600 hover:bg-green-700"
               >
-                View Sheet
+                <UserCheck className="h-4 w-4 mr-2" />
+                Present
               </Button>
+              <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                  >
+                    <UserX className="h-4 w-4 mr-2" />
+                    Leave
+                  </Button>
+                </DialogTrigger>
+                <LeaveDialog />
+              </Dialog>
             </div>
-          )}
+          </div>
 
           <div className="pt-3 border-t">
             <Dialog open={advancedLeaveDialogOpen} onOpenChange={setAdvancedLeaveDialogOpen}>

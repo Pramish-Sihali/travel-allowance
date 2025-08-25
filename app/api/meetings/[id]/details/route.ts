@@ -27,9 +27,9 @@ export async function GET(
       .eq('id', meetingId);
 
     if (organizationId && organizationId !== 'undefined') {
-      meetingQuery = meetingQuery.eq('organizationid', organizationId);
+      meetingQuery = meetingQuery.eq('organization_id', organizationId);
     } else {
-      meetingQuery = meetingQuery.is('organizationid', null);
+      meetingQuery = meetingQuery.is('organization_id', null);
     }
 
     const { data: meeting, error: meetingError } = await meetingQuery.single();
@@ -43,19 +43,20 @@ export async function GET(
       .from('meeting_attendees')
       .select(`
         id,
-        attendeename,
-        attendeeemail,
-        attendeeorganization,
-        attendeetype,
-        attendancestatus,
-        user:users(name, email)
+        attendee_name,
+        attendee_email,
+        attendee_organization,
+        attendee_type,
+        attendance_status,
+        user_id,
+        users(name, email)
       `)
-      .eq('meetingid', meetingId);
+      .eq('meeting_id', meetingId);
 
     if (organizationId && organizationId !== 'undefined') {
-      attendeesQuery = attendeesQuery.eq('organizationid', organizationId);
+      attendeesQuery = attendeesQuery.eq('organization_id', organizationId);
     } else {
-      attendeesQuery = attendeesQuery.is('organizationid', null);
+      attendeesQuery = attendeesQuery.is('organization_id', null);
     }
 
     const { data: attendees, error: attendeesError } = await attendeesQuery;
@@ -66,39 +67,39 @@ export async function GET(
       .select(`
         id,
         content,
-        minuteorder,
-        isactionitem,
-        completionstatus,
-        assignedtoname,
-        duedate,
+        minute_order,
+        is_action_item,
+        completion_status,
+        assigned_to_name,
+        due_date,
         priority,
-        completionpercentage,
-        completedat,
-        completedbyname
+        completion_percentage,
+        completed_at,
+        completed_by_name
       `)
-      .eq('meetingid', meetingId);
+      .eq('meeting_id', meetingId);
 
     if (organizationId && organizationId !== 'undefined') {
-      minutesQuery = minutesQuery.eq('organizationid', organizationId);
+      minutesQuery = minutesQuery.eq('organization_id', organizationId);
     } else {
-      minutesQuery = minutesQuery.is('organizationid', null);
+      minutesQuery = minutesQuery.is('organization_id', null);
     }
 
-    const { data: minutes, error: minutesError } = await minutesQuery.order('minuteorder');
+    const { data: minutes, error: minutesError } = await minutesQuery.order('minute_order');
 
     // Fetch related task info if exists with organization filter
     let task = null;
-    if (meeting.taskid) {
+    if (meeting.task_id) {
       let taskQuery = supabaseAdmin
         .from('tasks')
-        .select('title, status, organizationid')
-        .eq('id', meeting.taskid);
+        .select('title, status, organization_id')
+        .eq('id', meeting.task_id);
 
       // Apply organization filter
       if (organizationId && organizationId !== 'undefined') {
-        taskQuery = taskQuery.eq('organizationid', organizationId);
+        taskQuery = taskQuery.eq('organization_id', organizationId);
       } else {
-        taskQuery = taskQuery.is('organizationid', null);
+        taskQuery = taskQuery.is('organization_id', null);
       }
       
       const { data: taskData } = await taskQuery.single();
@@ -107,17 +108,17 @@ export async function GET(
 
     // Fetch related client info if exists with organization filter
     let client = null;
-    if (meeting.clientid) {
+    if (meeting.client_id) {
       let clientQuery = supabaseAdmin
         .from('clients')
-        .select('name, company, organizationid')
-        .eq('id', meeting.clientid);
+        .select('name, company, organization_id')
+        .eq('id', meeting.client_id);
 
       // Apply organization filter
       if (organizationId && organizationId !== 'undefined') {
-        clientQuery = clientQuery.eq('organizationid', organizationId);
+        clientQuery = clientQuery.eq('organization_id', organizationId);
       } else {
-        clientQuery = clientQuery.is('organizationid', null);
+        clientQuery = clientQuery.is('organization_id', null);
       }
       
       const { data: clientData } = await clientQuery.single();

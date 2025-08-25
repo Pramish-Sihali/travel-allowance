@@ -602,7 +602,24 @@ export const getTaskActionItemsByTaskId = async (taskId: string) => {
     .order('serialno', { ascending: true });
   
   if (error) return [];
-  return data; // Direct return!
+  
+  // Transform database snake_case to camelCase for action items
+  return (data || []).map((item: any) => ({
+    id: item.id,
+    serialNo: item.serialno,
+    title: item.title,
+    description: item.description,
+    assignedToId: item.assignedtoid,
+    assignedToName: item.assignedtoname,
+    priority: item.priority,
+    status: item.status,
+    dueDate: item.duedate,
+    remarks: item.remarks,
+    createdBy: item.createdby,
+    createdAt: item.createdat,
+    updatedBy: item.updatedby,
+    updatedAt: item.updatedat
+  }));
 };
 
 export const createTaskActionItem = async (data: Omit<TaskActionItem, 'id' | 'createdAt' | 'updatedAt'>) => {

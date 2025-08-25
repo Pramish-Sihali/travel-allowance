@@ -7,47 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  CheckSquare, 
   Clock, 
   User, 
   Calendar,
-  Plus,
   Timer,
   TrendingUp,
-  Target,
   Activity
 } from 'lucide-react';
 import Link from 'next/link';
-import ProjectCard from '@/components/common/ProjectCard';
 import TimerControls from '@/components/common/TimerControls';
 import ProjectTimeTracker from '@/components/common/ProjectTimeTracker';
 import LogEntry from '@/components/common/LogEntry';
 import ActionItemsSection from '@/components/dashboard/ActionItemsSection';
 
-interface Project {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Cancelled';
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  dueDate?: string;
-  departmentName?: string;
-  assignedTo: string[];
-  ragStatus: 'Red' | 'Amber' | 'Green' | 'Unrated';
-  progress?: number;
-  actionItems?: ActionItem[];
-  createdAt: string;
-  updatedAt?: string;
-}
-
-interface ActionItem {
-  id: string;
-  title: string;
-  description?: string;
-  assignedTo: string[];
-  status: 'Not Started' | 'In Progress' | 'Completed';
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
-}
 
 interface TimeLog {
   id: string;
@@ -68,11 +40,10 @@ interface EnhancedUserDashboardProps {
 
 export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDashboardProps) {
   const { data: session } = useSession();
-  const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [todaysLogs, setTodaysLogs] = useState<TimeLog[]>([]);
   const [personalLogs, setPersonalLogs] = useState<TimeLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState('timer');
 
   const userId = session?.user?.id;
   const userName = session?.user?.name;
@@ -87,7 +58,6 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
     setLoading(true);
     try {
       await Promise.all([
-        fetchActiveProjects(),
         fetchTodaysLogs(),
         fetchPersonalLogs()
       ]);
@@ -98,27 +68,6 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
     }
   };
 
-  const fetchActiveProjects = async () => {
-    try {
-      const response = await fetch(`/api/tasks?assignedTo=${userId}&status=active`);
-      if (response.ok) {
-        const data = await response.json();
-        // Filter to only show projects assigned to this user that are not completed
-        const userProjects = data.filter((project: Project) => 
-          project.status !== 'Completed' && project.status !== 'Cancelled' &&
-          (project.assignedTo && Array.isArray(project.assignedTo) ? 
-            project.assignedTo.some(assignee => 
-              assignee.toLowerCase().includes(userName?.toLowerCase() || '') ||
-              assignee.includes(userId || '')
-            ) : false
-          )
-        );
-        setActiveProjects(userProjects);
-      }
-    } catch (error) {
-      console.error('Error fetching active projects:', error);
-    }
-  };
 
   const fetchTodaysLogs = async () => {
     try {
@@ -200,18 +149,7 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
       <ActionItemsSection />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
-                <p className="text-2xl font-bold text-primary">{activeProjects.length}</p>
-              </div>
-              <Target className="h-8 w-8 text-primary opacity-70" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         <Card>
           <CardContent className="p-4">
@@ -254,11 +192,7 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
       <Card>
         <CardContent className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="projects" className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4" />
-                Project Details
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="timer" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Time Tracker
@@ -272,48 +206,6 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
                 Personal Logs
               </TabsTrigger>
             </TabsList>
-
-            {/* Project Details Tab */}
-            <TabsContent value="projects" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">My Active Projects</h3>
-                <Link href="/tasks">
-                  <Button variant="outline" size="sm">
-                    View All Projects
-                  </Button>
-                </Link>
-              </div>
-              
-              {activeProjects.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No active projects assigned to you</p>
-                  <p className="text-xs">Projects assigned to you will appear here</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {activeProjects.slice(0, 3).map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      currentUserId={userId}
-                      currentUserName={userName || undefined}
-                      showTimer={true}
-                      compact={true}
-                    />
-                  ))}
-                  {activeProjects.length > 3 && (
-                    <div className="text-center">
-                      <Link href="/tasks">
-                        <Button variant="outline" size="sm">
-                          View {activeProjects.length - 3} more projects →
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
-            </TabsContent>
 
             {/* Time Tracker Tab */}
             <TabsContent value="timer" className="space-y-4">

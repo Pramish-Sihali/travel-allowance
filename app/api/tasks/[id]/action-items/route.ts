@@ -27,8 +27,23 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // No transformation needed - database now uses camelCase!
-    const transformedData = data || [];
+    // Transform database snake_case to camelCase for action items
+    const transformedData = (data || []).map((item: any) => ({
+      id: item.id,
+      serialNo: item.serialno,
+      title: item.title,
+      description: item.description,
+      assignedToId: item.assignedtoid,
+      assignedToName: item.assignedtoname,
+      priority: item.priority,
+      status: item.status,
+      dueDate: item.duedate,
+      remarks: item.remarks,
+      createdBy: item.createdby,
+      createdAt: item.createdat,
+      updatedBy: item.updatedby,
+      updatedAt: item.updatedat
+    }));
 
     return NextResponse.json(transformedData);
   } catch (error) {
@@ -80,8 +95,23 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // No transformation needed - database returns camelCase!
-    const transformedData = data;
+    // Transform database snake_case to camelCase for action item response
+    const transformedData = {
+      id: data.id,
+      serialNo: data.serialno,
+      title: data.title,
+      description: data.description,
+      assignedToId: data.assignedtoid,
+      assignedToName: data.assignedtoname,
+      priority: data.priority,
+      status: data.status,
+      dueDate: data.duedate,
+      remarks: data.remarks,
+      createdBy: data.createdby,
+      createdAt: data.createdat,
+      updatedBy: data.updatedby,
+      updatedAt: data.updatedat
+    };
 
     return NextResponse.json(transformedData, { status: 201 });
   } catch (error) {

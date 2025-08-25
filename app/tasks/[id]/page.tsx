@@ -2,9 +2,8 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import TaskDetailPage from '@/components/tasks/TaskDetailPage';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import PageLayout from '@/components/layout/PageLayout';
+import { CheckSquare } from 'lucide-react';
 
 interface TaskDetailPageProps {
   params: Promise<{
@@ -20,25 +19,16 @@ export default async function TaskDetail({ params }: TaskDetailPageProps) {
   }
 
   const { id } = await params;
+  const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
 
   return (
-    <div className="container mx-auto p-6 max-w-full lg:px-8 xl:px-12">
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Link href="/tasks">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Tasks
-            </Button>
-          </Link>
-        </div>
-        <h1 className="text-3xl font-bold">Task Details</h1>
-        <p className="text-muted-foreground mt-2">
-          View and manage task progress, add time logs and updates
-        </p>
-      </div>
-      
+    <PageLayout
+      title="Task Details"
+      description="View and manage task progress, action items, and team collaboration"
+      headerIcon={<CheckSquare className="h-6 w-6 text-primary" />}
+      userRole={userRole}
+    >
       <TaskDetailPage taskId={id} />
-    </div>
+    </PageLayout>
   );
 }
