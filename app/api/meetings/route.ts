@@ -1,365 +1,404 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
+// app/api/meetings/route.ts
+// Enhanced Meetings API with Role-Based Access and Action Items Integration
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+import { NextRequest } from 'next/server';
+import { 
+  withAuth, 
+  successResponse, 
+  errorResponse,
+  logApiAction
+} from '@/lib/api-auth';
+import { dbHandler } from '@/lib/db.global';
 
-    const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employeeId');
-    const organizationId = session.user.organizationId;
+// GET /api/meetings - Get meetings with comprehensive filtering and action items
+export const GET = withAuth(
+  async (request, user) => {
+    try {
+      const { searchParams } = request.nextUrl;
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '20');
+      const status = searchParams.get('status');
+      const meetingType = searchParams.get('meetingType');
+      const assignedTo = searchParams.get('assignedTo');
+      const dateFrom = searchParams.get('dateFrom');
+      const dateTo = searchParams.get('dateTo');
+      const includeActionItems = searchParams.get('includeActionItems') === 'true';
+      const myMeetings = searchParams.get('myMeetings') === 'true';
 
-    console.log(`Fetching meetings for organizationId: ${organizationId}, employeeId: ${employeeId || 'all organizational meetings'}`);
+      let where: any = {
+        organizationId: user.organizationId
+      };
 
-    // Fetch meetings with related data for the organization
-    let query = supabaseAdmin
-      .from('meetings')
-      .select(`
-        *
-      `);
+      // Role-based filtering
+      if (user.role === 'EMPLOYEE' || myMeetings) {
+        where.OR = [
+          { createdBy: user.id },
+          { assignedTo: user.id }
+        ];
+      }
+      // HR_ADMIN, ADMIN, SUPER_ADMIN can see all meetings (no additional filter)
 
-    // Only add organization filter if organizationId is valid
-    if (organizationId && organizationId !== 'undefined') {
-      query = query.eq('organizationid', organizationId);
-    } else {
-      query = query.is('organizationid', null);
-    }
-
-    const { data: meetings, error: meetingsError } = await query
-      .order('meetingdate', { ascending: false });
-
-    if (meetingsError) {
-      console.error('Error fetching meetings:', meetingsError);
-      return NextResponse.json({ error: 'Failed to fetch meetings' }, { status: 500 });
-    }
-
-    console.log(`Found ${meetings?.length || 0} meetings for organization ${organizationId}`);
-    if (meetings && meetings.length > 0) {
-      console.log('Meeting IDs found:', meetings.map(m => m.id));
-      console.log('Meeting org IDs:', meetings.map(m => m.organizationid));
-    }
-
-    // Calculate statistics
-    const stats = {
-      totalMeetings: meetings?.length || 0,
-      scheduledMeetings: meetings?.filter(m => m.status === 'scheduled').length || 0,
-      completedMeetings: meetings?.filter(m => m.status === 'completed').length || 0,
-      pendingActionItems: 0,
-      overdueMeetings: 0,
-      upcomingDeadlines: 0
-    };
-
-    // Calculate pending action items and overdue meetings
-    const currentDate = new Date();
-    meetings?.forEach(meeting => {
-      // Count pending action items
-      if (meeting.minutes) {
-        stats.pendingActionItems += meeting.minutes.filter(
-          (minute: any) => minute.isactionitem && minute.completionstatus === 'pending'
-        ).length;
+      // Apply filters
+      if (status) where.status = status;
+      if (meetingType) where.meetingType = meetingType;
+      if (assignedTo) where.assignedTo = assignedTo;
+      if (dateFrom || dateTo) {
+        where.meetingDate = {};
+        if (dateFrom) where.meetingDate.gte = dateFrom;
+        if (dateTo) where.meetingDate.lte = dateTo;
       }
 
-      // Count overdue meetings
-      if (meeting.deadlinedate) {
-        const deadlineDate = new Date(meeting.deadlinedate);
-        if (deadlineDate < currentDate && meeting.status !== 'completed') {
-          stats.overdueMeetings++;
+      const [meetings, totalCount] = await Promise.all([
+        dbHandler.prisma.meeting.findMany({
+          where,
+          include: {
+            creator: {
+              select: { id: true, name: true, employeeId: true }
+            },
+            assignee: {
+              select: { id: true, name: true, employeeId: true }
+            },
+            client: {
+              select: { id: true, name: true, company: true }
+            },
+            ...(includeActionItems && {
+              meetingMinutes: {
+                include: {
+                  assignee: {
+                    select: { id: true, name: true, employeeId: true }
+                  }
+                },
+                orderBy: { serialNo: 'asc' }
+              }
+            }),
+            tasks: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                priority: true
+              },
+              take: 5
+            }
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { meetingDate: 'desc' }
+        }),
+        dbHandler.prisma.meeting.count({ where })
+      ]);
+
+      // Transform meetings with computed fields
+      const transformedMeetings = meetings.map(meeting => {
+        const actionItems = meeting.meetingMinutes || [];
+        const completedItems = actionItems.filter(item => item.isDone);
+        const isOverdue = meeting.deadlineDate && 
+          new Date(meeting.deadlineDate) < new Date() && 
+          meeting.status !== 'completed';
+
+        return {
+          id: meeting.id,
+          title: meeting.title,
+          description: meeting.description,
+          taskId: meeting.taskId,
+          meetingType: meeting.meetingType,
+          clientId: meeting.clientId,
+          client: meeting.client,
+          location: meeting.location,
+          locationType: meeting.locationType,
+          latitude: meeting.latitude,
+          longitude: meeting.longitude,
+          locationAddress: meeting.locationAddress,
+          meetingDate: meeting.meetingDate,
+          meetingTime: meeting.meetingTime,
+          durationMinutes: meeting.durationMinutes,
+          createdBy: meeting.createdBy,
+          createdByName: meeting.createdByName,
+          creator: meeting.creator,
+          assignedTo: meeting.assignedTo,
+          assignedToName: meeting.assignedToName,
+          assignee: meeting.assignee,
+          deadlineDate: meeting.deadlineDate,
+          deadlineTime: meeting.deadlineTime,
+          priority: meeting.priority,
+          status: meeting.status,
+          actionItemsCount: meeting.actionItemsCount,
+          completedActionItems: meeting.completedActionItems,
+          attendeeCount: meeting.attendeeCount,
+          createdAt: meeting.createdAt,
+          updatedAt: meeting.updatedAt,
+          
+          // Computed fields
+          actualActionItemsCount: actionItems.length,
+          actualCompletedItems: completedItems.length,
+          completionPercentage: actionItems.length > 0 ? 
+            (completedItems.length / actionItems.length) * 100 : 0,
+          isOverdue,
+          daysUntilDeadline: meeting.deadlineDate ? 
+            Math.ceil((new Date(meeting.deadlineDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          relatedTasks: meeting.tasks,
+          
+          // Include action items if requested
+          ...(includeActionItems && { actionItems })
+        };
+      });
+
+      // Calculate summary statistics
+      const currentDate = new Date();
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+
+      const summary = {
+        total: totalCount,
+        scheduled: transformedMeetings.filter(m => m.status === 'scheduled').length,
+        completed: transformedMeetings.filter(m => m.status === 'completed').length,
+        cancelled: transformedMeetings.filter(m => m.status === 'cancelled').length,
+        overdue: transformedMeetings.filter(m => m.isOverdue).length,
+        upcomingDeadlines: transformedMeetings.filter(m => 
+          m.deadlineDate && 
+          new Date(m.deadlineDate) >= currentDate && 
+          new Date(m.deadlineDate) <= nextWeek && 
+          m.status !== 'completed'
+        ).length,
+        byType: {
+          internal: transformedMeetings.filter(m => m.meetingType === 'internal').length,
+          external: transformedMeetings.filter(m => m.meetingType === 'external').length
+        },
+        byPriority: {
+          critical: transformedMeetings.filter(m => m.priority === 'CRITICAL').length,
+          high: transformedMeetings.filter(m => m.priority === 'HIGH').length,
+          medium: transformedMeetings.filter(m => m.priority === 'MEDIUM').length,
+          low: transformedMeetings.filter(m => m.priority === 'LOW').length
+        },
+        totalActionItems: transformedMeetings.reduce((sum, m) => sum + (m.actualActionItemsCount || 0), 0),
+        completedActionItems: transformedMeetings.reduce((sum, m) => sum + (m.actualCompletedItems || 0), 0)
+      };
+
+      await logApiAction(user.id, 'VIEW', 'meetings', undefined, { 
+        count: meetings.length,
+        filters: { status, meetingType, assignedTo }
+      });
+
+      return successResponse({
+        meetings: transformedMeetings,
+        summary,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
         }
-      }
+      });
 
-      // Count upcoming deadlines (within next 7 days)
-      if (meeting.deadlinedate) {
-        const deadlineDate = new Date(meeting.deadlinedate);
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        
-        if (deadlineDate >= currentDate && deadlineDate <= nextWeek && meeting.status !== 'completed') {
-          stats.upcomingDeadlines++;
-        }
-      }
-    });
-
-    // Format meetings data for frontend - simplified for now
-    const formattedMeetings = meetings?.map(meeting => ({
-      ...meeting,
-      action_items_count: 0, // Will fetch separately
-      completed_action_items: 0, // Will fetch separately
-      attendeeCount: 0 // Will fetch separately
-    }));
-
-    return NextResponse.json({
-      meetings: formattedMeetings || [],
-      stats
-    });
-
-  } catch (error) {
-    console.error('Error in meetings GET:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      return errorResponse('Failed to fetch meetings');
+    }
   }
-}
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+// POST /api/meetings - Create new meeting with action items
+export const POST = withAuth(
+  async (request, user) => {
+    try {
+      const body = await request.json();
 
-    const organizationId = session.user.organizationId;
-    const data = await request.json();
-
-    const {
-      title,
-      description,
-      taskId,
-      meetingType,
-      clientId,
-      newClientName,
-      locationType,
-      locationDetails,
-      meetingDate,
-      meetingTime,
-      duration,
-      assignedTo,
-      deadlineDate,
-      deadlineTime,
-      priority,
-      meetingMinutes,
-      internalAttendees,
-      externalAttendees,
-      absentees,
-      currentLocation,
-      createdBy,
-      createdByName
-    } = data;
-
-    // Validate required fields
-    if (!title || !meetingType || !locationType || !locationDetails || !meetingDate) {
-      return NextResponse.json({ 
-        error: 'Missing required fields' 
-      }, { status: 400 });
-    }
-
-    // Validate meeting minutes
-    if (!meetingMinutes || !Array.isArray(meetingMinutes) || meetingMinutes.length === 0) {
-      return NextResponse.json({ 
-        error: 'Meeting minutes are required' 
-      }, { status: 400 });
-    }
-
-    // Handle new client creation if needed
-    let finalClientId = clientId;
-    if (meetingType === 'external' && newClientName && !clientId) {
-      const { data: newClient, error: clientError } = await supabaseAdmin
-        .from('clients')
-        .insert({
-          name: newClientName,
-          clienttype: 'new',
-          organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-        })
-        .select()
-        .single();
-
-      if (clientError) {
-        console.error('Error creating new client:', clientError);
-        return NextResponse.json({ error: 'Failed to create new client' }, { status: 500 });
+      // Validate required fields
+      if (!body.title || !body.meetingDate || !body.meetingType) {
+        return errorResponse('Title, meetingDate, and meetingType are required', 400);
       }
 
-      finalClientId = newClient.id;
-    }
+      const newMeeting = await dbHandler.prisma.$transaction(async (tx) => {
+        // Handle client creation if needed
+        let clientId = body.clientId;
+        if (body.meetingType === 'external' && body.newClientName && !body.clientId) {
+          const client = await tx.client.create({
+            data: {
+              name: body.newClientName,
+              clientType: 'NEW',
+              organizationId: user.organizationId
+            }
+          });
+          clientId = client.id;
+        }
 
-    // Get assigned user name if assignedTo is provided
-    let assignedToName = null;
-    if (assignedTo) {
-      const { data: assignedUser } = await supabaseAdmin
-        .from('users')
-        .select('name')
-        .eq('id', assignedTo)
-        .single();
-      
-      assignedToName = assignedUser?.name;
-    }
+        // Get assigned user name if assignedTo is provided
+        let assignedToName = body.assignedToName;
+        if (body.assignedTo && !assignedToName) {
+          const assignedUser = await tx.user.findUnique({
+            where: { id: body.assignedTo },
+            select: { name: true }
+          });
+          assignedToName = assignedUser?.name;
+        }
 
-    // Create meeting record
-    const { data: meeting, error: meetingError } = await supabaseAdmin
-      .from('meetings')
-      .insert({
-        title,
-        description: description || null,
-        taskid: taskId || null,
-        meetingtype: meetingType,
-        clientid: finalClientId || null,
-        location: locationDetails,
-        locationtype: locationType,
-        latitude: currentLocation?.lat || null,
-        longitude: currentLocation?.lng || null,
-        locationaddress: currentLocation?.address || null,
-        meetingdate: meetingDate,
-        meetingtime: meetingTime || null,
-        durationminutes: duration ? parseInt(duration) : null,
-        createdby: createdBy,
-        createdbyname: createdByName,
-        assignedto: assignedTo || null,
-        assignedtoname: assignedToName,
-        deadlinedate: deadlineDate || null,
-        deadlinetime: deadlineTime || null,
-        priority: priority || 'medium',
-        status: 'scheduled',
-        organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-      })
-      .select()
-      .single();
-
-    if (meetingError) {
-      console.error('Error creating meeting:', meetingError);
-      return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 });
-    }
-
-    // Add internal attendees
-    if (internalAttendees && internalAttendees.length > 0) {
-      const internalAttendeesData = internalAttendees.map((attendee: any) => ({
-        meetingid: meeting.id,
-        userid: attendee.id,
-        attendeename: attendee.name,
-        attendeeemail: attendee.email,
-        attendeetype: 'internal',
-        organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-      }));
-
-      const { error: attendeesError } = await supabaseAdmin
-        .from('meeting_attendees')
-        .insert(internalAttendeesData);
-
-      if (attendeesError) {
-        console.error('Error adding internal attendees:', attendeesError);
-        // Don't fail the entire operation for attendee errors
-      }
-    }
-
-    // Add external attendees
-    if (externalAttendees && externalAttendees.length > 0) {
-      const externalAttendeesData = externalAttendees.map((attendee: any) => ({
-        meetingid: meeting.id,
-        userid: null,
-        attendeename: attendee.name,
-        attendeeemail: attendee.email,
-        attendeeorganization: attendee.organization || null,
-        attendeetype: 'external',
-        organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-      }));
-
-      const { error: externalAttendeesError } = await supabaseAdmin
-        .from('meeting_attendees')
-        .insert(externalAttendeesData);
-
-      if (externalAttendeesError) {
-        console.error('Error adding external attendees:', externalAttendeesError);
-        // Don't fail the entire operation for attendee errors
-      }
-    }
-
-    // Add absentees
-    if (absentees && absentees.length > 0) {
-      const absenteesData = absentees.map((absentee: any) => ({
-        meetingid: meeting.id,
-        userid: absentee.id,
-        attendeename: absentee.name,
-        attendeeemail: absentee.email,
-        attendeetype: 'absentee',
-        absenteereason: absentee.reason || null,
-        organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-      }));
-
-      const { error: absenteesError } = await supabaseAdmin
-        .from('meeting_attendees')
-        .insert(absenteesData);
-
-      if (absenteesError) {
-        console.error('Error adding absentees:', absenteesError);
-        // Don't fail the entire operation for absentee errors
-      }
-    }
-
-    // Process and save meeting minutes from table format
-    const minutesList = meetingMinutes.map((minute: any) => ({
-      meetingid: meeting.id,
-      content: minute.responsibility,
-      responsibility: minute.responsibility,
-      serialno: minute.serialNo || 1,
-      minuteorder: minute.serialNo || 1,
-      isactionitem: true,
-      assignedto: minute.assignedToId || null,
-      assignedtoname: minute.assignedToName,
-      duedate: minute.deadline || null,
-      duetime: null,
-      priority: 'medium',
-      completionstatus: minute.isDone ? 'completed' : 'pending',
-      completionpercentage: minute.isDone ? 100 : 0,
-      estimatedhours: null,
-      actualhours: null,
-      deadlinenotes: minute.remarks,
-      remarks: minute.remarks,
-      flags: minute.flags || '',
-      isdone: minute.isDone,
-      toggledby: minute.toggledBy || null,
-      toggledat: minute.toggledAt || (minute.isDone ? new Date().toISOString() : null),
-      remindersent: false,
-      completedat: minute.isDone ? new Date().toISOString() : null,
-      completedbyname: minute.toggledBy || null,
-      createdbyname: createdByName,
-      updatedbyname: createdByName,
-      organizationid: organizationId && organizationId !== 'undefined' ? organizationId : null
-    }));
-
-    if (minutesList.length > 0) {
-      const { error: minutesError } = await supabaseAdmin
-        .from('meeting_minutes')
-        .insert(minutesList);
-
-      if (minutesError) {
-        console.error('Error saving meeting minutes:', minutesError);
-        // Don't fail the entire operation for minutes errors
-      }
-    }
-
-    // Create deadline assignment if assigned to someone
-    if (assignedTo && deadlineDate) {
-      const { error: assignmentError } = await supabaseAdmin
-        .from('meeting_deadline_assignments')
-        .insert({
-          meeting_id: meeting.id,
-          assigned_to: assignedTo,
-          assigned_to_name: assignedToName,
-          assigned_by: createdBy,
-          assigned_by_name: createdByName,
-          assignment_type: 'meeting',
-          deadline_date: deadlineDate,
-          deadline_time: deadlineTime || null,
-          priority: priority || 'medium',
-          description: `Meeting follow-up: ${title}`,
-          completion_status: 'assigned',
-          organization_id: organizationId && organizationId !== 'undefined' ? organizationId : null
+        // Create meeting
+        const meeting = await tx.meeting.create({
+          data: {
+            title: body.title,
+            description: body.description || null,
+            taskId: body.taskId || null,
+            meetingType: body.meetingType,
+            clientId: clientId || null,
+            location: body.locationDetails || body.location,
+            locationType: body.locationType || 'office',
+            latitude: body.currentLocation?.lat || body.latitude,
+            longitude: body.currentLocation?.lng || body.longitude,
+            locationAddress: body.currentLocation?.address || body.locationAddress,
+            meetingDate: body.meetingDate,
+            meetingTime: body.meetingTime || '10:00:00',
+            durationMinutes: body.duration ? parseInt(body.duration) : 60,
+            createdBy: user.id,
+            createdByName: user.name,
+            assignedTo: body.assignedTo || null,
+            assignedToName: assignedToName || null,
+            deadlineDate: body.deadlineDate || null,
+            deadlineTime: body.deadlineTime || null,
+            priority: body.priority || 'MEDIUM',
+            status: 'scheduled',
+            organizationId: user.organizationId,
+            actionItemsCount: body.meetingMinutes?.length || 0,
+            completedActionItems: 0,
+            attendeeCount: (body.internalAttendees?.length || 0) + (body.externalAttendees?.length || 0)
+          }
         });
 
-      if (assignmentError) {
-        console.error('Error creating deadline assignment:', assignmentError);
-        // Don't fail the entire operation for assignment errors
-      }
+        // Add internal attendees
+        if (body.internalAttendees && body.internalAttendees.length > 0) {
+          const internalAttendeesData = body.internalAttendees.map((attendee: any) => ({
+            meetingId: meeting.id,
+            userId: attendee.id,
+            attendeeName: attendee.name,
+            attendeeEmail: attendee.email,
+            attendeeType: 'INTERNAL',
+            organizationId: user.organizationId
+          }));
+
+          await tx.meetingAttendee.createMany({
+            data: internalAttendeesData
+          });
+        }
+
+        // Add external attendees
+        if (body.externalAttendees && body.externalAttendees.length > 0) {
+          const externalAttendeesData = body.externalAttendees.map((attendee: any) => ({
+            meetingId: meeting.id,
+            userId: null,
+            attendeeName: attendee.name,
+            attendeeEmail: attendee.email,
+            attendeeOrganization: attendee.organization || null,
+            attendeeType: 'EXTERNAL',
+            organizationId: user.organizationId
+          }));
+
+          await tx.meetingAttendee.createMany({
+            data: externalAttendeesData
+          });
+        }
+
+        // Add absentees
+        if (body.absentees && body.absentees.length > 0) {
+          const absenteesData = body.absentees.map((absentee: any) => ({
+            meetingId: meeting.id,
+            userId: absentee.id,
+            attendeeName: absentee.name,
+            attendeeEmail: absentee.email,
+            attendeeType: 'ABSENTEE',
+            absenteeReason: absentee.reason || null,
+            organizationId: user.organizationId
+          }));
+
+          await tx.meetingAttendee.createMany({
+            data: absenteesData
+          });
+        }
+
+        // Create action items (meeting minutes)
+        if (body.meetingMinutes && body.meetingMinutes.length > 0) {
+          const actionItems = body.meetingMinutes.map((item: any) => ({
+            meetingId: meeting.id,
+            organizationId: user.organizationId,
+            serialNo: item.serialNo || 1,
+            responsibility: item.responsibility,
+            assignedToId: item.assignedToId,
+            assignedToName: item.assignedToName,
+            deadline: item.deadline,
+            remarks: item.remarks,
+            isDone: item.isDone || false
+          }));
+
+          await tx.meetingMinute.createMany({
+            data: actionItems
+          });
+        }
+
+        // Create notification for assigned person
+        if (body.assignedTo) {
+          await tx.notification.create({
+            data: {
+              userId: body.assignedTo,
+              organizationId: user.organizationId,
+              message: `You have been assigned to a new meeting: ${body.title} scheduled for ${body.meetingDate}`,
+              requestType: 'meeting'
+            }
+          });
+        }
+
+        // Notify action item assignees
+        if (body.meetingMinutes && body.meetingMinutes.length > 0) {
+          const uniqueAssignees = [...new Set(body.meetingMinutes.map((item: any) => item.assignedToId).filter(Boolean))];
+          const notifications = uniqueAssignees.map((assigneeId: string) => ({
+            userId: assigneeId,
+            organizationId: user.organizationId,
+            message: `You have been assigned action items from meeting: ${body.title}`,
+            requestType: 'meeting_action_item'
+          }));
+
+          if (notifications.length > 0) {
+            await tx.notification.createMany({
+              data: notifications
+            });
+          }
+        }
+
+        // Create deadline assignment if assigned to someone
+        if (body.assignedTo && body.deadlineDate) {
+          await tx.meetingDeadlineAssignment.create({
+            data: {
+              meetingId: meeting.id,
+              assignedTo: body.assignedTo,
+              assignedToName: assignedToName || '',
+              assignedBy: user.id,
+              assignedByName: user.name,
+              assignmentType: 'MEETING',
+              deadlineDate: body.deadlineDate,
+              deadlineTime: body.deadlineTime,
+              priority: body.priority || 'MEDIUM',
+              description: `Meeting follow-up: ${body.title}`,
+              completionStatus: 'ASSIGNED',
+              organizationId: user.organizationId
+            }
+          });
+        }
+
+        return meeting;
+      });
+
+      await logApiAction(user.id, 'CREATE', 'meeting', newMeeting.id, { 
+        title: body.title,
+        actionItemsCount: body.meetingMinutes?.length || 0
+      });
+
+      return successResponse({
+        success: true,
+        meetingId: newMeeting.id,
+        meeting: newMeeting,
+        message: 'Meeting created successfully'
+      }, 201);
+
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      return errorResponse('Failed to create meeting');
     }
-
-    return NextResponse.json({ 
-      success: true, 
-      meetingId: meeting.id,
-      message: 'Meeting created successfully' 
-    });
-
-  } catch (error) {
-    console.error('Error in meetings POST:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

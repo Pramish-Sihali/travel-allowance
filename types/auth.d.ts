@@ -1,7 +1,7 @@
 import "next-auth";
 import { JWT } from "next-auth/jwt";
 
-export type UserRole = "employee" | "approver" | "checker" | "admin";
+export type UserRole = "employee" | "manager" | "approver" | "checker" | "finance" | "hr_admin" | "admin" | "super_admin";
 
 declare module "next-auth" {
   interface User {

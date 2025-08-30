@@ -38,14 +38,32 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
 
   const fetchMeetings = async () => {
     try {
-      const response = await fetch(`/api/meetings?employeeId=${session?.user?.id || ''}`);
+      const params = new URLSearchParams({
+        myMeetings: 'true',
+        includeActionItems: 'true',
+        page: '1',
+        limit: '10'
+      });
+      
+      const response = await fetch(`/api/meetings?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        const meetingsData = data.meetings || data; // Handle both response formats
+        
+        let meetingsData = [];
+        // Handle new API response format
+        if (data.success && data.data) {
+          meetingsData = data.data.meetings || [];
+        } else {
+          // Fallback for old format
+          meetingsData = data.meetings || data || [];
+        }
+        
         setMeetings(meetingsData);
+        
         // Check if user has any follow-up tasks
         const hasActiveTasks = meetingsData.some((meeting: Meeting) => 
-          meeting.action_items_count > 0 && meeting.status !== 'completed'
+          (meeting.action_items_count || meeting.actualActionItemsCount || 0) > 0 && 
+          meeting.status !== 'completed'
         );
         setHasFollowUpTasks(hasActiveTasks);
       }

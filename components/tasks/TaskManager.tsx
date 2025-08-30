@@ -65,24 +65,39 @@ export default function TaskManager() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const url = selectedDepartment !== 'all' 
-        ? `/api/tasks?department=${encodeURIComponent(selectedDepartment)}`
-        : '/api/tasks';
+      const params = new URLSearchParams();
+      if (selectedDepartment !== 'all') {
+        params.append('department', selectedDepartment);
+      }
+      params.append('includeActionItems', 'true');
+      params.append('page', '1');
+      params.append('limit', '50');
       
+      const url = `/api/tasks?${params.toString()}`;
       console.log('Fetching tasks from:', url);
+      
       const response = await fetch(url);
       console.log('Response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
         console.log('Tasks data received:', data);
-        setTasks(data);
+        
+        // Handle new API response format
+        if (data.success && data.data) {
+          setTasks(data.data.tasks || []);
+        } else {
+          // Fallback for old format
+          setTasks(Array.isArray(data) ? data : data.tasks || []);
+        }
       } else {
-        const errorData = await response.text();
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to fetch tasks:', response.status, errorData);
+        setTasks([]);
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -90,27 +105,35 @@ export default function TaskManager() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('/api/departments');
+      const response = await fetch('/api/departments?includeStats=true');
       if (response.ok) {
         const data = await response.json();
-        setDepartments(data);
+        // Handle new API response format
+        if (data.success && data.data) {
+          setDepartments(data.data.departments || []);
+        } else {
+          // Fallback for old format
+          setDepartments(Array.isArray(data) ? data : data.departments || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
+      setDepartments([]);
     }
   };
 
   const fetchUserActionItems = async () => {
     try {
-      const response = await fetch('/api/meetings/action-items');
+      const response = await fetch('/api/follow-ups/user?userId=' + session?.user?.id);
       if (response.ok) {
         const data = await response.json();
-        // Extract actionItems array from response and filter
-        const actionItems = data.actionItems || [];
-        const userItems = actionItems.filter((item: any) => 
-          item.assignedto === session?.user?.id
-        );
-        setUserActionItems(userItems);
+        // Handle new API response format
+        if (data.success && data.data) {
+          setUserActionItems(data.data.actionItems || []);
+        } else {
+          // Fallback for old format
+          setUserActionItems(data.actionItems || data || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching action items:', error);

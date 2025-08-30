@@ -1,163 +1,168 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
+import { 
+  withAuth, 
+  successResponse, 
+  errorResponse,
+  logApiAction 
+} from '@/lib/api-auth';
+import { dbHandler } from '@/lib/db.global';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// GET /api/follow-ups/user - Get user's meeting action items (follow-ups)
+export const GET = withAuth(
+  async (request, user) => {
+    try {
+      const { searchParams } = request.nextUrl;
+      const userId = searchParams.get('userId') || user.id;
+      const organizationId = user.organizationId;
+
+      // Check if user can access the requested user's data
+      if (userId !== user.id && !['HR_ADMIN', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+        return errorResponse('Access denied', 403);
+      }
+
+      // Get all meeting minutes (action items) assigned to the user
+      const meetingMinutes = await dbHandler.prisma.meetingMinute.findMany({
+        where: {
+          assignedToId: userId,
+          organizationId,
+        },
+        include: {
+          meeting: {
+            select: {
+              id: true,
+              title: true,
+              meetingDate: true,
+              meetingTime: true,
+              status: true,
+              createdByName: true
+            }
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              employeeId: true
+            }
+          }
+        },
+        orderBy: {
+          deadline: 'asc'
+        }
+      });
+
+      // Transform the data to match the expected format
+      const transformedData = meetingMinutes.map((item: any) => ({
+        id: item.id,
+        meeting_id: item.meetingId,
+        meeting_title: item.meeting?.title || 'N/A',
+        meeting_date: item.meeting?.meetingDate || '',
+        meeting_time: item.meeting?.meetingTime || '',
+        meeting_status: item.meeting?.status || 'unknown',
+        meeting_created_by: item.meeting?.createdByName || 'N/A',
+        responsibility: item.responsibility,
+        assigned_to_name: item.assignedToName,
+        deadline: item.deadline,
+        deadline_time: null, // Not in current schema, can be added if needed
+        priority: 'medium', // Default priority, can be enhanced
+        remarks: item.remarks || '',
+        is_done: item.isDone,
+        completion_status: item.isDone ? 'completed' : 'pending',
+        completion_percentage: item.isDone ? 100 : 0,
+        flags: '', // Can be enhanced based on requirements
+        completed_by: null, // Can be added to schema if needed
+        completed_at: null, // Can be added to schema if needed
+        created_at: item.createdAt,
+        updated_at: item.updatedAt
+      }));
+
+      // Calculate statistics
+      const stats = {
+        total: transformedData.length,
+        completed: transformedData.filter((item: any) => item.is_done).length,
+        pending: transformedData.filter((item: any) => !item.is_done).length,
+        overdue: transformedData.filter((item: any) => 
+          !item.is_done && 
+          item.deadline && 
+          new Date(item.deadline) < new Date()
+        ).length
+      };
+
+      await logApiAction(user.id, 'VIEW', 'follow_ups', undefined, { 
+        userId, 
+        count: transformedData.length 
+      });
+
+      return successResponse({
+        actionItems: transformedData,
+        stats
+      });
+
+    } catch (error) {
+      console.error('Error fetching user follow-ups:', error);
+      return errorResponse('Failed to fetch follow-ups');
     }
-
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') || session.user.id;
-    const organizationId = session.user.organizationId;
-
-    // First, get all meetings with action items where the user is assigned
-    const { data: meetingMinutes, error: minutesError } = await supabaseAdmin
-      .from('meeting_minutes')
-      .select(`
-        id,
-        meeting_id,
-        content,
-        assigned_to,
-        assigned_to_name,
-        due_date,
-        due_time,
-        priority,
-        completion_status,
-        completion_percentage,
-        is_done,
-        flags,
-        remarks,
-        deadline_notes,
-        completed_by_name,
-        completed_at,
-        created_at,
-        updated_at,
-        meetings!inner(
-          id,
-          title,
-          meeting_date,
-          meeting_time,
-          status,
-          created_by_name
-        )
-      `)
-      .eq('organization_id', organizationId)
-      .eq('assigned_to', userId)
-      .eq('is_action_item', true)
-      .order('due_date', { ascending: true, nullsFirst: false });
-
-    if (minutesError) {
-      console.error('Error fetching user follow-ups:', minutesError);
-      return NextResponse.json({ error: minutesError.message }, { status: 500 });
-    }
-
-    // Transform the data to match the expected format
-    const transformedData = (meetingMinutes || []).map((item: any) => ({
-      id: item.id,
-      meeting_id: item.meeting_id,
-      meeting_title: item.meetings?.title || 'N/A',
-      meeting_date: item.meetings?.meeting_date || '',
-      meeting_time: item.meetings?.meeting_time || '',
-      meeting_status: item.meetings?.status || 'unknown',
-      meeting_created_by: item.meetings?.created_by_name || 'N/A',
-      responsibility: item.content,
-      assigned_to_name: item.assigned_to_name,
-      deadline: item.due_date,
-      deadline_time: item.due_time,
-      priority: item.priority,
-      remarks: item.remarks || item.deadline_notes || '',
-      is_done: item.is_done !== null ? item.is_done : (item.completion_status === 'completed'),
-      completion_status: item.completion_status,
-      completion_percentage: item.completion_percentage || 0,
-      flags: item.flags || (item.priority ? `Priority: ${item.priority}` : ''),
-      completed_by: item.completed_by_name,
-      completed_at: item.completed_at,
-      created_at: item.created_at,
-      updated_at: item.updated_at
-    }));
-
-    // Calculate statistics
-    const stats = {
-      total: transformedData.length,
-      completed: transformedData.filter(item => item.is_done).length,
-      pending: transformedData.filter(item => !item.is_done).length,
-      overdue: transformedData.filter(item => 
-        !item.is_done && 
-        item.deadline && 
-        new Date(item.deadline) < new Date()
-      ).length
-    };
-
-    return NextResponse.json({
-      success: true,
-      actionItems: transformedData,
-      stats
-    });
-
-  } catch (error) {
-    console.error('Error in user follow-ups GET:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
 
-// Update action item status
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+// PATCH /api/follow-ups/user - Update action item status
+export const PATCH = withAuth(
+  async (request, user) => {
+    try {
+      const { searchParams } = request.nextUrl;
+      const itemId = searchParams.get('itemId');
+      
+      if (!itemId) {
+        return errorResponse('Item ID is required', 400);
+      }
 
-    const { searchParams } = new URL(request.url);
-    const itemId = searchParams.get('itemId');
-    
-    if (!itemId) {
-      return NextResponse.json({ error: 'Item ID is required' }, { status: 400 });
-    }
+      const body = await request.json();
+      const { is_done } = body;
 
-    const body = await request.json();
-    const { is_done, completion_status, completion_percentage } = body;
+      // Check if the action item exists and user has access
+      const existingItem = await dbHandler.prisma.meetingMinute.findUnique({
+        where: { id: itemId },
+        select: { 
+          id: true, 
+          assignedToId: true, 
+          organizationId: true,
+          responsibility: true
+        }
+      });
 
-    const updateData: any = {
-      is_done: is_done,
-      completion_status: completion_status || (is_done ? 'completed' : 'pending'),
-      completion_percentage: completion_percentage || (is_done ? 100 : 0),
-      updated_at: new Date().toISOString(),
-    };
+      if (!existingItem) {
+        return errorResponse('Action item not found', 404);
+      }
 
-    if (is_done) {
-      updateData.completed_at = new Date().toISOString();
-      updateData.completed_by_name = session.user.name || session.user.email;
-    } else {
-      updateData.completed_at = null;
-      updateData.completed_by_name = null;
-    }
+      if (existingItem.organizationId !== user.organizationId) {
+        return errorResponse('Access denied', 403);
+      }
 
-    const { data, error } = await supabaseAdmin
-      .from('meeting_minutes')
-      .update(updateData)
-      .eq('id', itemId)
-      .eq('organization_id', session.user.organizationId)
-      .select()
-      .single();
+      // Only the assignee or admins can update
+      if (existingItem.assignedToId !== user.id && 
+          !['HR_ADMIN', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+        return errorResponse('Access denied', 403);
+      }
 
-    if (error) {
+      // Update the action item
+      const updatedItem = await dbHandler.prisma.meetingMinute.update({
+        where: { id: itemId },
+        data: {
+          isDone: is_done
+        }
+      });
+
+      await logApiAction(user.id, 'UPDATE', 'meeting_minute', itemId, { 
+        action: is_done ? 'completed' : 'reopened'
+      });
+
+      return successResponse({
+        item: updatedItem,
+        message: `Action item marked as ${is_done ? 'completed' : 'pending'}`
+      });
+
+    } catch (error) {
       console.error('Error updating follow-up item:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return errorResponse('Failed to update action item');
     }
-
-    return NextResponse.json({
-      success: true,
-      item: data,
-      message: `Action item marked as ${is_done ? 'completed' : 'pending'}`
-    });
-
-  } catch (error) {
-    console.error('Error in user follow-ups PATCH:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

@@ -1,248 +1,396 @@
 // app/api/tasks/route.ts
+// Enhanced Task Management API with Action Items and Meeting Integration
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
+import { NextRequest } from 'next/server';
+import { 
+  withAuth, 
+  successResponse, 
+  errorResponse,
+  logApiAction
+} from '@/lib/api-auth';
+import { dbHandler } from '@/lib/db.global';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    console.log('Session debug:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      organizationId: session?.user?.organizationId,
-      userRole: session?.user?.role
-    });
-    
-    if (!session?.user?.id || !session?.user?.organizationId) {
-      console.log('Auth failed - missing session or organizationId');
-      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
-    }
+// GET /api/tasks - Get tasks with comprehensive filtering and meeting action items
+export const GET = withAuth(
+  async (request, user) => {
+    try {
+      const { searchParams } = request.nextUrl;
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '20');
+      const department = searchParams.get('department');
+      const status = searchParams.get('status');
+      const priority = searchParams.get('priority');
+      const ragStatus = searchParams.get('ragStatus');
+      const assignedTo = searchParams.get('assignedTo');
+      const search = searchParams.get('search');
+      const includeActionItems = searchParams.get('includeActionItems') !== 'false';
+      const myTasks = searchParams.get('myTasks') === 'true';
+      const overdue = searchParams.get('overdue') === 'true';
 
-    const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
+      let where: any = {
+        organizationId: user.organizationId
+      };
 
-    // First, get tasks from same organization only
-    const { data: tasksData, error: tasksError } = await supabaseAdmin
-      .from('tasks')
-      .select('*')
-      .eq('organizationid', session.user.organizationId)
-      .order('createdat', { ascending: false });
-
-    if (tasksError) {
-      console.error('Error fetching tasks:', tasksError);
-      return NextResponse.json({ error: 'Failed to fetch tasks', details: tasksError }, { status: 500 });
-    }
-
-    console.log('Raw tasks data:', tasksData?.length || 0, 'tasks found');
-    console.log('Organization ID from session:', session.user.organizationId);
-    console.log('User ID from session:', session.user.id);
-    console.log('Department filter applied:', department);
-
-    // Then get departments from same organization
-    const { data: departmentsData, error: deptError } = await supabaseAdmin
-      .from('departments')
-      .select('*')
-      .eq('organizationid', session.user.organizationId);
-
-    if (deptError) {
-      console.error('Error fetching departments:', deptError);
-      return NextResponse.json({ error: 'Failed to fetch departments' }, { status: 500 });
-    }
-
-    // Create department lookup
-    const deptLookup = departmentsData.reduce((acc, dept) => {
-      acc[dept.id] = dept;
-      return acc;
-    }, {});
-
-    // Filter and map tasks
-    let filteredTasks = tasksData;
-    if (department && department !== 'all') {
-      const targetDept = departmentsData.find(d => d.name === department);
-      if (targetDept) {
-        filteredTasks = tasksData.filter(task => task.departmentid === targetDept.id);
+      // Role-based filtering
+      if (user.role === 'EMPLOYEE' || myTasks) {
+        where.OR = [
+          { createdBy: user.id },
+          { assignedUserIds: { has: user.id } }
+        ];
+      } else if (user.role === 'MANAGER') {
+        // Managers can see their team's tasks
+        const teamMembers = await dbHandler.prisma.user.findMany({
+          where: { managerId: user.id, organizationId: user.organizationId },
+          select: { id: true }
+        });
+        const teamIds = teamMembers.map(m => m.id);
+        where.OR = [
+          { createdBy: user.id },
+          { assignedUserIds: { has: user.id } },
+          { createdBy: { in: teamIds } },
+          { assignedUserIds: { hasSome: teamIds } }
+        ];
       }
-    }
+      // HR_ADMIN, ADMIN, SUPER_ADMIN can see all tasks (no additional filter)
 
-    // Transform and ensure proper data structure
-    const tasks = (filteredTasks || []).map(task => ({
-      ...task,
-      departmentName: deptLookup[task.departmentid]?.name || 'Unknown',
-      assignedTo: task.assignedto && Array.isArray(task.assignedto) ? task.assignedto : [],
-      assignedUserIds: task.assigneduserids && Array.isArray(task.assigneduserids) ? task.assigneduserids : []
-    }));
+      // Apply filters
+      if (department && department !== 'all') where.department = department;
+      if (status) where.status = status;
+      if (priority) where.priority = priority;
+      if (ragStatus) where.ragStatus = ragStatus;
+      if (assignedTo) where.assignedUserIds = { has: assignedTo };
+      if (overdue) {
+        where.dueDate = { lt: new Date().toISOString() };
+        where.status = { not: 'COMPLETED' };
+      }
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { remarks: { contains: search, mode: 'insensitive' } }
+        ];
+      }
 
-    // Now fetch meeting action items assigned to the current user and convert them to task format
-    const { data: meetingActionItems, error: actionItemsError } = await supabaseAdmin
-      .from('meeting_minutes')
-      .select(`
-        id,
-        content,
-        responsibility,
-        assignedto,
-        assignedtoname,
-        duedate,
-        priority,
-        completionstatus,
-        isdone,
-        createdat,
-        updatedat,
-        createdbyname,
-        meeting:meetings!meeting_minutes_meeting_id_fkey (
-          id,
-          title,
-          meetingdate,
-          meetingtype,
-          createdbyname
-        )
-      `)
-      .eq('isactionitem', true)
-      .eq('assignedto', session.user.id)
-      .eq('organizationid', session.user.organizationId)
-      .order('createdat', { ascending: false });
+      const [tasks, totalCount] = await Promise.all([
+        dbHandler.prisma.task.findMany({
+          where,
+          include: {
+            creator: {
+              select: { id: true, name: true, employeeId: true }
+            },
+            department_relation: {
+              select: { id: true, name: true }
+            },
+            actionItems: {
+              include: {
+                assignee: {
+                  select: { id: true, name: true, employeeId: true }
+                }
+              },
+              orderBy: { serialNo: 'asc' }
+            }
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: 'desc' }
+        }),
+        dbHandler.prisma.task.count({ where })
+      ]);
 
-    // Convert meeting action items to task format
-    const meetingTasks = (meetingActionItems || []).map(item => {
-      const meeting = Array.isArray(item.meeting) ? item.meeting[0] : item.meeting;
-      return {
+      // Get meeting action items if requested
+      let meetingActionItems: any[] = [];
+      if (includeActionItems) {
+        const actionItemWhere: any = {
+          organizationId: user.organizationId
+        };
+
+        if (user.role === 'EMPLOYEE' || myTasks) {
+          actionItemWhere.assignedToId = user.id;
+        } else if (user.role === 'MANAGER') {
+          const teamMembers = await dbHandler.prisma.user.findMany({
+            where: { managerId: user.id, organizationId: user.organizationId },
+            select: { id: true }
+          });
+          const teamIds = teamMembers.map(m => m.id);
+          actionItemWhere.assignedToId = { in: [user.id, ...teamIds] };
+        }
+
+        meetingActionItems = await dbHandler.prisma.meetingMinute.findMany({
+          where: actionItemWhere,
+          include: {
+            meeting: {
+              select: {
+                id: true,
+                title: true,
+                meetingDate: true,
+                meetingType: true,
+                createdByName: true
+              }
+            },
+            assignee: {
+              select: { id: true, name: true, employeeId: true }
+            }
+          },
+          orderBy: { deadline: 'asc' }
+        });
+      }
+
+      // Transform tasks with computed fields
+      const transformedTasks = tasks.map(task => {
+        const actionItems = task.actionItems || [];
+        const completedItems = actionItems.filter(item => item.isCompleted);
+        const isOverdue = task.dueDate && 
+          new Date(task.dueDate) < new Date() && 
+          task.status !== 'COMPLETED';
+
+        return {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          department: task.department,
+          departmentName: task.department_relation?.name || task.department,
+          assignedTo: task.assignedTo,
+          assignedUserIds: task.assignedUserIds,
+          status: task.status,
+          priority: task.priority,
+          ragStatus: task.ragStatus,
+          dueDate: task.dueDate,
+          startDate: task.startDate,
+          completionDate: task.completionDate,
+          bottlenecks: task.bottlenecks,
+          ragTakeaway: task.ragTakeaway,
+          remarks: task.remarks,
+          createdBy: task.createdBy,
+          createdByName: task.createdByName,
+          creator: task.creator,
+          lastUpdatedBy: task.lastUpdatedBy,
+          lastUpdatedByName: task.lastUpdatedByName,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          
+          // Computed fields
+          totalHoursSpent: task.totalHoursSpent,
+          actionItemsCount: actionItems.length,
+          completedActionItems: completedItems.length,
+          completionPercentage: actionItems.length > 0 ? 
+            (completedItems.length / actionItems.length) * 100 : 0,
+          isOverdue,
+          daysUntilDue: task.dueDate ? 
+            Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          
+          // Include action items details
+          actionItems: actionItems.map(item => ({
+            id: item.id,
+            serialNo: item.serialNo,
+            description: item.description,
+            assignedToId: item.assignedToId,
+            assignedToName: item.assignedToName,
+            assignee: item.assignee,
+            dueDate: item.dueDate,
+            priority: item.priority,
+            isCompleted: item.isCompleted,
+            completedAt: item.completedAt,
+            notes: item.notes,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt
+          }))
+        };
+      });
+
+      // Transform meeting action items to task-like format
+      const meetingTaskItems = meetingActionItems.map(item => ({
         id: `meeting-${item.id}`,
-        title: `[Meeting] ${item.responsibility || item.content}`,
-        description: `From meeting: ${meeting?.title || 'Unknown Meeting'} (${new Date(meeting?.meetingdate || '').toLocaleDateString()})`,
-      departmentid: 'meeting-actions',
-      departmentName: 'Meeting Actions',
-      assignedTo: [item.assignedtoname || 'Unknown'],
-      assignedUserIds: [item.assignedto],
-      status: item.completionstatus === 'completed' ? 'Completed' : 
-              item.completionstatus === 'in_progress' ? 'In Progress' : 'Not Started',
-      priority: item.priority === 'urgent' ? 'Critical' :
-                item.priority === 'high' ? 'High' :
-                item.priority === 'low' ? 'Low' : 'Medium',
-      ragStatus: item.isdone ? 'Green' : 
-                 item.completionstatus === 'in_progress' ? 'Amber' : 'Unrated',
-      dueDate: item.duedate,
-      startDate: null,
-      completionDate: item.isdone ? item.updatedat?.split('T')[0] : null,
-      bottlenecks: null,
-      ragTakeaway: null,
-        remarks: `Meeting Action Item from: ${meeting?.title || 'Unknown Meeting'}`,
+        title: `[Meeting Action] ${item.responsibility}`,
+        description: `From meeting: ${item.meeting?.title || 'Unknown Meeting'} (${
+          item.meeting?.meetingDate ? new Date(item.meeting.meetingDate).toLocaleDateString() : 'No date'
+        })`,
+        department: 'meeting-actions',
+        departmentName: 'Meeting Actions',
+        assignedTo: [item.assignedToName || 'Unknown'],
+        assignedUserIds: [item.assignedToId],
+        status: item.isDone ? 'COMPLETED' : 'IN_PROGRESS',
+        priority: 'MEDIUM',
+        ragStatus: item.isDone ? 'GREEN' : 'AMBER',
+        dueDate: item.deadline,
+        startDate: null,
+        completionDate: item.isDone ? item.updatedAt : null,
+        bottlenecks: null,
+        ragTakeaway: null,
+        remarks: item.remarks || `Meeting Action Item from: ${item.meeting?.title || 'Unknown Meeting'}`,
         createdBy: null,
-        createdByName: item.createdbyname,
+        createdByName: item.meeting?.createdByName,
+        creator: null,
         lastUpdatedBy: null,
         lastUpdatedByName: null,
-        createdAt: item.createdat,
-        updatedAt: item.updatedat,
-        // Add special fields to identify this as a meeting action item
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        
+        // Meeting-specific fields
         isMeetingActionItem: true,
         meetingActionItemId: item.id,
-        meetingId: meeting?.id,
-        meetingTitle: meeting?.title
+        meetingId: item.meetingId,
+        meetingTitle: item.meeting?.title,
+        
+        // Computed fields
+        totalHoursSpent: 0,
+        actionItemsCount: 0,
+        completedActionItems: 0,
+        completionPercentage: item.isDone ? 100 : 0,
+        isOverdue: item.deadline && new Date(item.deadline) < new Date() && !item.isDone,
+        daysUntilDue: item.deadline ? 
+          Math.ceil((new Date(item.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        actionItems: []
+      }));
+
+      // Combine all tasks
+      const allTasks = [...transformedTasks, ...meetingTaskItems];
+
+      // Calculate summary statistics
+      const summary = {
+        total: totalCount + meetingActionItems.length,
+        regularTasks: totalCount,
+        meetingActionItems: meetingActionItems.length,
+        byStatus: {
+          pending: allTasks.filter(t => t.status === 'PENDING').length,
+          inProgress: allTasks.filter(t => t.status === 'IN_PROGRESS').length,
+          completed: allTasks.filter(t => t.status === 'COMPLETED').length,
+          onHold: allTasks.filter(t => t.status === 'ON_HOLD').length
+        },
+        byPriority: {
+          critical: allTasks.filter(t => t.priority === 'CRITICAL').length,
+          high: allTasks.filter(t => t.priority === 'HIGH').length,
+          medium: allTasks.filter(t => t.priority === 'MEDIUM').length,
+          low: allTasks.filter(t => t.priority === 'LOW').length
+        },
+        byRagStatus: {
+          red: allTasks.filter(t => t.ragStatus === 'RED').length,
+          amber: allTasks.filter(t => t.ragStatus === 'AMBER').length,
+          green: allTasks.filter(t => t.ragStatus === 'GREEN').length,
+          unrated: allTasks.filter(t => t.ragStatus === 'UNRATED').length
+        },
+        overdue: allTasks.filter(t => t.isOverdue).length,
+        dueThisWeek: allTasks.filter(t => {
+          if (!t.dueDate) return false;
+          const dueDate = new Date(t.dueDate);
+          const weekFromNow = new Date();
+          weekFromNow.setDate(weekFromNow.getDate() + 7);
+          return dueDate <= weekFromNow && dueDate >= new Date();
+        }).length
       };
-    });
 
-    // Combine regular tasks and meeting action items
-    const allTasks = [...tasks, ...meetingTasks];
+      await logApiAction(user.id, 'VIEW', 'tasks', undefined, { 
+        count: allTasks.length,
+        filters: { department, status, priority, myTasks }
+      });
 
-    console.log('Returning tasks:', tasks.length, 'regular tasks and', meetingTasks.length, 'meeting action items');
-    return NextResponse.json(allTasks);
-  } catch (error) {
-    console.error('Exception in GET /api/tasks:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      return successResponse({
+        tasks: allTasks,
+        summary,
+        pagination: {
+          page,
+          limit,
+          total: totalCount + meetingActionItems.length,
+          pages: Math.ceil((totalCount + meetingActionItems.length) / limit)
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      return errorResponse('Failed to fetch tasks');
+    }
   }
-}
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+// POST /api/tasks - Create new task with action items
+export const POST = withAuth(
+  async (request, user) => {
+    try {
+      const body = await request.json();
+      
+      // Validate required fields
+      if (!body.title || !body.department) {
+        return errorResponse('Title and department are required', 400);
+      }
 
-    // Get user information
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('role, name')
-      .eq('id', session.user.id)
-      .single();
+      const newTask = await dbHandler.prisma.$transaction(async (tx) => {
+        // Create main task
+        const task = await tx.task.create({
+          data: {
+            title: body.title,
+            description: body.description || '',
+            department: body.department,
+            assignedTo: body.assignedTo || [],
+            assignedUserIds: body.assignedUserIds || [],
+            status: body.status || 'PENDING',
+            priority: body.priority || 'MEDIUM',
+            ragStatus: body.ragStatus || 'UNRATED',
+            dueDate: body.dueDate || null,
+            startDate: body.startDate || null,
+            bottlenecks: body.bottlenecks || '',
+            ragTakeaway: body.ragTakeaway || '',
+            remarks: body.remarks || '',
+            createdBy: user.id,
+            createdByName: user.name,
+            lastUpdatedBy: user.id,
+            lastUpdatedByName: user.name,
+            organizationId: user.organizationId
+          },
+          include: {
+            creator: {
+              select: { id: true, name: true, employeeId: true }
+            },
+            department_relation: {
+              select: { id: true, name: true }
+            }
+          }
+        });
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+        // Create action items if provided
+        if (body.actionItems && body.actionItems.length > 0) {
+          const actionItems = body.actionItems.map((item: any, index: number) => ({
+            taskId: task.id,
+            organizationId: user.organizationId,
+            serialNo: item.serialNo || (index + 1),
+            description: item.description,
+            assignedToId: item.assignedToId,
+            assignedToName: item.assignedToName,
+            dueDate: item.dueDate,
+            priority: item.priority || 'MEDIUM',
+            notes: item.notes
+          }));
 
-    const body = await request.json();
-    const { 
-      title, 
-      description, 
-      departmentId, 
-      assignedTo, 
-      status, 
-      priority, 
-      ragStatus, 
-      dueDate, 
-      startDate, 
-      bottlenecks, 
-      ragTakeaway, 
-      remarks 
-    } = body;
+          await tx.taskActionItem.createMany({
+            data: actionItems
+          });
+        }
 
-    // Validate required fields
-    if (!title || !departmentId) {
-      return NextResponse.json({ error: 'Title and department are required' }, { status: 400 });
-    }
+        // Create notifications for assigned users
+        if (body.assignedUserIds && body.assignedUserIds.length > 0) {
+          const notifications = body.assignedUserIds.map((assigneeId: string) => ({
+            userId: assigneeId,
+            organizationId: user.organizationId,
+            message: `You have been assigned to a new task: ${body.title}`,
+            requestType: 'task'
+          }));
 
-    const insertData = {
-      title,
-      description: description || '',
-      departmentid: departmentId,
-      assignedto: assignedTo || [],
-      status: status || 'Not Started',
-      priority: priority || 'Medium',
-      ragstatus: ragStatus || 'Unrated',
-      duedate: dueDate || null,
-      startdate: startDate || null,
-      bottlenecks: bottlenecks || '',
-      ragtakeaway: ragTakeaway || '',
-      remarks: remarks || '',
-      createdby: session.user.id,
-      createdbyname: userData.name,
-      lastupdatedby: session.user.id,
-      lastupdatedbyname: userData.name,
-      organizationid: session.user.organizationId,
-      createdat: new Date().toISOString(),
-      updatedat: new Date().toISOString()
-    };
+          await tx.notification.createMany({
+            data: notifications
+          });
+        }
 
-    const { data: newTask, error } = await supabaseAdmin
-      .from('tasks')
-      .insert([insertData])
-      .select(`
-        *,
-        departments:departmentid (
-          id,
-          name,
-          description
-        )
-      `)
-      .single();
+        return task;
+      });
 
-    if (error) {
+      await logApiAction(user.id, 'CREATE', 'task', newTask.id, {
+        title: body.title,
+        actionItemsCount: body.actionItems?.length || 0
+      });
+
+      return successResponse(newTask, 201);
+
+    } catch (error) {
       console.error('Error creating task:', error);
-      return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+      return errorResponse('Failed to create task');
     }
-
-    // No transformation needed - database returns camelCase!
-    const formattedTask = {
-      ...newTask,
-      departmentName: newTask.departments?.name
-    };
-
-    return NextResponse.json(formattedTask, { status: 201 });
-  } catch (error) {
-    console.error('Exception in POST /api/tasks:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
