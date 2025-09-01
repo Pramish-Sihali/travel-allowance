@@ -21,7 +21,6 @@ export const GET = withAuth(
       const dateTo = searchParams.get('dateTo');
       const taskId = searchParams.get('taskId');
       const taskType = searchParams.get('taskType');
-      const personal = searchParams.get('personal') === 'true';
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -46,8 +45,7 @@ export const GET = withAuth(
 
       let where: any = {
         userId,
-        organizationId: user.organizationId,
-        isPersonal: personal
+        organizationId: user.organizationId
       };
 
       // Apply date filters
@@ -89,13 +87,9 @@ export const GET = withAuth(
         organizationId: log.organizationId,
         description: log.description,
         date: log.date,
-        startTime: log.startTime,
-        endTime: log.endTime,
-        totalDuration: log.totalDuration,
-        breakDuration: log.breakDuration,
         hoursSpent: log.hoursSpent,
         taskType: log.taskType,
-        isPersonal: log.isPersonal,
+        userName: log.userName,
         meetingActionItemId: log.meetingActionItemId,
         createdAt: log.createdAt,
         updatedAt: log.updatedAt,
@@ -103,13 +97,11 @@ export const GET = withAuth(
         // Related data
         user: log.user,
         task: log.task,
-        userName: log.user?.name,
         taskTitle: log.task?.title || (log.meetingActionItemId ? `Meeting Action Item ${log.meetingActionItemId}` : null),
         
         // Computed fields
-        actualHours: log.totalDuration ? Math.round((log.totalDuration / 3600) * 100) / 100 : log.hoursSpent,
-        isLongSession: log.totalDuration > 8 * 3600, // More than 8 hours
-        hasBreaks: log.breakDuration > 0
+        actualHours: Number(log.hoursSpent),
+        isLongSession: Number(log.hoursSpent) > 8
       }));
 
       // Calculate summary statistics
@@ -128,15 +120,12 @@ export const GET = withAuth(
         totalHours: Math.round(totalHours * 100) / 100,
         totalDays,
         averageHoursPerDay: totalDays > 0 ? Math.round((totalHours / totalDays) * 100) / 100 : 0,
-        byTaskType: taskTypes,
-        personalLogs: transformedTimeLogs.filter(log => log.isPersonal).length,
-        workLogs: transformedTimeLogs.filter(log => !log.isPersonal).length
+        byTaskType: taskTypes
       };
 
       await logApiAction(user.id, 'VIEW', 'time_logs', undefined, { 
         targetUserId: userId,
-        count: timeLogs.length,
-        personal
+        count: timeLogs.length
       });
 
       return successResponse({
@@ -177,19 +166,7 @@ export const POST = withAuth(
         return errorResponse('Hours spent must be between 0 and 24', 400);
       }
 
-      // Calculate duration if start/end times provided
-      let totalDuration = body.totalDuration;
-      if (body.startTime && body.endTime && !totalDuration) {
-        const start = new Date(`${body.date}T${body.startTime}`);
-        const end = new Date(`${body.date}T${body.endTime}`);
-        totalDuration = Math.floor((end.getTime() - start.getTime()) / 1000);
-      }
-
-      // Calculate hours from duration if not provided
-      let hoursSpent = body.hoursSpent;
-      if (!hoursSpent && totalDuration) {
-        hoursSpent = Math.round((totalDuration / 3600) * 100) / 100;
-      }
+      const hoursSpent = body.hoursSpent || 0;
 
       // Verify task exists if taskId provided
       if (body.taskId) {
@@ -221,13 +198,9 @@ export const POST = withAuth(
           organizationId: user.organizationId,
           description: body.description || '',
           date: body.date,
-          startTime: body.startTime || null,
-          endTime: body.endTime || null,
-          totalDuration: totalDuration || null,
-          breakDuration: body.breakDuration || 0,
-          hoursSpent: hoursSpent || 0,
-          taskType: body.taskType || 'development',
-          isPersonal: body.isPersonal || false,
+          hoursSpent: hoursSpent,
+          taskType: body.taskType || 'DESK_RESEARCH',
+          userName: user.name || 'Unknown',
           meetingActionItemId: body.meetingActionItemId || null
         },
         include: {
@@ -240,22 +213,10 @@ export const POST = withAuth(
         }
       });
 
-      // Update task total hours if this is a task log
-      if (body.taskId && hoursSpent) {
-        await dbHandler.prisma.task.update({
-          where: { id: body.taskId },
-          data: {
-            totalHoursSpent: {
-              increment: hoursSpent
-            }
-          }
-        });
-      }
 
       await logApiAction(user.id, 'CREATE', 'time_log', timeLog.id, {
         taskId: body.taskId,
-        hoursSpent,
-        isPersonal: body.isPersonal
+        hoursSpent
       });
 
       return successResponse(timeLog, 201);
@@ -295,33 +256,15 @@ export const PUT = withAuth(
         return errorResponse('Access denied - You can only update your own time logs', 403);
       }
 
-      // Calculate duration if start/end times provided
-      let totalDuration = updateData.totalDuration;
-      if (updateData.startTime && updateData.endTime && !totalDuration) {
-        const date = updateData.date || existingLog.date;
-        const start = new Date(`${date}T${updateData.startTime}`);
-        const end = new Date(`${date}T${updateData.endTime}`);
-        totalDuration = Math.floor((end.getTime() - start.getTime()) / 1000);
-      }
-
-      // Calculate hours from duration if not provided
-      let hoursSpent = updateData.hoursSpent;
-      if (!hoursSpent && totalDuration) {
-        hoursSpent = Math.round((totalDuration / 3600) * 100) / 100;
-      }
-
       const updatedTimeLog = await dbHandler.prisma.timeLog.update({
         where: { id },
         data: {
           ...(updateData.description !== undefined && { description: updateData.description }),
           ...(updateData.date !== undefined && { date: updateData.date }),
-          ...(updateData.startTime !== undefined && { startTime: updateData.startTime }),
-          ...(updateData.endTime !== undefined && { endTime: updateData.endTime }),
-          ...(totalDuration !== undefined && { totalDuration }),
-          ...(updateData.breakDuration !== undefined && { breakDuration: updateData.breakDuration }),
-          ...(hoursSpent !== undefined && { hoursSpent }),
+          ...(updateData.hoursSpent !== undefined && { hoursSpent: updateData.hoursSpent }),
           ...(updateData.taskType !== undefined && { taskType: updateData.taskType }),
-          ...(updateData.isPersonal !== undefined && { isPersonal: updateData.isPersonal })
+          ...(updateData.userName !== undefined && { userName: updateData.userName }),
+          ...(updateData.meetingActionItemId !== undefined && { meetingActionItemId: updateData.meetingActionItemId })
         },
         include: {
           user: {

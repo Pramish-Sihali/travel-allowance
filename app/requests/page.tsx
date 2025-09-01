@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import PageLayout from '@/components/layout/PageLayout';
+import { DashboardLayout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MapPin, Plus, FileText, Clock } from 'lucide-react';
@@ -14,17 +14,19 @@ export default async function RequestsPage() {
     redirect('/');
   }
 
-  const userRole = session.user.role as 'employee' | 'approver' | 'checker' | 'admin';
-
   return (
-    <PageLayout
-      title="Travel Requests"
-      description="Submit and manage your travel requests"
-      headerIcon={<MapPin className="h-6 w-6 text-primary" />}
-      userRole={userRole}
-    >
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <MapPin className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Travel Requests</h1>
+            <p className="text-muted-foreground">Submit and manage your travel requests</p>
+          </div>
+        </div>
+        
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               <Card className="hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -87,7 +89,8 @@ export default async function RequestsPage() {
                   </Button>
                 </CardContent>
               </Card>
+        </div>
       </div>
-    </PageLayout>
+    </DashboardLayout>
   );
 }

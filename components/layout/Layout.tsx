@@ -9,8 +9,10 @@ import Sidebar from './Sidebar';
 import Footer from './Footer';
 import { useSidebar } from './SidebarContext';
 import { cn } from '@/lib/utils';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import ErrorBoundary from '@/components/common/ErrorBoundary';
+import LoadingState from '@/components/common/LoadingState';
 
 interface LayoutProps {
   children: ReactNode;
@@ -52,14 +54,7 @@ export default function Layout({
 
   // Show loading spinner while checking authentication
   if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState fullScreen text="Loading..." />;
   }
 
   // Don't render if auth is required but user is not authenticated
@@ -75,31 +70,45 @@ export default function Layout({
   const userRole = session?.user?.role as 'employee' | 'approver' | 'checker' | 'admin' || 'employee';
 
   return (
-    <div className="min-h-screen bg-background">
-      {showHeader && <Header variant={userRole} />}
-      
-      <div className="flex min-h-screen">
-        {showSidebar && <Sidebar userRole={userRole} />}
+    <ErrorBoundary>
+      <div className="min-h-screen bg-background">
+        {showHeader && <Header variant={userRole} />}
         
-        <main className={cn(
-          "flex-1 transition-all duration-300 ease-in-out",
-          showSidebar && (isCollapsed ? "md:ml-16" : "md:ml-64"),
-          className
-        )}>
-          <div className="flex flex-col min-h-screen">
-            <div className="flex-1 p-4 md:p-6">
-              <div className="max-w-7xl mx-auto">
-                {children}
+        <div className="flex min-h-screen">
+          {showSidebar && <Sidebar userRole={userRole} />}
+          
+          <main className={cn(
+            "flex-1 transition-all duration-300 ease-in-out",
+            showSidebar && (isCollapsed ? "md:ml-16" : "md:ml-64"),
+            className
+          )}>
+            <div className="flex flex-col min-h-screen">
+              <div className="flex-1 p-4 md:p-6">
+                <div className="max-w-7xl mx-auto">
+                  <ErrorBoundary>
+                    {children}
+                  </ErrorBoundary>
+                </div>
               </div>
+              
+              {showFooter && <Footer />}
             </div>
-            
-            {showFooter && <Footer />}
-          </div>
-        </main>
+          </main>
+        </div>
+        
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
+              border: '1px solid hsl(var(--border))',
+            },
+          }}
+        />
       </div>
-      
-      <Toaster />
-    </div>
+    </ErrorBoundary>
   );
 }
 

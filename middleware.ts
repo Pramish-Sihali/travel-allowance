@@ -2,20 +2,28 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-// Define the user role type for type safety
-type UserRole = "employee" | "approver" | "checker" | "admin";
+// Define the user role type based on Prisma enum values
+type UserRole = "EMPLOYEE" | "MANAGER" | "APPROVER" | "CHECKER" | "FINANCE" | "HR_ADMIN" | "ADMIN" | "SUPER_ADMIN";
 
 // A helper function to get the dashboard URL based on role
 function getDashboardByRole(role: UserRole): string {
   switch (role) {
-    case "employee":
-      return "/employee/dashboard";
-    case "approver":
-      return "/approver/dashboard";
-    case "checker":
-      return "/checker/dashboard";
-    case "admin":
-      return "/admin/dashboard";
+    case "EMPLOYEE":
+      return "/dashboard"; // Employee dashboard
+    case "MANAGER":
+      return "/dashboard"; // Manager dashboard
+    case "APPROVER":
+      return "/dashboard"; // Approver dashboard
+    case "CHECKER":
+      return "/dashboard"; // Checker dashboard
+    case "FINANCE":
+      return "/dashboard"; // Finance dashboard
+    case "HR_ADMIN":
+      return "/dashboard"; // HR Admin dashboard
+    case "ADMIN":
+      return "/dashboard"; // Admin dashboard
+    case "SUPER_ADMIN":
+      return "/dashboard"; // Super Admin dashboard
     default:
       return "/";
   }
@@ -59,19 +67,36 @@ export async function middleware(request: NextRequest) {
     // Role-based route protection
     const userRole = token.role as UserRole;
 
-    if (pathname.startsWith("/employee") && userRole !== "employee" && userRole !== "admin") {
+    // Allow all authenticated users to access the main dashboard
+    if (pathname.startsWith("/dashboard")) {
+      return NextResponse.next();
+    }
+
+    // Admin and Super Admin have access to all routes
+    const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+
+    // Route specific protections
+    if (pathname.startsWith("/employee") && userRole !== "EMPLOYEE" && !isAdmin) {
       return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
     }
 
-    if (pathname.startsWith("/approver") && userRole !== "approver" && userRole !== "admin") {
+    if (pathname.startsWith("/approver") && userRole !== "APPROVER" && !isAdmin) {
       return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
     }
 
-    if (pathname.startsWith("/checker") && userRole !== "checker" && userRole !== "admin") {
+    if (pathname.startsWith("/checker") && userRole !== "CHECKER" && !isAdmin) {
       return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
     }
 
-    if (pathname.startsWith("/admin") && userRole !== "admin") {
+    if (pathname.startsWith("/admin") && !isAdmin) {
+      return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
+    }
+
+    if (pathname.startsWith("/hr") && userRole !== "HR_ADMIN" && !isAdmin) {
+      return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
+    }
+
+    if (pathname.startsWith("/finance") && userRole !== "FINANCE" && !isAdmin) {
       return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
     }
 

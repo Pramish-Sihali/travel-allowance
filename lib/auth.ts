@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { supabase } from "@/lib/supabase";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcrypt";
 import type { NextAuthOptions } from "next-auth";
 
 export const authOptions: NextAuthOptions = {
@@ -14,35 +15,40 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         
-        // Get user from Supabase with organization info
-        const { data: user, error } = await supabase
-          .from('users')
-          .select(`
-            *,
-            organizations!users_organization_id_fkey (
-              id,
-              name,
-              slug
-            )
-          `)
-          .eq('email', credentials.email)
-          .single();
-        
-        if (error || !user) return null;
-        
-        // For now, using plaintext password comparison
-        // In production, you should hash passwords
-        if (user.password !== credentials.password) return null;
-        
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          organizationId: user.organizationid,
-          organizationName: user.organizations?.name,
-          organizationSlug: user.organizations?.slug,
-        };
+        try {
+          // Get user from Prisma with organization info
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            include: {
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              }
+            }
+          });
+          
+          if (!user || !user.password) return null;
+          
+          // Compare hashed password
+          const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+          if (!passwordMatch) return null;
+          
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            organizationId: user.organizationId,
+            organizationName: user.organization?.name,
+            organizationSlug: user.organization?.code, // Using code as slug
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
+          return null;
+        }
       }
     })
   ],

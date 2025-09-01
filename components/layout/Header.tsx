@@ -45,8 +45,9 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // COMMENTED OUT FOR NOW - NOTIFICATION FUNCTIONALITY
+  const [notifications] = useState<Notification[]>([]);
+  const [unreadCount] = useState(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Define variant-specific properties with new brand colors
@@ -86,12 +87,15 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
       return () => clearTimeout(timer);
     }
     
+    // COMMENTED OUT FOR NOW - NOTIFICATION FUNCTIONALITY
     // Fetch notifications only once when authenticated
-    if (status === 'authenticated') {
-      fetchNotifications();
-    }
+    // if (status === 'authenticated') {
+    //   fetchNotifications();
+    // }
   }, [session, status]);
 
+  // COMMENTED OUT FOR NOW - NOTIFICATION FUNCTIONALITY
+  /*
   const fetchNotifications = async () => {
     try {
       const response = await fetch('/api/notifications');
@@ -142,6 +146,12 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
       console.error('Error marking all notifications as read:', error);
     }
   };
+  */
+
+  // Dummy handlers for notification functionality (commented out)
+  const handleNotificationClick = () => {};
+  const markNotificationAsRead = () => {};
+  const markAllNotificationsAsRead = () => {};
 
   const formatNotificationTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -214,6 +224,7 @@ export default function Header({ variant = 'employee' }: HeaderProps) {
               </div>
               
               {/* Notifications Dropdown */}
+              {/* COMMENTED OUT FOR NOW - NOTIFICATION FUNCTIONALITY */}
               <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
               <DropdownMenuTrigger asChild>
                 <Button

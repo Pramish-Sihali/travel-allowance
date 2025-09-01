@@ -45,11 +45,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       const response = await fetch('/api/notifications');
       if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
+        const result = await response.json();
+        
+        // Handle the structured API response format
+        if (result.success && result.data) {
+          const notificationsData = result.data.notifications || [];
+          if (Array.isArray(notificationsData)) {
+            setNotifications(notificationsData);
+          } else {
+            console.warn('Notifications data is not an array:', notificationsData);
+            setNotifications([]);
+          }
+        } else if (Array.isArray(result)) {
+          // Handle legacy direct array response
+          setNotifications(result);
+        } else {
+          console.warn('Notifications API returned unexpected format:', result);
+          setNotifications([]);
+        }
+      } else {
+        console.warn('Notifications API returned error status:', response.status);
+        setNotifications([]);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Reset to empty array on error
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +151,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => clearInterval(interval);
   }, [userId, fetchNotifications]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0;
 
   const contextValue: NotificationContextType = {
     notifications,

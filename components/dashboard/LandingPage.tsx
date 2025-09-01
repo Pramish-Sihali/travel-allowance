@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckSquare, Clock, Calendar } from 'lucide-react';
 import Link from 'next/link';
+import { apiWithToast } from '@/lib/api-client-with-toast';
 
 interface Meeting {
   id: string;
@@ -38,26 +39,13 @@ export default function LandingPage({ userRole = 'employee' }: LandingPageProps)
 
   const fetchMeetings = async () => {
     try {
-      const params = new URLSearchParams({
-        myMeetings: 'true',
-        includeActionItems: 'true',
-        page: '1',
-        limit: '10'
+      const response = await apiWithToast.meetings.getAll({
+        myMeetings: true,
+        includeActionItems: true
       });
       
-      const response = await fetch(`/api/meetings?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        
-        let meetingsData = [];
-        // Handle new API response format
-        if (data.success && data.data) {
-          meetingsData = data.data.meetings || [];
-        } else {
-          // Fallback for old format
-          meetingsData = data.meetings || data || [];
-        }
-        
+      if (response.success && response.data) {
+        const meetingsData = response.data.meetings || response.data || [];
         setMeetings(meetingsData);
         
         // Check if user has any follow-up tasks

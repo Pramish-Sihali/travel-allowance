@@ -57,9 +57,19 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
       const today = new Date().toISOString().split('T')[0];
       const response = await fetch(`/api/attendance?employeeId=${userId}&date=${today}`);
       if (response.ok) {
-        const data = await response.json();
-        if (data.length > 0) {
-          setTodayStatus(data[0].status);
+        const result = await response.json();
+        
+        // Handle structured API response
+        let attendanceData = [];
+        if (result.success && result.data && result.data.attendance) {
+          attendanceData = result.data.attendance;
+        } else if (Array.isArray(result)) {
+          // Handle legacy direct array response
+          attendanceData = result;
+        }
+        
+        if (attendanceData.length > 0) {
+          setTodayStatus(attendanceData[0].status);
         }
       }
     } catch (error) {
@@ -108,13 +118,19 @@ export default function AttendancePanel({ userId, userName }: AttendancePanelPro
       });
 
       if (response.ok) {
-        setTodayStatus('present');
-        toast.success("You have been marked present for today.");
-        
-        // Trigger a refresh event for attendance sheet if it's open
-        window.dispatchEvent(new Event('attendanceUpdated'));
+        const result = await response.json();
+        if (result.success !== false) {
+          setTodayStatus('present');
+          toast.success("You have been marked present for today.");
+          
+          // Trigger a refresh event for attendance sheet if it's open
+          window.dispatchEvent(new Event('attendanceUpdated'));
+        } else {
+          throw new Error(result.error || 'Failed to mark attendance');
+        }
       } else {
-        throw new Error('Failed to mark attendance');
+        const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorResult.error || 'Failed to mark attendance');
       }
     } catch (error) {
       console.error('Error marking attendance:', error);

@@ -13,6 +13,9 @@ import { TaskForm } from './TaskForm';
 import { TaskTable } from './TaskTable';
 import { TaskDetails } from './TaskDetails';
 import { Task, Department, TaskStatus, TaskPriority, RagStatus } from '@/types';
+import { apiWithToast } from '@/lib/api-client-with-toast';
+import ErrorBoundary, { LoadingErrorFallback } from '@/components/common/ErrorBoundary';
+import LoadingState, { TableLoadingState } from '@/components/common/LoadingState';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   'Not Started': 'bg-gray-100 text-gray-800 border-gray-200',
@@ -65,34 +68,17 @@ export default function TaskManager() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      const params: any = {};
+      
       if (selectedDepartment !== 'all') {
-        params.append('department', selectedDepartment);
+        params.department = selectedDepartment;
       }
-      params.append('includeActionItems', 'true');
-      params.append('page', '1');
-      params.append('limit', '50');
+
+      const response = await apiWithToast.tasks.getAll(params);
       
-      const url = `/api/tasks?${params.toString()}`;
-      console.log('Fetching tasks from:', url);
-      
-      const response = await fetch(url);
-      console.log('Response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Tasks data received:', data);
-        
-        // Handle new API response format
-        if (data.success && data.data) {
-          setTasks(data.data.tasks || []);
-        } else {
-          // Fallback for old format
-          setTasks(Array.isArray(data) ? data : data.tasks || []);
-        }
+      if (response.success && response.data) {
+        setTasks(response.data.tasks || response.data || []);
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to fetch tasks:', response.status, errorData);
         setTasks([]);
       }
     } catch (error) {
@@ -124,16 +110,12 @@ export default function TaskManager() {
 
   const fetchUserActionItems = async () => {
     try {
-      const response = await fetch('/api/follow-ups/user?userId=' + session?.user?.id);
-      if (response.ok) {
-        const data = await response.json();
-        // Handle new API response format
-        if (data.success && data.data) {
-          setUserActionItems(data.data.actionItems || []);
-        } else {
-          // Fallback for old format
-          setUserActionItems(data.actionItems || data || []);
-        }
+      const response = await apiWithToast.followUps.getForUser(session?.user?.id);
+      
+      if (response.success && response.data) {
+        setUserActionItems(response.data.actionItems || response.data || []);
+      } else {
+        setUserActionItems([]);
       }
     } catch (error) {
       console.error('Error fetching action items:', error);
@@ -224,23 +206,13 @@ export default function TaskManager() {
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading tasks...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <TableLoadingState rows={8} cols={6} />;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Overall Progress Bar */}
+    <ErrorBoundary fallback={LoadingErrorFallback}>
+      <div className="space-y-6">
+        {/* Overall Progress Bar */}
       <Card>
         <CardContent className="p-6">
           <div className="space-y-3">
@@ -559,6 +531,7 @@ export default function TaskManager() {
         }}
       />
 
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

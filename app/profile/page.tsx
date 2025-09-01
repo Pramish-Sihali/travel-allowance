@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
+import { DashboardLayout } from '@/components/layout/Layout';
+import { apiWithToast } from '@/lib/api-client-with-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Building, Calendar, Edit2, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PersonalLogsSection from '@/components/profile/PersonalLogsSection';
@@ -35,7 +34,6 @@ interface LeaveBalance {
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -56,9 +54,10 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch(`/api/user/${session?.user?.id}/profile`);
-      if (response.ok) {
-        const data = await response.json();
+      const response = await apiWithToast.get(`/user/${session?.user?.id}/profile`);
+      
+      if (response.success && response.data) {
+        const data = response.data;
         setProfile(data);
         setEditForm({
           name: data.name || '',
@@ -90,25 +89,22 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/user/${session?.user?.id}/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editForm),
-      });
+      const response = await apiWithToast.patch(
+        `/user/${session?.user?.id}/profile`,
+        editForm,
+        {
+          showSuccessToast: true,
+          successMessage: 'Profile updated successfully',
+          errorMessage: 'Failed to update profile'
+        }
+      );
 
-      if (response.ok) {
-        const updatedProfile = await response.json();
-        setProfile(updatedProfile);
+      if (response.success && response.data) {
+        setProfile(response.data);
         setIsEditing(false);
-        toast.success('Profile updated successfully');
-      } else {
-        throw new Error('Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -133,37 +129,19 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header variant="employee" />
-        <div className="flex">
-          <Sidebar userRole="employee" />
-          <main className="flex-1 md:ml-64 p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="animate-pulse space-y-6">
-                <div className="h-8 bg-muted rounded w-1/3"></div>
-                <div className="h-64 bg-muted rounded"></div>
-                <div className="h-32 bg-muted rounded"></div>
-              </div>
-            </div>
-          </main>
+      <DashboardLayout>
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="h-64 bg-muted rounded"></div>
+          <div className="h-32 bg-muted rounded"></div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant="employee" />
-      
-      <div className="flex">
-        <Sidebar userRole="employee" />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-4xl mx-auto space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
             {/* Page Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -352,9 +330,7 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </main>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

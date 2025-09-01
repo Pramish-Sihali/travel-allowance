@@ -1,156 +1,151 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase';
+import { NextRequest } from 'next/server';
+import { 
+  withAuth, 
+  successResponse, 
+  errorResponse,
+  logApiAction
+} from '@/lib/api-auth';
+import { dbHandler } from '@/lib/db.global';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id || !session?.user?.organizationId) {
-      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
-    }
+// GET /api/attendance - Fetch attendance records
+export const GET = withAuth(
+  async (request, user) => {
+    try {
+      const { searchParams } = request.nextUrl;
+      const employeeId = searchParams.get('employeeId') || user.id;
+      const date = searchParams.get('date');
+      
+      // Check if user can access the requested employee's data
+      if (employeeId !== user.id && !['HR_ADMIN', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'].includes(user.role)) {
+        return errorResponse('Access denied', 403);
+      }
 
-    const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employeeId');
-    const date = searchParams.get('date');
+      const whereClause: any = {
+        employeeId,
+        organizationId: user.organizationId
+      };
 
-    if (!employeeId) {
-      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
-    }
+      if (date) {
+        whereClause.date = date;
+      }
 
-    let query = supabaseAdmin
-      .from('attendance')
-      .select('*')
-      .eq('employeeid', employeeId)
-      .eq('organizationid', session.user.organizationId);
+      const attendance = await dbHandler.prisma.attendanceRecord.findMany({
+        where: whereClause,
+        orderBy: { date: 'desc' },
+        include: {
+          employee: {
+            select: { id: true, name: true, employeeId: true }
+          }
+        }
+      });
 
-    if (date) {
-      query = query.eq('date', date);
-    }
+      await logApiAction(user.id, 'VIEW', 'attendance', undefined, { 
+        targetEmployeeId: employeeId,
+        date
+      });
 
-    const { data, error } = await query.order('date', { ascending: false });
+      return successResponse({
+        attendance: attendance.map(record => ({
+          id: record.id,
+          employeeId: record.employeeId,
+          employeeName: record.employee?.name,
+          date: record.date,
+          status: record.status,
+          leaveType: record.leaveType,
+          leaveReason: record.leaveReason,
+          approver: record.approver,
+          isAdvancedLeave: record.isAdvancedLeave,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt
+        }))
+      });
 
-    if (error) {
+    } catch (error) {
       console.error('Error fetching attendance:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch attendance' },
-        { status: 500 }
-      );
+      return errorResponse('Failed to fetch attendance');
     }
-    
-    const attendance = data.map((row: any) => ({
-      id: row.id,
-      employeeId: row.employeeid,
-      employeeName: row.employeename,
-      date: row.date,
-      status: row.status,
-      leaveType: row.leavetype,
-      leaveReason: row.leavereason,
-      approver: row.approver,
-      isAdvancedLeave: row.isadvancedleave,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat,
-    }));
-
-    return NextResponse.json(attendance);
-  } catch (error) {
-    console.error('Error fetching attendance:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch attendance' },
-      { status: 500 }
-    );
   }
-}
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id || !session?.user?.organizationId) {
-      return NextResponse.json({ error: 'Unauthorized - No organization found' }, { status: 401 });
-    }
+// POST /api/attendance - Record attendance
+export const POST = withAuth(
+  async (request, user) => {
+    try {
+      const body = await request.json();
+      const {
+        employeeId,
+        employeeName,
+        status,
+        date,
+        leaveType,
+        leaveReason,
+        approver,
+        isAdvancedLeave = false
+      } = body;
 
-    const body = await request.json();
-    const {
-      employeeId,
-      employeeName,
-      status,
-      date,
-      leaveType,
-      leaveReason,
-      approver,
-      isAdvancedLeave = false
-    } = body;
-
-    if (!employeeId || !employeeName || !status || !date) {
-      return NextResponse.json(
-        { error: 'Employee ID, name, status, and date are required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if attendance already exists for this date in same organization
-    const { data: existingAttendance } = await supabaseAdmin
-      .from('attendance')
-      .select('id')
-      .eq('employeeid', employeeId)
-      .eq('date', date)
-      .eq('organizationid', session.user.organizationId);
-
-    if (existingAttendance && existingAttendance.length > 0) {
-      // Update existing attendance
-      const { error } = await supabaseAdmin
-        .from('attendance')
-        .update({
-          status,
-          leavetype: leaveType,
-          leavereason: leaveReason,
-          approver,
-          isadvancedleave: isAdvancedLeave,
-          updatedat: new Date().toISOString()
-        })
-        .eq('employeeid', employeeId)
-        .eq('date', date);
-
-      if (error) {
-        console.error('Error updating attendance:', error);
-        return NextResponse.json(
-          { error: 'Failed to update attendance' },
-          { status: 500 }
-        );
+      // Validate required fields
+      if (!employeeId || !employeeName || !status || !date) {
+        return errorResponse('Employee ID, name, status, and date are required', 400);
       }
-    } else {
-      // Create new attendance record
-      const { error } = await supabaseAdmin
-        .from('attendance')
-        .insert([{
-          employeeid: employeeId,
-          employeename: employeeName,
-          status,
+
+      // Convert status to uppercase for enum compatibility
+      const normalizedStatus = status.toUpperCase();
+
+      // Check if user can record attendance for this employee
+      if (employeeId !== user.id && !['HR_ADMIN', 'ADMIN', 'SUPER_ADMIN', 'MANAGER'].includes(user.role)) {
+        return errorResponse('Access denied', 403);
+      }
+
+      // Check if attendance already exists
+      const existingAttendance = await dbHandler.prisma.attendanceRecord.findFirst({
+        where: {
+          employeeId,
           date,
-          leavetype: leaveType,
-          leavereason: leaveReason,
-          approver,
-          isadvancedleave: isAdvancedLeave,
-          organizationid: session.user.organizationId
-        }]);
+          organizationId: user.organizationId
+        }
+      });
 
-      if (error) {
-        console.error('Error inserting attendance:', error);
-        return NextResponse.json(
-          { error: 'Failed to record attendance' },
-          { status: 500 }
-        );
+      if (existingAttendance) {
+        // Update existing record
+        await dbHandler.prisma.attendanceRecord.update({
+          where: { id: existingAttendance.id },
+          data: {
+            status: normalizedStatus,
+            leaveType,
+            leaveReason,
+            approver,
+            isAdvancedLeave,
+            updatedAt: new Date()
+          }
+        });
+
+        await logApiAction(user.id, 'UPDATE', 'attendance', existingAttendance.id);
+      } else {
+        // Create new record
+        await dbHandler.prisma.attendanceRecord.create({
+          data: {
+            employeeId,
+            employeeName,
+            status: normalizedStatus,
+            date,
+            leaveType,
+            leaveReason,
+            approver,
+            isAdvancedLeave,
+            organizationId: user.organizationId
+          }
+        });
+
+        await logApiAction(user.id, 'CREATE', 'attendance');
       }
-    }
 
-    return NextResponse.json({ message: 'Attendance recorded successfully' });
-  } catch (error) {
-    console.error('Error recording attendance:', error);
-    return NextResponse.json(
-      { error: 'Failed to record attendance' },
-      { status: 500 }
-    );
+      return successResponse({ 
+        message: existingAttendance ? 'Attendance updated successfully' : 'Attendance recorded successfully'
+      });
+
+    } catch (error) {
+      console.error('Error recording attendance:', error);
+      return errorResponse('Failed to record attendance');
+    }
   }
-}
+);

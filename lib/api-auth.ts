@@ -224,6 +224,7 @@ export function withOrgScope(
 export function errorResponse(message: string, status: number = 400, details?: any) {
   return NextResponse.json(
     { 
+      success: false,
       error: message, 
       ...(details && { details }) 
     },
@@ -232,8 +233,15 @@ export function errorResponse(message: string, status: number = 400, details?: a
 }
 
 // Utility function for success responses
-export function successResponse(data: any, status: number = 200) {
-  return NextResponse.json(data, { status });
+export function successResponse(data: any, status: number = 200, message?: string) {
+  return NextResponse.json(
+    {
+      success: true,
+      data,
+      ...(message && { message })
+    },
+    { status }
+  );
 }
 
 // Data access utilities

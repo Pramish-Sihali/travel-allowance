@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
+import { DashboardLayout } from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
+import { apiWithToast } from '@/lib/api-client-with-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,14 +87,18 @@ export default function LeaveRequestsPage() {
   const fetchLeaveRequests = async () => {
     try {
       setLoading(true);
-      const endpoint = isEmployee 
-        ? `/api/leave-requests?employeeId=${session?.user?.id}`
-        : '/api/leave-requests';
+      const params: any = {};
       
-      const response = await fetch(endpoint);
-      if (response.ok) {
-        const data = await response.json();
-        setLeaveRequests(data);
+      if (isEmployee) {
+        params.myRequests = true;
+      }
+      
+      const response = await apiWithToast.leaveRequests.getAll(params);
+      
+      if (response.success && response.data) {
+        setLeaveRequests(response.data.leaveRequests || response.data || []);
+      } else {
+        setLeaveRequests([]);
       }
     } catch (error) {
       console.error('Error fetching leave requests:', error);
@@ -107,15 +111,9 @@ export default function LeaveRequestsPage() {
     if (!newRequest.reason.trim()) return;
 
     try {
-      const response = await fetch('/api/leave-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newRequest),
-      });
-
-      if (response.ok) {
+      const response = await apiWithToast.leaveRequests.create(newRequest);
+      
+      if (response.success) {
         fetchLeaveRequests();
         setShowNewRequestDialog(false);
         setNewRequest({
@@ -131,18 +129,9 @@ export default function LeaveRequestsPage() {
 
   const handleLeaveRequestAction = async (requestId: string, status: 'approved' | 'rejected') => {
     try {
-      const response = await fetch('/api/leave-requests', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: requestId,
-          status,
-        }),
-      });
-
-      if (response.ok) {
+      const response = await apiWithToast.leaveRequests.update(requestId, status);
+      
+      if (response.success) {
         fetchLeaveRequests();
       }
     } catch (error) {
@@ -203,36 +192,20 @@ export default function LeaveRequestsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header variant={userRole} />
-        <div className="flex">
-          <Sidebar userRole={userRole} />
-          <main className={cn("flex-1 transition-all duration-200", "md:ml-64", "p-6")}>
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading leave requests...</p>
-              </div>
-            </div>
-          </main>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading leave requests...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header variant={userRole} />
-      
-      <div className="flex">
-        <Sidebar userRole={userRole} />
-        
-        <main className={cn(
-          "flex-1 transition-all duration-200",
-          "md:ml-64",
-          "p-6"
-        )}>
-          <div className="max-w-7xl mx-auto space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
             {/* Page Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between">
@@ -503,9 +476,7 @@ export default function LeaveRequestsPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </main>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

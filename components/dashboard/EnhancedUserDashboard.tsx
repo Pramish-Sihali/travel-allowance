@@ -74,11 +74,25 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
       const today = new Date().toISOString().split('T')[0];
       const response = await fetch(`/api/time-logs?userId=${userId}&date=${today}&personal=false`);
       if (response.ok) {
-        const data = await response.json();
-        setTodaysLogs(data);
+        const result = await response.json();
+        
+        // Handle structured API response
+        if (result.success && result.data) {
+          const timeLogsData = result.data.timeLogs || result.data || [];
+          setTodaysLogs(Array.isArray(timeLogsData) ? timeLogsData : []);
+        } else if (Array.isArray(result)) {
+          // Handle legacy direct array response
+          setTodaysLogs(result);
+        } else {
+          console.warn('Time logs API returned unexpected format:', result);
+          setTodaysLogs([]);
+        }
+      } else {
+        setTodaysLogs([]);
       }
     } catch (error) {
       console.error('Error fetching today\'s logs:', error);
+      setTodaysLogs([]);
     }
   };
 
@@ -86,11 +100,25 @@ export default function EnhancedUserDashboard({ className = "" }: EnhancedUserDa
     try {
       const response = await fetch(`/api/time-logs?userId=${userId}&personal=true&limit=5`);
       if (response.ok) {
-        const data = await response.json();
-        setPersonalLogs(data);
+        const result = await response.json();
+        
+        // Handle structured API response
+        if (result.success && result.data) {
+          const timeLogsData = result.data.timeLogs || result.data || [];
+          setPersonalLogs(Array.isArray(timeLogsData) ? timeLogsData : []);
+        } else if (Array.isArray(result)) {
+          // Handle legacy direct array response
+          setPersonalLogs(result);
+        } else {
+          console.warn('Personal logs API returned unexpected format:', result);
+          setPersonalLogs([]);
+        }
+      } else {
+        setPersonalLogs([]);
       }
     } catch (error) {
       console.error('Error fetching personal logs:', error);
+      setPersonalLogs([]);
     }
   };
 

@@ -42,13 +42,8 @@ export default function LoginForm() {
         return;
       }
 
-      // The middleware will handle the redirect based on user role
-      router.refresh();
-      
-      // Force a reload after a short delay to ensure proper redirect
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Successful login - redirect to dashboard
+      router.push("/dashboard");
     } catch (error) {
       setError("An unexpected error occurred");
       setIsLoading(false);

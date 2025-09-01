@@ -54,7 +54,7 @@ export const GET = withAuth(
       // HR_ADMIN, ADMIN, SUPER_ADMIN can see all tasks (no additional filter)
 
       // Apply filters
-      if (department && department !== 'all') where.department = department;
+      if (department && department !== 'all') where.departmentId = department;
       if (status) where.status = status;
       if (priority) where.priority = priority;
       if (ragStatus) where.ragStatus = ragStatus;
@@ -78,7 +78,7 @@ export const GET = withAuth(
             creator: {
               select: { id: true, name: true, employeeId: true }
             },
-            department_relation: {
+            department: {
               select: { id: true, name: true }
             },
             actionItems: {
@@ -138,7 +138,7 @@ export const GET = withAuth(
       // Transform tasks with computed fields
       const transformedTasks = tasks.map(task => {
         const actionItems = task.actionItems || [];
-        const completedItems = actionItems.filter(item => item.isCompleted);
+        const completedItems = actionItems.filter(item => item.status === 'COMPLETED');
         const isOverdue = task.dueDate && 
           new Date(task.dueDate) < new Date() && 
           task.status !== 'COMPLETED';
@@ -147,8 +147,8 @@ export const GET = withAuth(
           id: task.id,
           title: task.title,
           description: task.description,
-          department: task.department,
-          departmentName: task.department_relation?.name || task.department,
+          departmentId: task.departmentId,
+          departmentName: task.department?.name || task.departmentName,
           assignedTo: task.assignedTo,
           assignedUserIds: task.assignedUserIds,
           status: task.status,
@@ -169,7 +169,6 @@ export const GET = withAuth(
           updatedAt: task.updatedAt,
           
           // Computed fields
-          totalHoursSpent: task.totalHoursSpent,
           actionItemsCount: actionItems.length,
           completedActionItems: completedItems.length,
           completionPercentage: actionItems.length > 0 ? 
@@ -182,15 +181,15 @@ export const GET = withAuth(
           actionItems: actionItems.map(item => ({
             id: item.id,
             serialNo: item.serialNo,
+            title: item.title,
             description: item.description,
             assignedToId: item.assignedToId,
             assignedToName: item.assignedToName,
             assignee: item.assignee,
             dueDate: item.dueDate,
             priority: item.priority,
-            isCompleted: item.isCompleted,
-            completedAt: item.completedAt,
-            notes: item.notes,
+            status: item.status,
+            remarks: item.remarks,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt
           }))
@@ -232,7 +231,6 @@ export const GET = withAuth(
         meetingTitle: item.meeting?.title,
         
         // Computed fields
-        totalHoursSpent: 0,
         actionItemsCount: 0,
         completedActionItems: 0,
         completionPercentage: item.isDone ? 100 : 0,
@@ -251,10 +249,11 @@ export const GET = withAuth(
         regularTasks: totalCount,
         meetingActionItems: meetingActionItems.length,
         byStatus: {
-          pending: allTasks.filter(t => t.status === 'PENDING').length,
+          notStarted: allTasks.filter(t => t.status === 'NOT_STARTED').length,
           inProgress: allTasks.filter(t => t.status === 'IN_PROGRESS').length,
           completed: allTasks.filter(t => t.status === 'COMPLETED').length,
-          onHold: allTasks.filter(t => t.status === 'ON_HOLD').length
+          onHold: allTasks.filter(t => t.status === 'ON_HOLD').length,
+          cancelled: allTasks.filter(t => t.status === 'CANCELLED').length
         },
         byPriority: {
           critical: allTasks.filter(t => t.priority === 'CRITICAL').length,
@@ -308,8 +307,8 @@ export const POST = withAuth(
       const body = await request.json();
       
       // Validate required fields
-      if (!body.title || !body.department) {
-        return errorResponse('Title and department are required', 400);
+      if (!body.title || !body.departmentId) {
+        return errorResponse('Title and departmentId are required', 400);
       }
 
       const newTask = await dbHandler.prisma.$transaction(async (tx) => {
@@ -318,10 +317,11 @@ export const POST = withAuth(
           data: {
             title: body.title,
             description: body.description || '',
-            department: body.department,
+            departmentId: body.departmentId,
+            departmentName: body.departmentName || '',
             assignedTo: body.assignedTo || [],
             assignedUserIds: body.assignedUserIds || [],
-            status: body.status || 'PENDING',
+            status: body.status || 'NOT_STARTED',
             priority: body.priority || 'MEDIUM',
             ragStatus: body.ragStatus || 'UNRATED',
             dueDate: body.dueDate || null,
@@ -339,7 +339,7 @@ export const POST = withAuth(
             creator: {
               select: { id: true, name: true, employeeId: true }
             },
-            department_relation: {
+            department: {
               select: { id: true, name: true }
             }
           }
@@ -351,12 +351,15 @@ export const POST = withAuth(
             taskId: task.id,
             organizationId: user.organizationId,
             serialNo: item.serialNo || (index + 1),
-            description: item.description,
+            title: item.title || `Action Item ${index + 1}`,
+            description: item.description || '',
             assignedToId: item.assignedToId,
             assignedToName: item.assignedToName,
             dueDate: item.dueDate,
             priority: item.priority || 'MEDIUM',
-            notes: item.notes
+            status: item.status || 'NOT_STARTED',
+            remarks: item.remarks || '',
+            createdBy: user.id
           }));
 
           await tx.taskActionItem.createMany({
