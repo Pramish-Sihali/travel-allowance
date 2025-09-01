@@ -155,9 +155,9 @@ export async function canAccessUserData(
 export function withAuth(handler: (
   request: NextRequest,
   user: AuthenticatedUser,
-  params?: any
+  context: { params: any }
 ) => Promise<NextResponse>) {
-  return async (request: NextRequest, { params }: { params?: any } = {}) => {
+  return async (request: NextRequest, context: { params: any }) => {
     try {
       const user = await authenticate(request);
       
@@ -168,7 +168,7 @@ export function withAuth(handler: (
         );
       }
 
-      return await handler(request, user, params);
+      return await handler(request, user, context);
     } catch (error) {
       console.error('API error:', error);
       return NextResponse.json(
@@ -185,10 +185,10 @@ export function withRoles(
   handler: (
     request: NextRequest,
     user: AuthenticatedUser,
-    params?: any
+    context: { params: any }
   ) => Promise<NextResponse>
 ) {
-  return withAuth(async (request: NextRequest, user: AuthenticatedUser, params?: any) => {
+  return withAuth(async (request: NextRequest, user: AuthenticatedUser, context: { params: any }) => {
     if (!hasPermission(user.role, requiredPermissions)) {
       return NextResponse.json(
         { 
@@ -200,7 +200,7 @@ export function withRoles(
       );
     }
 
-    return await handler(request, user, params);
+    return await handler(request, user, context);
   });
 }
 
@@ -210,13 +210,13 @@ export function withOrgScope(
   handler: (
     request: NextRequest,
     user: AuthenticatedUser,
-    params?: any
+    context: { params: any }
   ) => Promise<NextResponse>
 ) {
-  return withRoles(requiredPermissions, async (request: NextRequest, user: AuthenticatedUser, params?: any) => {
+  return withRoles(requiredPermissions, async (request: NextRequest, user: AuthenticatedUser, context: { params: any }) => {
     // Add organization filter to all queries
     request.nextUrl.searchParams.set('_orgId', user.organizationId);
-    return await handler(request, user, params);
+    return await handler(request, user, context);
   });
 }
 
